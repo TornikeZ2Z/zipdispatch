@@ -570,6 +570,29 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .gsizes{display:flex;gap:7px}
 .gsizes button{border:1.5px solid var(--line2);background:var(--card);border-radius:8px;font-family:'Inter';font-weight:600;font-size:12.5px;padding:7px 9px;cursor:pointer}
 .gsizes button.on{border-color:var(--fleet);background:var(--fleet-bg)}
+#addjob{border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet);border-radius:10px;font-family:'Inter';font-weight:800;font-size:14px;padding:9px 15px;cursor:pointer}
+#addjob:hover{border-color:var(--fleet)}
+.ajform{display:grid;grid-template-columns:120px 1fr 120px 1fr;gap:10px 12px;align-items:center;margin-top:12px}
+.ajform label{font-size:12.5px;font-weight:600;color:var(--dim)}
+.ajform input{border:1.5px solid var(--line2);border-radius:8px;padding:8px 10px;font-family:'Inter';font-size:14px;width:100%}
+.ajrow{display:flex;align-items:center;gap:9px}
+.ajasap{font-size:12.5px;color:var(--dim);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.ajerr{display:none;color:#9A3E1D;font-weight:600;font-size:13.5px;margin-top:10px}
+.ajerr:not(:empty){display:block}
+.ajopt{display:flex;align-items:center;gap:13px;border:1.5px solid var(--line2);border-radius:12px;padding:12px 14px;margin-top:10px}
+.ajopt:first-of-type{border-color:var(--fleet-bd);background:var(--fleet-bg)}
+.ajrank{font-family:'Barlow Condensed';font-size:24px;font-weight:700;color:var(--dim);min-width:22px}
+.ajbody{flex:1;font-size:14px;line-height:1.55}
+.ajmeta{font-size:13px;color:var(--dim);margin-top:3px}
+.ajmeta .lt{color:#9A3E1D}
+.ajtag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;margin-left:4px}
+.ajtag.warn{background:#FBEFEA;color:#9A3E1D;border:1px solid #EBCDC2}
+.ajtag.ok{background:var(--fleet-bg);color:var(--fleet);border:1px solid var(--fleet-bd)}
+.gghost{border:1.5px solid var(--line2);background:none;border-radius:10px;font-family:'Inter';font-weight:700;font-size:13.5px;padding:10px 15px;cursor:pointer;color:var(--dim)}
+.gghost:hover{border-color:var(--ink);color:var(--ink)}
+.chip.draft{background:#FFF4D6;border:1px solid #EBD79A;color:#7A5B12;font-weight:700}
+.chip.draft.rm{cursor:pointer}
+.chip.draft.rm:hover{border-color:#9A3E1D;color:#9A3E1D}
 </style>
 </head>
 <body>
@@ -607,7 +630,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
       <button id="allmapbtn" class="vbtn" title="Every job leg on one map">🗺 Map</button>
       <button id="alljobsbtn" class="vbtn" title="Every imported job in one table — with data-quality checks">☰ Jobs table</button>
       <button id="timelinebtn" class="vbtn" title="The whole day as rows of time blocks — every foreman or truck at a glance">📊 Timeline</button>
-      <button id="addjob" title="A sudden new job or an extra A→B run — add it, and the engine advises who can take it">＋ Add job</button>
+      <button id="addjob" title="A sudden new job or an extra A→B trip — add it and get instant placement advice">＋ Add job</button>
       <button id="resetov" title="Undo every manual change you made today">Reset changes</button>
     </div>
     <div id="filterbar">
@@ -1415,6 +1438,7 @@ function cardHTML(r){
       const dest=r.hasCarrier?[...r.legs].filter(l=>l._carrier).map(l=>l.cityTo+(l.stateTo?', '+l.stateTo:'')).join(' / '):'';
       return '<span class="chip tjob">'+(typeEmojiJT(jt)?typeEmojiJT(jt)+' ':'')+esc(jt)+(dest?' · carrier → '+esc(dest):'')+'</span>';
     })(),
+    r.legs.some(l=>l._draft)?'<span class="chip draft">📝 draft — board only, push via Update calendar</span><span class="chip draft rm rmdraft" data-codes="'+esc(r.legs.filter(l=>l._draft).map(l=>l.code).join(','))+'">🗑 remove draft</span>':'',
     r._calSynced?chip('calendar updated ✓',''):'',
     r.piano?chip('piano'):'',
     r.baseOverride?chip('base set manually','ov'):'',
@@ -2384,6 +2408,163 @@ function pairTruckModal(f){
   });
 }
 let RENTSEQ=1;
+let DRAFTSEQ=1;
+const TRAVELH=(a,b)=>(a&&b)?hav(a,b)/35*1.15:0;
+function hhmm(ms){return new Date(ms).toTimeString().slice(0,5);}
+function addJobModal(){
+  const codes=(DATA.days[currentDay]||[]).map(j=>j.code);
+  const m=gModal('＋ Add a job — sudden work, extra A→B, anything not in the calendar yet',
+    '<div class="gsub">Fill what you know — the advisor instantly shows who can take it. It lives on the board as a <b>draft</b>; push it to Google Calendar with the Update button when ready.</div>'
+    +'<div class="ajform">'
+    +'<label>Customer</label><input id="ajcu" placeholder="Name">'
+    +'<label>Job Code</label><input id="ajco" value="NEW-'+String(DRAFTSEQ).padStart(3,'0')+'">'
+    +'<label>Date</label><input id="ajdt" type="date" value="'+currentDay+'">'
+    +'<label>Start</label><div class="ajrow"><input id="ajst" type="time" value="13:00"><label class="ajasap"><input type="checkbox" id="ajasap"> ASAP — earliest possible</label></div>'
+    +'<label>Pickup address</label><input id="ajpa" placeholder="street, city, ST zip — zip is what matters">'
+    +'<label>Delivery address</label><input id="ajda" placeholder="street, city, ST zip (optional for labor-only)">'
+    +'<label>Total CF</label><input id="ajcf" type="number" value="500">'
+    +'<label>Crew Size</label><input id="ajcr" type="number" value="2">'
+    +'<label>ACT Time (h)</label><input id="ajact" type="number" step="0.5" value="3">'
+    +'<label>Trucks / Vans</label><div class="ajrow"><input id="ajtq" type="number" value="1" style="width:70px"> / <input id="ajvq" type="number" value="0" style="width:70px"></div>'
+    +'<label>Packing $</label><input id="ajpk" type="number" value="0">'
+    +'<label>Moving Type</label><select id="ajmt" class="gselect"><option>Local Moving</option><option>Long Distance Moving</option></select>'
+    +'<label>Job Type</label><select id="ajjt" class="gselect"><option>Standard</option><option>Flat Rate</option><option>Labor Work</option><option>Regular Moving</option><option>Straight Moving</option></select>'
+    +'<label>After Job Code</label><input id="ajaf" list="ajcodes" placeholder="chain-sold? type the code"><datalist id="ajcodes">'+codes.map(c=>'<option>'+esc(c)+'</option>').join('')+'</datalist>'
+    +'</div>'
+    +'<div id="ajerr" class="ajerr"></div>'
+    +'<div style="margin-top:13px;display:flex;gap:10px"><button class="gapply" id="ajgo">Find placements →</button></div>');
+  m.querySelector('#ajasap').addEventListener('change',e=>{m.querySelector('#ajst').disabled=e.target.checked;});
+  m.querySelector('#ajgo').addEventListener('click',()=>{
+    const err=s=>{m.querySelector('#ajerr').textContent=s;};
+    const pa=m.querySelector('#ajpa').value.trim();
+    const pz=zgeoJS(zipFromAddr(pa));
+    if(!pz)return err('Pickup needs a recognizable zip code — e.g. "Freehold, NJ 07728".');
+    const da=m.querySelector('#ajda').value.trim();
+    const dz=da?zgeoJS(zipFromAddr(da)):null;
+    if(da&&!dz)return err('Delivery address has no recognizable zip — fix it or leave it empty.');
+    const cf=+m.querySelector('#ajcf').value||0;
+    if(cf<=0)return err('Total CF must be above zero.');
+    const day=m.querySelector('#ajdt').value||currentDay;
+    const asap=m.querySelector('#ajasap').checked;
+    const stv=m.querySelector('#ajst').value||'13:00';
+    const jt=m.querySelector('#ajjt').value;
+    const job={
+      eventId:null,_draft:true,first:true,base:null,
+      code:(m.querySelector('#ajco').value.trim()||('NEW-'+DRAFTSEQ)).toUpperCase(),
+      customer:m.querySelector('#ajcu').value.trim()||'Walk-in job',
+      after:(m.querySelector('#ajaf').value.trim()||null),
+      pickup:pz,delivery:dz,pickupAddr:pa,deliveryAddr:da,
+      cityFrom:pz.city,cityTo:dz?dz.city:'?',stateFrom:pz.state,stateTo:dz?dz.state:'',
+      cf,crew:Math.max(+m.querySelector('#ajcr').value||2,2),
+      trucksQ:+m.querySelector('#ajtq').value||1,vansQ:+m.querySelector('#ajvq').value||0,
+      movingType:m.querySelector('#ajmt').value,jobType:jt,
+      straight:/straight/i.test(jt),
+      packing:+m.querySelector('#ajpk').value||0,
+      actH:+m.querySelector('#ajact').value||3,
+      mf:null,mt:null,piano:false,rescheduled:false,
+      start:day+' '+stv,end:null,_asap:asap
+    };
+    DRAFTSEQ++;
+    if((DATA.days[day]||[]).some(j=>j.code===job.code))return err('Job code '+job.code+' already exists on '+day+' — pick another.');
+    m.classList.remove('show');
+    if(day!==currentDay)switchDay(day);
+    adviseModal(job);
+  });
+}
+function findPlacements(job){
+  const startSched=Date.parse(job.start.replace(' ','T'));
+  const asap=job._asap;
+  const nowMs=(currentDay===TODAY_ISO)?(Date.now()+30*60000):Date.parse(currentDay+'T08:00');
+  const dur=h=>h*3600000;
+  const jobWork=dur(job.actH)+(job.delivery?dur(TRAVELH(job.pickup,job.delivery)):0);
+  const endLocOf=j=>(j.delivery&&INREGION(j.delivery))?j.delivery:j.pickup;
+  const opts=[];
+  // chains onto existing routes (covers busy + early-finishing foremen)
+  for(const r of routes){
+    if(!r.foreman||r.ldDeparture)continue;
+    const headEndMs=Math.max(...r.legs.map(l=>l._endMs||Date.parse(l.end||l.start)));
+    const headLoc=endLocOf([...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start))[r.legs.length-1]);
+    const arrive=headEndMs+dur(TRAVELH(headLoc,job.pickup))+30*60000;
+    const pickupAt=asap?Math.max(arrive,nowMs):startSched;
+    if(!asap&&arrive>startSched)continue;            // can't make it in time
+    if(pickupAt-r.t0<3*3600000)continue;             // 3-hour company rule
+    if(job.crew>r.crew)continue;                     // can't grow a crew mid-day
+    const v=(r.vehicles||[])[0];
+    const vcf=v?(v.kind==='fleet'?v.t.cf:(v.sz==='26 ft'?1700:1100)):0;
+    if(vcf<job.cf)continue;                          // their wheels must fit the load
+    const backAt=pickupAt+jobWork+dur(TRAVELH(job.delivery&&INREGION(job.delivery)?job.delivery:job.pickup,DATA.bases[r.base]));
+    opts.push({kind:'chain',r,f:r.foreman,pickupAt,backAt,cost:0,
+      truckTxt:v?(v.kind==='fleet'?('their truck '+v.t.n):'their rental '+v.sz):'their vehicle',
+      mi:Math.round(hav(headLoc,job.pickup)),
+      head:r.legs[r.legs.length-1]});
+  }
+  // fresh routes with free foremen
+  const usedTrucks=new Set();routes.forEach(r=>(r.vehicles||[]).forEach(v=>{if(v.kind==='fleet')usedTrucks.add(v.t.n);}));
+  const H=DATA.holders||{};
+  for(const x of BENCH.foremen){
+    const f=x.f;
+    const baseLoc=DATA.bases[f.base];
+    if(!baseLoc)continue;
+    const arrive=nowMs+dur(TRAVELH(baseLoc,job.pickup));
+    const pickupAt=asap?arrive:startSched;
+    if(!asap&&nowMs+dur(TRAVELH(baseLoc,job.pickup))>startSched&&currentDay===TODAY_ISO)continue;
+    const held=Object.keys(H).find(tn=>H[tn]===f.name);
+    let tk=held?DATA.trucks.find(k=>k.n===held&&k.status==='Active'&&!usedTrucks.has(k.n)):null;
+    if(!tk)tk=DATA.trucks.filter(k=>k.status==='Active'&&k.state===f.base&&!usedTrucks.has(k.n)&&!(H[k.n]&&H[k.n]!==f.name)&&k.cf>=job.cf&&k.maxCrew>=job.crew).sort((a,b)=>a.cf-b.cf)[0];
+    const rental=!tk;
+    const crossBase=nearestBaseTo(job.pickup)!==f.base;
+    const backAt=pickupAt+jobWork+dur(TRAVELH(job.delivery&&INREGION(job.delivery)?job.delivery:job.pickup,baseLoc));
+    opts.push({kind:'fresh',f,pickupAt,backAt,cost:(rental?1:0)+(crossBase?1:0),
+      truckTxt:tk?('truck '+tk.n+' · '+tk.cf.toLocaleString()+' CF'):('rental '+(job.cf>RENTAL20_CF?'26 ft':'20 ft')+' — no fitting '+f.base+' truck free'),
+      rental,crossBase,tk,
+      mi:Math.round(hav(baseLoc,job.pickup))});
+  }
+  opts.sort((a,b)=>(a.pickupAt-b.pickupAt)||(a.cost-b.cost)||((a.kind==='chain'?0:1)-(b.kind==='chain'?0:1)));
+  return opts.slice(0,6);
+}
+function nearestBaseTo(loc){
+  let best=null,bd=1e9;
+  for(const [n,b] of Object.entries(DATA.bases)){const d=hav(loc,b);if(d<bd){bd=d;best=n;}}
+  return best;
+}
+function adviseModal(job){
+  const opts=findPlacements(job);
+  const lateNote=o=>o.backAt&&new Date(o.backAt).getDate()!==new Date(o.pickupAt).getDate()?' <b class="lt">→ next day</b>':(new Date(o.backAt).getHours()>=22?' <b class="lt">late</b>':'');
+  const body=opts.length?opts.map((o,i)=>{
+    const head=o.kind==='chain'
+      ?('🔗 <b>Chain after '+o.r.id+'</b> — '+esc(o.f.nick)+' finishes '+esc(o.head.cityTo||o.head.cityFrom)+' ~'+hhmm(Math.max(...o.r.legs.map(l=>l._endMs||Date.parse(l.end||l.start))))+', '+o.mi+' mi away')
+      :('👷 <b>Fresh route</b> — '+esc(o.f.nick)+' is free at '+esc(o.f.base)+' base, '+o.mi+' mi out');
+    const tags=[(o.rental?'<span class="ajtag warn">rental</span>':''),(o.crossBase?'<span class="ajtag warn">cross-base</span>':''),(o.kind==='chain'?'<span class="ajtag ok">same crew & wheels</span>':'')].join('');
+    return '<div class="ajopt"><div class="ajrank">'+(i+1)+'</div><div class="ajbody"><div>'+head+'</div>'
+      +'<div class="ajmeta">pickup <b>~'+hhmm(o.pickupAt)+'</b> · '+esc(o.truckTxt)+' · back at base <b>~'+hhmm(o.backAt)+'</b>'+lateNote(o)+' '+tags+'</div></div>'
+      +'<button class="gapply ajpick" data-i="'+i+'">Apply</button></div>';
+  }).join(''):'<div class="ajerr" style="display:block">⚠ Nobody can realistically take this '+(job._asap?'today':'at '+job.start.slice(11))+' — every chain arrives too late or breaks the 3-hour rule, and no foreman is free. Try ASAP mode, a later time, or add it unassigned and rework the board.</div>';
+  const m=gModal('Who can take '+esc(job.code)+' — '+esc(job.cityFrom)+(job.delivery?' → '+esc(job.cityTo):'')+', '+job.cf.toLocaleString()+' CF',
+    '<div class="gsub">Ranked by <b>soonest pickup</b>, then cost (rentals / cross-base), then disruption — chains reuse a crew already out there.</div>'
+    +body
+    +'<div style="margin-top:13px;display:flex;gap:10px"><button id="ajun" class="gghost">Add unassigned — let the engine decide</button></div>');
+  m.querySelectorAll('.ajpick').forEach(b=>b.addEventListener('click',()=>{applyPlacement(job,opts[+b.dataset.i]);m.classList.remove('show');}));
+  m.querySelector('#ajun').addEventListener('click',()=>{applyPlacement(job,null);m.classList.remove('show');});
+}
+function applyPlacement(job,opt){
+  const day=job.start.slice(0,10);
+  if(opt){
+    job.start=day+' '+hhmm(opt.pickupAt);
+    if(opt.kind==='chain'){
+      job.after=opt.head.code;
+      job.mf=opt.f.nick;
+    } else {
+      job.mf=opt.f.nick;
+      if(opt.tk)job.mt=String(opt.tk.n);
+    }
+  }
+  job.end=null;
+  job.idx=(DATA.days[day]=DATA.days[day]||[]).length;
+  DATA.days[day].push(job);
+  if(day===currentDay){DATA.jobs=DATA.days[day];}
+  rebuildRoutes();render();updateCalBtn();
+  toast('📝 '+job.code+' added as a draft'+(opt?(' — '+(opt.kind==='chain'?('chained after '+opt.r.id+' with '+opt.f.nick):('new route for '+opt.f.nick))):' — engine will place it')+'. Push it to the calendar with 🗓 Update calendar.');
+}
 function addTruckModal(){
   const m=gModal('Add a rented truck','<div class="gsub">Goes into the base fleet immediately — no penalty, used whenever it fits. Saved to the <b>Rented Trucks</b> sheet tab so the whole team sees it.</div>'
     +'<div class="gform">'
@@ -2407,155 +2588,6 @@ function addTruckModal(){
     m.classList.remove('show');
     rebuildRoutes();render();
   });
-}
-let NEWSEQ=1;
-function addJobModal(){
-  const codes=(DATA.days[currentDay]||[]).map(j=>j.code);
-  const m=gModal('＋ Add a job — draft on the board, pushed to the calendar when you say so',
-    '<div class="gform aj2">'
-    +'<label>Customer</label><input id="ajcust" placeholder="Jane Doe">'
-    +'<label>Job Code</label><input id="ajcode" placeholder="auto: NEW-'+NEWSEQ+'">'
-    +'<label>Date</label><input id="ajdate" type="date" value="'+currentDay+'">'
-    +'<label>Start time</label><input id="ajtime" type="time" value="09:00">'
-    +'<label>Pickup address</label><input id="ajpu" placeholder="140 Main St, Trenton NJ 08628">'
-    +'<label>Delivery address</label><input id="ajde" placeholder="55 Oak Ave, Newark NJ 07102">'
-    +'<label>Total CF</label><input id="ajcf" type="number" placeholder="800">'
-    +'<label>Crew Size</label><input id="ajcrew" type="number" placeholder="auto from CF">'
-    +'<label>ACT Time (h)</label><input id="ajact" type="number" step="0.5" placeholder="auto from CF">'
-    +'<label>Trucks / Vans</label><div style="display:flex;gap:8px"><input id="ajtq" type="number" value="1" style="width:70px"> / <input id="ajvq" type="number" value="0" style="width:70px"></div>'
-    +'<label>Packing $</label><input id="ajpk" type="number" placeholder="0">'
-    +'<label>Moving Type</label><select id="ajmt" class="gselect"><option>Local Moving</option><option>Long Distance Moving</option></select>'
-    +'<label>Job Type</label><select id="ajjt" class="gselect"><option>Standard</option><option>Flat Rate</option><option>Labor Work</option><option>Regular Moving</option><option>Straight Moving</option></select>'
-    +'<label>After Job Code</label><input id="ajaft" list="ajcodes" placeholder="(optional — sold as chained)"><datalist id="ajcodes">'+codes.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>'
-    +'</div><div id="ajerr" class="ajerr"></div>'
-    +'<div style="margin-top:12px"><button class="gapply" id="ajok">Add &amp; advise</button></div>');
-  m.querySelector('#ajok').addEventListener('click',()=>{
-    const v=id=>m.querySelector('#'+id).value.trim();
-    const err=msg=>{m.querySelector('#ajerr').innerHTML='⚠ '+msg;};
-    const puA=v('ajpu'),deA=v('ajde');
-    const puZ=zipFromAddr(puA),deZ=zipFromAddr(deA);
-    if(!puZ)return err('Pickup address needs a 5-digit zip.');
-    if(!deZ)return err('Delivery address needs a 5-digit zip.');
-    const pu=zgeoJS(puZ),de=zgeoJS(deZ);
-    if(!pu)return err('Pickup zip '+puZ+' is not in the zip database — double-check it.');
-    if(!de)return err('Delivery zip '+deZ+' is not in the zip database — double-check it.');
-    const cf=+v('ajcf')||0;
-    if(!cf)return err('Total CF is required — the engine sizes the truck with it.');
-    const date=v('ajdate'),time=v('ajtime')||'09:00';
-    if(!date)return err('Pick a date.');
-    const crew=+v('ajcrew')||(cf<=600?2:cf<=1200?3:cf<=1800?4:5);
-    const actH=+v('ajact')||Math.max(2,Math.round(cf/275*2)/2);
-    const code=v('ajcode')||('NEW-'+(NEWSEQ++));
-    if((DATA.days[date]||[]).some(j=>j.code===code))return err('Job code '+code+' already exists on '+date+'.');
-    const start=date+' '+time;
-    const endD=new Date(Date.parse(start)+actH*3600000);
-    const job={
-      code,customer:v('ajcust')||'Walk-in job',start,
-      end:date+' '+endD.toTimeString().slice(0,5),
-      pickupAddr:puA,deliveryAddr:deA,
-      pickup:pu,delivery:de,
-      cityFrom:pu.city,cityTo:de.city,stateFrom:pu.state,stateTo:de.state,
-      cf,crew,actH,trucksQ:+v('ajtq')||1,vansQ:+v('ajvq')||0,
-      packing:+v('ajpk')||0,
-      movingType:v('ajmt'),jobType:v('ajjt'),
-      after:v('ajaft')||null,mf:null,mt:null,eventId:null,_draft:true
-    };
-    job.idx=(DATA.days[date]=DATA.days[date]||[]).length;
-    DATA.days[date].push(job);
-    m.classList.remove('show');
-    if(date!==currentDay){switchDay(date);}else{DATA.jobs=DATA.days[currentDay];rebuildRoutes();render();}
-    populateDays();
-    adviseJob(job);
-  });
-}
-function adviseJob(job){
-  const jobStart=Date.parse(job.start);
-  const mine=routes.find(r=>r.legs.some(l=>l.code===job.code));
-  const travelMs=(a,b)=>hav(a,b)/35*3600000*1.15;
-  const fmtT=ms=>new Date(ms).toTimeString().slice(0,5);
-  const opts=[];
-  if(mine&&mine.foreman&&mine.legs.length>1){
-    opts.push({kind:'engine',eta:jobStart,cost:0,dis:0,applied:true,
-      head:'⛓ Chained by the engine — '+esc(mine.foreman.nick)+' takes it after '+esc(mine.legs[0].code),
-      sub:mine.id+' · '+esc(routeVehText(mine))+' · back at base ~'+(backAtBaseMs(mine)?fmtT(backAtBaseMs(mine)):'—')});
-  } else if(mine&&mine.foreman){
-    opts.push({kind:'engine',eta:jobStart,cost:mine.rentals?1:0,dis:0,applied:true,
-      head:'✅ Engine pick — '+esc(mine.foreman.nick)+' takes it as a fresh route',
-      sub:mine.id+' · '+esc(mine.base)+' base · '+esc(routeVehText(mine))+' · back ~'+(backAtBaseMs(mine)?fmtT(backAtBaseMs(mine)):'—')});
-  } else {
-    opts.push({kind:'none',eta:Infinity,cost:9,dis:9,applied:true,
-      head:'⚠ The engine could not assign it cleanly',sub:'every foreman is committed — see the alternatives below'});
-  }
-  for(const R of routes){
-    if(!R.foreman||R.ldDeparture||R===mine)continue;
-    if(R.legs.some(l=>l.code===job.code))continue;
-    const sl=[...R.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
-    const lastL=sl[sl.length-1];
-    const endLoc=(lastL.delivery&&INREGION(lastL.delivery))?lastL.delivery:lastL.pickup;
-    if(!endLoc)continue;
-    const endMs=Math.max(...sl.map(l=>l._endMs||Date.parse(l.end||l.start)));
-    const eta=endMs+travelMs(endLoc,job.pickup)+15*60000;
-    const feas=eta<=jobStart+10*60000&&(jobStart-R.t0)>=3*3600000;
-    const fv=(R.vehicles||[])[0];
-    const vcf=fv?(fv.kind==='fleet'?fv.t.cf:(/26/.test(fv.sz)?1700:1100)):0;
-    const vcrew=fv&&fv.kind==='fleet'?fv.t.maxCrew:3;
-    if(!feas||vcf<job.cf||vcrew<job.crew)continue;
-    opts.push({kind:'chain',R,eta,cost:0,dis:0,
-      head:'🔗 Chain onto '+R.id+' — '+esc(R.foreman.nick)+' finishes '+esc((lastL.delivery&&INREGION(lastL.delivery))?(lastL.cityTo||lastL.cityFrom):lastL.cityFrom)+' ~'+fmtT(endMs),
-      sub:Math.round(hav(endLoc,job.pickup))+' mi away · can be at the pickup ~'+fmtT(eta)+' · same crew &amp; '+esc(routeVehText(R))});
-  }
-  const busyNames=new Set(routes.filter(r=>r.foreman).map(r=>r.foreman.name));
-  for(const f of DATA.foremen){
-    if(f.status!=='Active'||busyNames.has(f.name)||isOff(f.name))continue;
-    const bn=nearestBaseName(job);
-    const b=DATA.bases[bn];
-    const tmv=travelMs(b,job.pickup);
-    const truck=DATA.trucks.find(k=>k.status==='Active'&&k.state===bn&&k.cf>=job.cf&&k.maxCrew>=job.crew&&!routes.some(r2=>(r2.vehicles||[]).some(v=>v.kind==='fleet'&&v.t.n===k.n)));
-    const cost=(truck?0:1)+(f.base!==bn?1:0);
-    opts.push({kind:'fresh',f,eta:jobStart,cost,dis:0,trv:tmv,
-      head:'👷 '+esc(f.nick)+' is free — fresh route from '+esc(bn),
-      sub:'leave base ~'+fmtT(jobStart-tmv-15*60000)+' ('+Math.round(hav(b,job.pickup))+' mi)'+(truck?' · truck '+esc(truck.n)+' fits':' · no fitting '+bn+' truck free — rental needed')+(f.base!==bn?' · travels from '+esc(f.base):'')});
-  }
-  for(const R of routes){
-    if(!R.foreman||R===mine||R.ldDeparture)continue;
-    const back=backAtBaseMs(R);
-    if(back==null)continue;
-    const b=DATA.bases[R.base];
-    const eta=back+travelMs(b,job.pickup)+20*60000;
-    if(eta>jobStart+10*60000)continue;
-    if((jobStart-R.t0)<3*3600000)continue;
-    if(opts.some(o=>o.kind==='chain'&&o.R===R))continue;
-    opts.push({kind:'second',R,eta,cost:0,dis:1,
-      head:'🌙 '+esc(R.foreman.nick)+' is back at '+esc(R.base)+' base ~'+fmtT(back)+' — second run',
-      sub:'can be at the pickup ~'+fmtT(eta)+' · long day for the crew — back-to-back runs'});
-  }
-  opts.sort((a,b)=>(b.applied?1:0)-(a.applied?1:0)||a.eta-b.eta||a.cost-b.cost||a.dis-b.dis||(a.trv||0)-(b.trv||0));
-  const top=opts.slice(0,6);
-  const m=gModal('Placement advice — '+esc(job.code)+' · '+esc(job.cityFrom)+' → '+esc(job.cityTo)+' · '+tm(job.start),
-    '<div class="gsub">'+job.cf.toLocaleString()+' CF · crew '+job.crew+' · ACT '+job.actH+'h · ranked by: soonest pickup → lowest cost → least disruption. The engine already applied its best pick; tap an alternative to switch.</div>'
-    +'<div class="advlist">'+top.map((o,i)=>'<div class="advrow'+(o.applied?' applied':'')+'">'
-      +'<b class="advn">'+(i+1)+'</b><div class="advmain"><div class="advhead">'+o.head+'</div><div class="advsub ts">'+o.sub+'</div></div>'
-      +(o.applied?'<span class="advtag">on the board</span>':'<button class="advgo" data-i="'+i+'">Apply</button>')
-      +'</div>').join('')+'</div>'
-    +(top.length<=1?'<div class="ajerr">⚠ No clean alternative exists today — consider tomorrow morning, a rental + cross-base foreman, or detaching a chain.</div>':''));
-  m.querySelectorAll('.advgo').forEach(btn=>btn.addEventListener('click',()=>{
-    const o=top[+btn.dataset.i];
-    const j=(DATA.days[currentDay]||[]).find(x=>x.code===job.code);
-    if(!j)return;
-    j.after=null;
-    if(o.kind==='chain'){
-      const sl=[...o.R.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
-      j.after=sl[sl.length-1].code;
-    }
-    rebuildRoutes();
-    if(o.kind==='fresh'||o.kind==='second'){
-      const nr=routes.find(r=>r.legs.some(l=>l.code===j.code));
-      if(nr){nr.pinForeman=(o.f?o.f.name:o.R.foreman.name);rebuildRoutes();}
-    }
-    render();
-    m.classList.remove('show');
-    toast('✓ '+j.code+' re-placed. It stays a 📝 draft until you push it with Update calendar.');
-  }));
 }
 function truckHTML(r){
   if(!r._truckTrace||!r._truckTrace.length)return '';
@@ -3352,6 +3384,15 @@ document.getElementById('stats').addEventListener('click',e=>{
 });
 document.getElementById('calpush').addEventListener('click',()=>{GTOKEN?pushCalendarUpdates():connectCalendarFlow();});
 document.getElementById('addjob').addEventListener('click',addJobModal);
+document.getElementById('cards').addEventListener('click',e=>{
+  const b=e.target.closest('.rmdraft');
+  if(!b)return;
+  const codes=b.dataset.codes.split(',');
+  for(const d of Object.keys(DATA.days))DATA.days[d]=DATA.days[d].filter(j=>!(j._draft&&codes.includes(j.code)));
+  DATA.jobs=DATA.days[currentDay]||[];
+  rebuildRoutes();render();updateCalBtn();
+  toast('Draft removed.');
+});
 document.getElementById('boardbtn').addEventListener('click',()=>{
   if(VIEWMODE!=='board')setViewMode('board');
   if(mapMode==='all'||highlighted){highlighted=null;mapMode='single';document.querySelector('.layout').classList.remove('mapon');render();}
