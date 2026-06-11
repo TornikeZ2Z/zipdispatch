@@ -497,6 +497,31 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tlblock{position:absolute;top:7px;bottom:7px;border-radius:7px;color:#fff;font-size:12px;font-weight:600;padding:0 9px;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;box-shadow:0 1px 4px rgba(31,34,38,.22);transition:transform .1s}
 .tlblock:hover{transform:translateY(-1px);z-index:2}
 .tlblock.ld{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.16) 0 8px,transparent 8px 16px)}
+.tlblock.sel{outline:3px solid var(--ink);z-index:2}
+.tlsep{font-family:'Barlow Condensed';font-size:16px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:12px 4px 4px;border-bottom:1px solid var(--line)}
+.tlgroup{border-bottom:1px solid var(--line2);padding:5px 0;margin-bottom:9px}
+.tlrow.tight{min-height:38px;border-bottom:none}
+.layout.mapon #timelineview .tltrack{min-width:520px}
+/* leftbar v3 */
+#leftbar{width:252px}
+.lbrow{font-size:13.5px;padding:5px 6px;position:relative}
+.lbdots{margin-left:2px;border:0;background:none;color:var(--faint);cursor:pointer;font-size:15px;padding:0 3px;border-radius:6px;visibility:hidden}
+.lbrow:hover .lbdots{visibility:visible}
+.lbdots:hover{color:var(--ink);background:var(--bg)}
+.lbpop{position:absolute;right:6px;top:calc(100% - 2px);z-index:40;background:var(--card);border:1.5px solid var(--line2);border-radius:10px;box-shadow:0 8px 28px rgba(31,34,38,.18);min-width:230px;overflow:hidden;display:flex;flex-direction:column}
+.lbpop button{border:0;background:none;text-align:left;font-family:'Inter';font-size:13.5px;padding:10px 13px;cursor:pointer;line-height:1.4}
+.lbpop button:hover{background:var(--bg)}
+.lbadd{margin:7px 0 3px;width:100%;border:1.5px dashed var(--line2);background:none;border-radius:9px;font-family:'Inter';font-weight:600;font-size:13px;color:var(--dim);padding:8px;cursor:pointer}
+.lbadd:hover{border-color:var(--fleet);color:var(--fleet)}
+.lbheld{font-size:10.5px;color:#B26B0B;font-weight:700}
+.lbtw{cursor:pointer}
+.lbh[data-sec]{cursor:pointer;user-select:none}
+.gform{display:grid;grid-template-columns:130px 1fr;gap:9px 12px;align-items:center;margin-top:12px}
+.gform label{font-size:12.5px;font-weight:600;color:var(--dim)}
+.gform input,.gselect{border:1.5px solid var(--line2);border-radius:8px;padding:8px 10px;font-family:'Inter';font-size:14px;width:100%}
+.gsizes{display:flex;gap:7px}
+.gsizes button{border:1.5px solid var(--line2);background:var(--card);border-radius:8px;font-family:'Inter';font-weight:600;font-size:12.5px;padding:7px 9px;cursor:pointer}
+.gsizes button.on{border-color:var(--fleet);background:var(--fleet-bg)}
 </style>
 </head>
 <body>
@@ -547,7 +572,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
     <div id="ffsummary"></div>
     <div id="cmpsummary"></div>
     <div id="optipanel"></div>
-    <div id="roster"></div>
+    
     <div id="cards"></div>
     <div id="tableview" style="display:none"></div>
     <div id="timelineview" style="display:none"></div>
@@ -785,7 +810,9 @@ function assignAll(routes,w,baseMode){
       if(primary){
         r._truckTrace=DATA.trucks.filter(k=>k.status==='Active'&&k.type===ty).map(k=>{
           let why,ok=false;
-          if(k.state!==r.base)why=k.state+' fleet — wrong base';
+          const _H=DATA.holders||{};
+          if(_H[k.n]&&(!r.foreman||_H[k.n]!==r.foreman.name)){const hf=DATA.foremen.find(x=>x.name===_H[k.n]);why='with '+(hf?hf.nick:_H[k.n])+' — locked pairing';}
+          else if(k.state!==r.base)why=k.state+' fleet — wrong base';
           else if(!free(busyT,k.n,r))why='busy in this time window';
           else if(k.cf<r.maxCF)why=k.cf.toLocaleString()+' CF — smaller than the '+r.maxCF.toLocaleString()+' CF load';
           else if(k.maxCrew<r.crew)why='cab seats '+k.maxCrew+' — crew is '+r.crew;
@@ -808,9 +835,24 @@ function assignAll(routes,w,baseMode){
           return;
         }
       }
+      const H=DATA.holders||{};
+      if(primary&&r.foreman){
+        const hn=Object.keys(H).find(tn=>H[tn]===r.foreman.name);
+        if(hn){
+          const ht=DATA.trucks.find(k=>k.n===hn&&k.status==='Active'&&k.type===ty);
+          if(ht&&free(busyT,ht.n,r)){
+            take(ht);r._truckChosen=ht.n;
+            if(ht.state&&ht.state!==r.base)r._pinIssues.push(ht.n+' is '+ht.state+' fleet — locked pairing with '+r.foreman.nick+' kept, truck must reposition');
+            if(ht.cf<r.maxCF)r._pinIssues.push(ht.n+' (paired with '+r.foreman.nick+') is smaller than the '+r.maxCF.toLocaleString()+' CF load');
+            return;
+          }
+        }
+      }
       const cand=atBase(ty)
+        .filter(t=>!need.some(x=>x.kind==='fleet'&&x.t.n===t.n))
+        .filter(t=>!(H[t.n]&&(!r.foreman||H[t.n]!==r.foreman.name)))
         .filter(t=>primary?(t.cf>=r.maxCF&&t.maxCrew>=r.crew):true)
-        .sort((a,b)=>(isRentalTruck(a)-isRentalTruck(b))||(a.cf-b.cf));
+        .sort((a,b)=>(a.cf-b.cf));
       const pick=cand[0];
       if(pick){take(pick);if(primary)r._truckChosen=pick.n;}
       else{
@@ -957,6 +999,8 @@ let MAPCARD_MIN=false;
 function exitMap(){
   document.querySelector('.layout').classList.remove('mapon');
   mapMode='single';highlighted=null;renderCards();
+  if(typeof updateViewBtns==='function')updateViewBtns();
+  if(VIEWMODE==='timeline')renderTimeline();
 }
 const FFSEL=new Set();
 const BASESEL=new Set();
@@ -1418,6 +1462,7 @@ function candsHTML(r){
 
 function renderRoster(){
   const box=document.getElementById('roster');
+  if(!box)return;
   const assigned={};routes.forEach(r=>{if(r.foreman)(assigned[r.foreman.name]=assigned[r.foreman.name]||[]).push(r.id);});
   const frows=DATA.foremen.filter(f=>f.status==='Active').sort((a,b)=>a.nick.localeCompare(b.nick)).map(f=>{
     const auto=AUTO_OFF.has(f.name);
@@ -2012,7 +2057,7 @@ function ensureGToken(cb){
   if(GTOKEN&&Date.now()<GTOKEXP-60000)return cb();
   if(window._gsiFail||!gcalReady())return gModal('Google sign-in unavailable here','The Google sign-in library could not load in this environment (previews block it). Open the board on its hosted URL (GitHub Pages) and it will work.');
   if(!GCAL_CLIENT_ID)return gModal('One-time setup needed','To connect the calendar, an OAuth Client ID must be created (takes ~5 min):<ol style="margin:10px 0 0 18px;line-height:1.7"><li>console.cloud.google.com → create/select a project</li><li>APIs &amp; Services → <b>Enable APIs</b> → enable <b>Google Calendar API</b></li><li>OAuth consent screen → External → add yourself (and the contact@ account) as test users</li><li>Credentials → Create credentials → <b>OAuth client ID</b> → Web application</li><li>Authorized JavaScript origins → add your hosted URL (e.g. <span class="mono">https://USERNAME.github.io</span>)</li><li>Copy the Client ID and send it to Claude — it gets baked into the next build</li></ol>');
-  _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events',callback:()=>{}});
+  _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:()=>{}});
   _tokenClient.callback=resp=>{
     if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);updateGcalUI();cb();}
     else gModal('Sign-in failed',esc((resp&&resp.error)||'no token returned'));
@@ -2062,6 +2107,71 @@ function nearestBaseName(j){
   return best||'—';
 }
 let LBOPEN=true;
+const LBSEC={trucks:true,foremen:true};
+const SHEET_WRITE_NOTE='ZipDispatch';
+async function shFetch(path,opt){
+  if(!GTOKEN)throw new Error('not connected');
+  const r=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+path,Object.assign({headers:{'Authorization':'Bearer '+GTOKEN,'Content-Type':'application/json'}},opt||{}));
+  if(r.status===403)throw new Error('Google needs the new Sheets permission — click 🗓 Connect Calendar once to re-approve');
+  if(!r.ok)throw new Error('Sheets API HTTP '+r.status);
+  return r.json();
+}
+async function shValues(tab){return (await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+'?valueRenderOption=FORMATTED_VALUE')).values||[];}
+async function shAppendRow(tab,obj){
+  let vals;
+  try{vals=await shValues(tab);}catch(e){vals=[];}
+  let header=vals[0]||[];
+  if(!header.length){
+    try{await shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})});}catch(e){}
+    header=Object.keys(obj);
+    await shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});
+  }
+  const row=header.map(h=>obj[h]!=null?String(obj[h]):'');
+  Object.keys(obj).forEach(k=>{if(!header.includes(k))row.push(String(obj[k]));});
+  await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});
+}
+async function shUpdateCellByMatch(tab,match,setCol,setVal){
+  const vals=await shValues(tab);
+  if(!vals.length)throw new Error(tab+' tab is empty');
+  const header=vals[0];
+  for(let i=1;i<vals.length;i++){
+    const row=Object.fromEntries(header.map((h,j)=>[h,vals[i][j]||'']));
+    if(match(row)){
+      let ci=header.indexOf(setCol);
+      if(ci<0){ci=header.length;await shFetch('/values/'+encodeURIComponent("'"+tab+"'!"+colA1(ci)+'1')+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[[setCol]]})});}
+      await shFetch('/values/'+encodeURIComponent("'"+tab+"'!"+colA1(ci)+(i+1))+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[[setVal]]})});
+      return true;
+    }
+  }
+  return false;
+}
+function colA1(i){let s='';i++;while(i){s=String.fromCharCode(65+(i-1)%26)+s;i=Math.floor((i-1)/26);}return s;}
+function mdy(iso){const [y,m,d]=iso.split('-');return (+m)+'/'+(+d)+'/'+y;}
+function sheetSaved(what){toast('✓ '+what+' — saved to the team sheet.');}
+function sheetSaveFailed(what,e){toast('⚠ '+what+' applied on the board, but the sheet write failed: '+e.message);}
+async function dayOffToSheet(f,on){
+  if(!GTOKEN){toast('Applied on the board. Connect the calendar button to also save day-offs to the team sheet.');return;}
+  try{
+    if(on){await shAppendRow('Crew Day Offs',{'Start Date':mdy(currentDay),'End Date':mdy(currentDay),'Forman Name':f.nick,'Note':SHEET_WRITE_NOTE});sheetSaved(f.nick+' marked off '+mdy(currentDay));}
+    else{
+      const ok=await shUpdateCellByMatch('Crew Day Offs',
+        row=>(row['Forman Name']===f.nick||row['Forman Name']===f.name)&&row['Start Date']===mdy(currentDay)&&row['Note']===SHEET_WRITE_NOTE,
+        'Note','removed by ZipDispatch');
+      if(ok){await shUpdateCellByMatch('Crew Day Offs',row=>row['Forman Name']===f.nick&&row['Note']==='removed by ZipDispatch'&&row['Start Date']===mdy(currentDay),'Forman Name','');sheetSaved(f.nick+' back on '+mdy(currentDay));}
+      else toast('Applied on the board. (No matching ZipDispatch day-off row found in the sheet — if it was added by hand, clear it there.)');
+    }
+  }catch(e){sheetSaveFailed('day-off',e);}
+}
+async function holderToSheet(truckN,foremanName){
+  if(!GTOKEN)return toast('Pairing applied on the board. Connect the calendar button to also save it to the team sheet.');
+  try{
+    await shUpdateCellByMatch('Truck Holders',row=>row['Truck N']===truckN,'Foreman',foremanName||'');
+    const vals=await shValues('Truck Holders').catch(()=>[]);
+    const has=vals.slice(1).some(r=>r[1]===truckN||r[0]===truckN);
+    if(!has&&foremanName)await shAppendRow('Truck Holders',{'Foreman':foremanName,'Truck N':truckN,'Note':SHEET_WRITE_NOTE});
+    sheetSaved(foremanName?(truckN+' paired with '+foremanName):(truckN+' pairing cleared'));
+  }catch(e){sheetSaveFailed('truck pairing',e);}
+}
 function renderFleetStrip(){
   const el=document.getElementById('leftbar');
   if(!el)return;
@@ -2070,44 +2180,160 @@ function renderFleetStrip(){
   el.classList.toggle('closed',!LBOPEN);
   if(!LBOPEN){el.innerHTML='<button class="lbopen" title="Show fleet panel">›</button>';
     el.querySelector('.lbopen').addEventListener('click',()=>{LBOPEN=true;renderFleetStrip();});return;}
+  DATA.holders=DATA.holders||{};
+  const H=DATA.holders;
+  const nickOf=n=>{const f=DATA.foremen.find(x=>x.name===n);return f?f.nick:n;};
   const usedT=new Set();routes.forEach(r=>(r.vehicles||[]).forEach(v=>{if(v.kind==='fleet')usedT.add(v.t.n);}));
-  const trows=DATA.trucks.map(tk=>{
-    const using=routes.filter(r=>(r.vehicles||[]).some(v=>v.kind==='fleet'&&v.t.n===tk.n));
-    const cf=using.reduce((s,r)=>s+r.totalCF,0);
-    const pct=tk.cf>0?Math.min(100,Math.round(cf/tk.cf*100)):0;
-    const used=using.length>0;
-    return '<div class="lbrow truck'+(used?'':' dim')+(isRentalTruck(tk)?' rentedm':'')+'" title="'+esc((tk.type==='Van'?'Van ':'Truck ')+tk.n+' · '+tk.cf.toLocaleString()+' CF · '+tk.state+(used?(' · '+using.map(r=>r.id).join(', ')):' · spare'))+'">'
-      +'<b>'+esc(String(tk.n).replace('#',''))+'</b>'
-      +'<span class="lbst">'+esc(tk.state)+(tk.type==='Van'?' van':'')+'</span>'
-      +'<span class="lbbar"><i style="width:'+pct+'%"></i></span>'
-      +'<em>'+(used?pct+'%':'—')+'</em></div>';
-  }).join('');
+  let html='<div class="lbhead">FLEET TODAY<button class="lbcol" title="Collapse panel">‹</button></div>';
+  // ── trucks ──
   const rents=routes.flatMap(r=>(r.vehicles||[]).filter(v=>v.kind!=='fleet').map(v=>({r,v})));
-  const rrows=rents.map(x=>'<div class="lbrow truck rentrow" title="'+esc(x.r.id)+'"><b>R</b><span class="lbst">'+esc(x.v.sz)+'</span><span class="lbbar"><i style="width:100%"></i></span><em>'+esc(x.r.id)+'</em></div>').join('');
+  html+='<div class="lbh" data-sec="trucks"><span class="lbtw">'+(LBSEC.trucks?'▾':'▸')+' 🚚 Trucks</span><span>'+usedT.size+'/'+DATA.trucks.filter(k=>k.status==='Active').length+' used'+(rents.length?' · '+rents.length+' rented today':'')+'</span></div>';
+  if(LBSEC.trucks){
+    html+=DATA.trucks.filter(k=>k.status==='Active').sort((a,b)=>String(a.n).localeCompare(String(b.n),undefined,{numeric:true})).map(tk=>{
+      const using=routes.filter(r=>(r.vehicles||[]).some(v=>v.kind==='fleet'&&v.t.n===tk.n));
+      const cf=using.reduce((s,r)=>s+r.totalCF,0);
+      const pct=tk.cf>0?Math.min(100,Math.round(cf/tk.cf*100)):0;
+      const used=using.length>0;
+      const hold=H[tk.n];
+      return '<div class="lbrow truck'+(used?'':' dim')+(tk.rented?' rentedm':'')+'" data-t="'+esc(tk.n)+'" title="'+esc((tk.type==='Van'?'Van ':'Truck ')+tk.n+' · '+tk.cf.toLocaleString()+' CF · cab '+tk.maxCrew+' · '+tk.state+(tk.rented?' · rented':'')+(hold?' · with '+nickOf(hold):'')+(used?(' · '+using.map(r=>r.id).join(', ')):' · spare'))+'">'
+        +'<b>'+esc(String(tk.n).replace('#',''))+'</b>'
+        +'<span class="lbst">'+esc(tk.state)+(tk.type==='Van'?' · van':'')+(hold?' · 🔗'+esc(nickOf(hold)):'')+'</span>'
+        +'<span class="lbbar"><i style="width:'+pct+'%"></i></span>'
+        +'<em>'+(used?pct+'%':'—')+'</em>'
+        +'<button class="lbdots" data-menu="truck" data-t="'+esc(tk.n)+'">⋯</button></div>';
+    }).join('');
+    html+=rents.map(x=>'<div class="lbrow truck rentrow" title="'+esc('On-the-day rental for '+x.r.id+' — the engine found no fitting owned truck at '+x.r.base)+'"><b>R</b><span class="lbst">'+esc(x.v.sz)+'</span><span class="lbbar"><i style="width:100%"></i></span><em>'+esc(x.r.id)+'</em></div>').join('');
+    html+='<button class="lbadd" id="lbaddtruck">＋ Add rented truck</button>';
+  }
+  // ── foremen ──
   const groups={on:[],free:[],off:[]};
-  DATA.foremen.forEach(f=>{
+  DATA.foremen.filter(f=>f.status==='Active').forEach(f=>{
     const mine=routes.filter(r=>r.foreman&&r.foreman.name===f.name);
     if(mine.length)groups.on.push({f,mine});
-    else if(BENCH.foremen.some(x=>(x.name||x)===f.name))groups.free.push({f});
-    else groups.off.push({f});
+    else if(!isOff(f.name))groups.free.push({f,reason:(BENCH.foremen.find(x=>x.f.name===f.name)||{}).reason});
+    else groups.off.push({f,auto:AUTO_OFF.has(f.name)});
   });
-  const frow=(g,cls,tag)=>'<div class="lbrow fore '+cls+'" data-f="'+esc(g.f.name)+'" title="'+esc(g.f.name+(g.mine?' · '+g.mine.map(r=>r.id).join(', '):''))+'">'
-    +'<i class="dot"></i><b>'+esc(g.f.nick)+'</b><em>'+(g.mine?g.mine.length+' route'+(g.mine.length>1?'s':''):tag)+'</em></div>';
-  el.innerHTML='<div class="lbhead">FLEET TODAY<button class="lbcol" title="Collapse panel">‹</button></div>'
-    +'<div class="lbh">🚚 Trucks <span>'+usedT.size+'/'+DATA.trucks.length+' used'+(rents.length?' · '+rents.length+' rental'+(rents.length>1?'s':''):'')+'</span></div>'
-    +trows+rrows
-    +'<div class="lbh">👷 Foremen <span>'+groups.on.length+' on · '+groups.free.length+' free</span></div>'
-    +groups.on.map(g=>frow(g,'on','')).join('')
-    +groups.free.map(g=>frow(g,'free','free')).join('')
-    +groups.off.map(g=>frow(g,'off','off')).join('');
+  html+='<div class="lbh" data-sec="foremen"><span class="lbtw">'+(LBSEC.foremen?'▾':'▸')+' 👷 Foremen</span><span>'+groups.on.length+' on · '+groups.free.length+' free'+(groups.off.length?' · '+groups.off.length+' off':'')+'</span></div>';
+  if(LBSEC.foremen){
+    const heldBy=f=>Object.keys(H).find(tn=>H[tn]===f.name);
+    const frow=(g,cls,tag)=>{
+      const ht=heldBy(g.f);
+      return '<div class="lbrow fore '+cls+'" data-f="'+esc(g.f.name)+'" title="'+esc(g.f.name+(g.mine?' · '+g.mine.map(r=>r.id).join(', '):'')+(g.reason?' · '+g.reason:'')+(g.auto?' · off per the sheet':'')+(ht?' · holds '+ht:''))+'">'
+      +'<i class="dot"></i><b>'+esc(g.f.nick)+(ht?' <span class="lbheld">🔗'+esc(String(ht).replace('#',''))+'</span>':'')+'</b><em>'+(g.mine?g.mine.length+' rte':tag)+'</em>'
+      +'<button class="lbdots" data-menu="fore" data-f="'+esc(g.f.name)+'">⋯</button></div>';};
+    html+=groups.on.map(g=>frow(g,'on','')).join('')
+      +groups.free.map(g=>frow(g,'free','free')).join('')
+      +groups.off.map(g=>frow(g,'off',g.auto?'sheet off':'off')).join('');
+  }
+  el.innerHTML=html;
   el.querySelector('.lbcol').addEventListener('click',()=>{LBOPEN=false;renderFleetStrip();});
-  el.querySelectorAll('.lbrow.fore').forEach(c=>c.addEventListener('click',()=>{
-    const n=c.dataset.f;
-    if(FFSEL.has(n)&&FFSEL.size===1)FFSEL.clear();
-    else{FFSEL.clear();FFSEL.add(n);}
-    renderCards();renderFilters();refreshMapIfAll();renderFleetStrip();
+  el.querySelectorAll('.lbh[data-sec]').forEach(h=>h.addEventListener('click',()=>{LBSEC[h.dataset.sec]=!LBSEC[h.dataset.sec];renderFleetStrip();}));
+  const add=el.querySelector('#lbaddtruck');if(add)add.addEventListener('click',addTruckModal);
+  el.querySelectorAll('.lbrow.fore').forEach(c=>{
+    if(FFSEL.has(c.dataset.f))c.classList.add('sel');
+    c.addEventListener('click',e=>{
+      if(e.target.closest('.lbdots'))return;
+      const n=c.dataset.f;
+      if(FFSEL.has(n)&&FFSEL.size===1)FFSEL.clear();
+      else{FFSEL.clear();FFSEL.add(n);}
+      renderCards();renderFilters();refreshMapIfAll();renderFleetStrip();
+    });
+  });
+  el.querySelectorAll('.lbdots').forEach(btn=>btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(btn.dataset.menu==='fore')foreMenu(btn,btn.dataset.f);
+    else truckMenu(btn,btn.dataset.t);
   }));
-  el.querySelectorAll('.lbrow.fore').forEach(c=>{if(FFSEL.has(c.dataset.f))c.classList.add('sel');});
+}
+function lbPopover(btn,items){
+  document.querySelectorAll('.lbpop').forEach(p=>p.remove());
+  const pop=document.createElement('div');pop.className='lbpop';
+  items.forEach(it=>{
+    if(!it)return;
+    const b=document.createElement('button');b.innerHTML=it.label;
+    b.addEventListener('click',()=>{pop.remove();it.fn();});
+    pop.appendChild(b);
+  });
+  btn.closest('.lbrow').appendChild(pop);
+  setTimeout(()=>document.addEventListener('click',function h(){pop.remove();document.removeEventListener('click',h);}),0);
+}
+function foreMenu(btn,name){
+  const f=DATA.foremen.find(x=>x.name===name);
+  const off=DAYOFF.has(name);
+  const auto=AUTO_OFF.has(name);
+  lbPopover(btn,[
+    auto?{label:'📋 Off per the sheet — edit Crew Day Offs to change',fn:()=>{}}:
+    {label:off?('✓ Mark <b>back on</b> for '+fmtDayLong(currentDay)):('🚫 Mark <b>day off</b> for '+fmtDayLong(currentDay)),fn:()=>{
+      applyWithDiff(null,()=>{off?DAYOFF.delete(name):DAYOFF.add(name);});
+      dayOffToSheet(f,!off);
+    }},
+    {label:'🔗 Pair a truck with '+esc(f.nick)+'…',fn:()=>pairTruckModal(f)}
+  ]);
+}
+function truckMenu(btn,tn){
+  const tk=DATA.trucks.find(k=>k.n===tn);
+  const H=DATA.holders=DATA.holders||{};
+  lbPopover(btn,[
+    {label:H[tn]?('🔗 Paired with <b>'+esc((DATA.foremen.find(f=>f.name===H[tn])||{nick:H[tn]}).nick)+'</b> — clear pairing'):'🔗 Pair with a foreman…',
+     fn:()=>{ if(H[tn]){delete H[tn];holderToSheet(tn,null);rebuildRoutes();render();} else pairForemanModal(tk); }},
+    tk.rented?{label:'🗑 Remove — rental returned',fn:()=>{
+      tk.status='Returned';
+      if(GTOKEN)shUpdateCellByMatch('Rented Trucks',row=>String(row['Truck N']).trim()===String(tn).trim(),'Status','Returned').then(()=>sheetSaved(tn+' marked returned')).catch(e=>sheetSaveFailed('truck removal',e));
+      else toast(tn+' removed from the board. Connect the calendar button to also save it to the sheet.');
+      rebuildRoutes();render();
+    }}:null
+  ]);
+}
+function pairForemanModal(tk){
+  const m=gModal('Pair '+esc(tk.n)+' with a foreman','<div class="gsub">The pairing is exclusive both ways: only this foreman gets this truck, and this truck is always their first pick — until you clear it.</div>'
+    +'<select id="pairsel" class="gselect">'+DATA.foremen.filter(f=>f.status==='Active').sort((a,b)=>a.nick.localeCompare(b.nick)).map(f=>'<option value="'+esc(f.name)+'">'+esc(f.nick)+' ('+esc(f.name)+')</option>').join('')+'</select>'
+    +'<div style="margin-top:12px"><button class="gapply" id="pairok">Pair</button></div>');
+  m.querySelector('#pairok').addEventListener('click',()=>{
+    const n=m.querySelector('#pairsel').value;
+    (DATA.holders=DATA.holders||{})[tk.n]=n;
+    holderToSheet(tk.n,n);
+    m.classList.remove('show');
+    rebuildRoutes();render();
+  });
+}
+function pairTruckModal(f){
+  const H=DATA.holders=DATA.holders||{};
+  const m=gModal('Pair a truck with '+esc(f.nick),'<div class="gsub">Exclusive both ways until cleared.</div>'
+    +'<select id="pairsel2" class="gselect">'+DATA.trucks.filter(k=>k.status==='Active').map(k=>'<option value="'+esc(k.n)+'">'+esc(k.n)+' · '+k.cf.toLocaleString()+' CF · '+esc(k.state)+'</option>').join('')+'</select>'
+    +'<div style="margin-top:12px"><button class="gapply" id="pairok2">Pair</button></div>');
+  m.querySelector('#pairok2').addEventListener('click',()=>{
+    const tn=m.querySelector('#pairsel2').value;
+    Object.keys(H).forEach(k=>{if(H[k]===f.name)delete H[k];});
+    H[tn]=f.name;
+    holderToSheet(tn,f.name);
+    m.classList.remove('show');
+    rebuildRoutes();render();
+  });
+}
+let RENTSEQ=1;
+function addTruckModal(){
+  const m=gModal('Add a rented truck','<div class="gsub">Goes into the base fleet immediately — no penalty, used whenever it fits. Saved to the <b>Rented Trucks</b> sheet tab so the whole team sees it.</div>'
+    +'<div class="gform">'
+    +'<label>Size</label><div class="gsizes"><button data-cf="1100" data-sz="20 ft" class="on">20 ft · ~1,100 CF</button><button data-cf="1700" data-sz="26 ft">26 ft · ~1,700 CF</button><button data-cf="557" data-sz="van">Van · ~557 CF</button></div>'
+    +'<label>Exact CF (optional)</label><input id="atcf" type="number" placeholder="1100">'
+    +'<label>Base</label><select id="atbase" class="gselect">'+Object.keys(DATA.bases).map(b=>'<option'+(b==='NJ'?' selected':'')+'>'+b+'</option>').join('')+'</select>'
+    +'<label>Name / plate (optional)</label><input id="atlbl" placeholder="R-Penske">'
+    +'<label>Max crew in cab</label><input id="atcrew" type="number" value="3">'
+    +'</div><div style="margin-top:12px"><button class="gapply" id="atok">Add truck</button></div>');
+  let sz={cf:1100,sz:'20 ft'};
+  m.querySelectorAll('.gsizes button').forEach(b=>b.addEventListener('click',()=>{m.querySelectorAll('.gsizes button').forEach(x=>x.classList.remove('on'));b.classList.add('on');sz={cf:+b.dataset.cf,sz:b.dataset.sz};}));
+  m.querySelector('#atok').addEventListener('click',()=>{
+    const cf=+m.querySelector('#atcf').value||sz.cf;
+    const base=m.querySelector('#atbase').value;
+    const crew=+m.querySelector('#atcrew').value||3;
+    const lbl=(m.querySelector('#atlbl').value||'').trim()||('R'+(RENTSEQ++)+'-'+sz.sz.replace(' ',''));
+    const tk={n:lbl,status:'Active',cf,maxCrew:crew,state:base,type:/van/i.test(sz.sz)?'Van':'Truck',model:'rental',reg:'rental',rented:true,_appAdded:true};
+    DATA.trucks.push(tk);
+    if(GTOKEN)shAppendRow('Rented Trucks',{'Status':'Active','Truck N':lbl,'CF':cf,'Max Crew Size':crew,'Base':base,'Type':tk.type,'Daily Rate':'','Note':SHEET_WRITE_NOTE+' '+mdy(TODAY_ISO)}).then(()=>sheetSaved(lbl+' added')).catch(e=>sheetSaveFailed('truck add',e));
+    else toast(lbl+' added to the board. Connect the calendar button to also save it to the sheet.');
+    m.classList.remove('show');
+    rebuildRoutes();render();
+  });
 }
 function truckHTML(r){
   if(!r._truckTrace||!r._truckTrace.length)return '';
@@ -2154,7 +2380,12 @@ function renderTable(){
   if(VIEWMODE!=='table'){el.style.display='none';return;}
   el.style.display='block';
   const PAST=currentDay<TODAY_ISO;
-  const rows=(DATA.days[currentDay]||[]).map(j=>Object.assign({_checks:PAST?[]:jobChecks(j)},j));
+  let pool=DATA.days[currentDay]||[];
+  if(filtersActive()){
+    const ok=new Set(visibleRoutes().flatMap(r=>r.legs.map(l=>l.code)));
+    pool=pool.filter(j=>ok.has(j.code));
+  }
+  const rows=pool.map(j=>Object.assign({_checks:PAST?[]:jobChecks(j)},j));
   const nSus=rows.filter(r=>r._checks.length).length;
   const COLS=[
     ['Job Code',116,'fz1'],['Customer',190,'fz2'],
@@ -2168,7 +2399,7 @@ function renderTable(){
     const susOnly=(document.getElementById('ajs')||{}).checked;
     const ql=q.toLowerCase();
     const list=rows.filter(r=>(!susOnly||r._checks.length)&&(!ql||(r.code+' '+(r.customer||'')+' '+(r.pickupAddr||'')+' '+(r.deliveryAddr||'')+' '+r.cityFrom+' '+(r.cityTo||'')+' '+(r.movingType||'')+' '+(r.jobType||'')+' '+(r.mf||'')+' '+(r.mt||'')).toLowerCase().includes(ql)));
-    return '<div class="ts" style="margin:8px 2px">'+fmtDayLong(currentDay)+' · '+list.length+' of '+rows.length+' jobs · source: '+esc(DATA.source||'embedded snapshot')+(PAST?' · past day':(nSus?' · <b style="color:#9A3E1D">'+nSus+' with data warnings</b>':' · no data warnings'))+'</div>'
+    return '<div class="ts" style="margin:8px 2px">'+fmtDayLong(currentDay)+' · '+list.length+' of '+rows.length+' jobs'+(filtersActive()?' <b>(filters applied)</b>':'')+' · source: '+esc(DATA.source||'embedded snapshot')+(PAST?' · past day':(nSus?' · <b style="color:#9A3E1D">'+nSus+' with data warnings</b>':' · no data warnings'))+'</div>'
     +'<div class="ajtwrap full"><table class="ajt" style="width:'+COLS.reduce((s,c)=>s+c[1],0)+'px">'
     +'<colgroup>'+COLS.map(c=>'<col style="width:'+c[1]+'px">').join('')+'</colgroup>'
     +'<thead><tr>'+COLS.map(c=>'<th class="'+(c[2]||'')+'">'+c[0]+'</th>').join('')+'</tr></thead><tbody>'
@@ -2180,7 +2411,7 @@ function renderTable(){
       +'<td class="fz2 ajcut" title="'+esc(r.customer||'')+'">'+esc(r.customer||'—')+'</td>'
       +'<td class="mono">'+String(r.start).slice(11,16)+'–'+String(r.end||'').slice(11,16)+'</td>'
       +'<td class="ajcut" title="'+esc(r.pickupAddr||'')+'">'+esc(r.cityFrom||'')+' <span class="ts">'+(r.pickup?r.pickup.zip:'—')+'</span><div class="ajaddr">'+esc(r.pickupAddr||'')+'</div></td>'
-      +'<td class="ajcut" title="'+esc(r.deliveryAddr||'')+'">'+esc(r.cityTo||'—')+' <span class="ts">'+(r.delivery?r.delivery.zip:'—')+'</span><div class="ajaddr">'+esc(r.deliveryAddr||'')+'</div></td>'
+      +'<td class="ajcut" title="'+esc(kind==='carrier'?'carrier delivers — full address lives in the job':(r.deliveryAddr||''))+'">'+esc(r.cityTo||'—')+' <span class="ts">'+(r.delivery?r.delivery.zip:'—')+'</span>'+(kind==='carrier'?'':'<div class="ajaddr">'+esc(r.deliveryAddr||'')+'</div>')+'</td>'
       +'<td>'+esc(nearestBaseName(r))+'</td>'
       +'<td>'+(r.cf||0).toLocaleString()+'</td>'
       +'<td>'+(r.crew||'—')+'</td>'
@@ -2203,7 +2434,7 @@ function renderTable(){
   el.querySelector('#ajq').addEventListener('input',re);
   const s=el.querySelector('#ajs');if(s)s.addEventListener('change',re);
 }
-let TLMODE='foremen';
+let TLMODE='routes';
 function setViewMode(mode){
   VIEWMODE=mode;
   const off=mode!=='board';
@@ -2223,12 +2454,13 @@ function renderTimeline(){
   const el=document.getElementById('timelineview');
   if(VIEWMODE!=='timeline'){el.style.display='none';return;}
   el.style.display='block';
+  const RR=visibleRoutes();
   const blocksOf=[];
   let minH=8,maxH=18;
-  for(const r of routes){
+  for(const r of RR){
     const t0=r.t0!=null?r.t0:Math.min(...r.legs.map(l=>Date.parse(l.start)));
     const back=backAtBaseMs(r);
-    const t1=r.ldDeparture?null:(back!=null?back:(r.t1||Math.max(...r.legs.map(l=>Date.parse(l.end||l.start)))));
+    const t1=r.ldDeparture?null:(back!=null?back:(r.t1||Math.max(...r.legs.map(l=>l._endMs||Date.parse(l.end||l.start)))));
     blocksOf.push({r,t0,t1});
     minH=Math.min(minH,new Date(t0).getHours());
     if(t1)maxH=Math.max(maxH,new Date(t1).getHours()+1);
@@ -2236,45 +2468,60 @@ function renderTimeline(){
   const A=Math.max(0,minH-1),B=Math.min(24,Math.max(maxH+1,19)),SPAN=(B-A)*60;
   const pos=ms=>{const d=new Date(ms);return ((d.getHours()*60+d.getMinutes())-A*60)/SPAN*100;};
   const colOf={};routes.forEach((r,i)=>colOf[r.id]=PALETTE[i%PALETTE.length]);
-  const mkBlock=b=>{
+  const mkBlock=(b,lblMode)=>{
     const left=Math.max(0,pos(b.t0));
     const right=b.t1?Math.min(100,pos(b.t1)):100;
     const w=Math.max(2.5,right-left);
     const l=b.r.legs[0];
-    const lbl=b.r.id+' · '+b.r.legs.map(x=>x.cityFrom).join(' + ');
-    const tip=b.r.id+' · '+b.r.legs.map(x=>x.code).join(' + ')+' · '+tm(l.start)+(b.t1?('–'+new Date(b.t1).toTimeString().slice(0,5)):' → multi-day')+' · '+b.r.totalCF.toLocaleString()+' CF · crew '+b.r.crew;
-    return '<div class="tlblock'+(b.r.ldDeparture?' ld':'')+'" data-r="'+b.r.id+'" style="left:'+left+'%;width:'+w+'%;background:'+colOf[b.r.id]+'" title="'+esc(tip)+'">'+esc(lbl)+'</div>';
+    const fn=b.r.foreman?b.r.foreman.nick:'⚠ unassigned';
+    const lbl=lblMode==='routes'?(fn+' · '+b.r.legs.map(x=>x.cityFrom).join(' + ')):(b.r.id+' · '+b.r.legs.map(x=>x.cityFrom).join(' + '));
+    const tip=b.r.id+' · '+fn+' · '+b.r.legs.map(x=>x.code).join(' + ')+' · '+tm(l.start)+(b.t1?('–'+new Date(b.t1).toTimeString().slice(0,5)):' → multi-day')+' · '+b.r.totalCF.toLocaleString()+' CF · crew '+b.r.crew+' — click for the map & details';
+    return '<div class="tlblock'+(b.r.ldDeparture?' ld':'')+(highlighted===b.r.id?' sel':'')+'" data-r="'+b.r.id+'" style="left:'+left+'%;width:'+w+'%;background:'+colOf[b.r.id]+'" title="'+esc(tip)+'">'+esc(lbl)+'</div>';
   };
   let rows='';
-  if(TLMODE==='foremen'){
+  if(TLMODE==='routes'){
+    const ordered=[...blocksOf].sort((x,y)=>(x.r.base||'').localeCompare(y.r.base||'')||(x.t0-y.t0));
+    let lastBase=null;
+    for(const b of ordered){
+      if(b.r.base!==lastBase){rows+='<div class="tlsep">'+esc(b.r.base)+' base</div>';lastBase=b.r.base;}
+      rows+='<div class="tlrow"><div class="tllabel"><b>'+b.r.id+'</b><span>'+esc(b.r.foreman?b.r.foreman.nick:'unassigned')+' · '+b.r.totalCF.toLocaleString()+' CF</span></div><div class="tltrack">'+mkBlock(b,'routes')+'</div></div>';
+    }
+  } else if(TLMODE==='foremen'){
     const byF={};blocksOf.forEach(b=>{const k=b.r.foreman?b.r.foreman.name:'⚠ Unassigned';(byF[k]=byF[k]||[]).push(b);});
     for(const [name,bs] of Object.entries(byF).sort((a,b)=>a[0].localeCompare(b[0]))){
       const f=DATA.foremen.find(x=>x.name===name);
-      rows+='<div class="tlrow"><div class="tllabel"><b>'+esc(f?f.nick:name)+'</b><span>'+esc(f?name:'')+'</span></div><div class="tltrack">'+bs.map(mkBlock).join('')+'</div></div>';
+      rows+='<div class="tlrow"><div class="tllabel"><b>'+esc(f?f.nick:name)+'</b><span>'+esc(f?name:'')+'</span></div><div class="tltrack">'+bs.map(b=>mkBlock(b)).join('')+'</div></div>';
     }
-    BENCH.foremen.forEach(x=>{
-      const nm=x.name||x;const f=DATA.foremen.find(ff=>ff.name===nm);
-      rows+='<div class="tlrow free"><div class="tllabel"><b>'+esc(f?f.nick:nm)+'</b><span>free today</span></div><div class="tltrack"></div></div>';
-    });
   } else {
-    for(const tk of DATA.trucks){
-      const bs=blocksOf.filter(b=>(b.r.vehicles||[]).some(v=>v.kind==='fleet'&&v.t.n===tk.n));
-      rows+='<div class="tlrow'+(bs.length?'':' free')+'"><div class="tllabel"><b>'+esc((tk.type==='Van'?'Van ':'')+tk.n)+'</b><span>'+(bs.length?esc(tk.state)+' · '+tk.cf.toLocaleString()+' CF':'spare')+'</span></div><div class="tltrack">'+bs.map(mkBlock).join('')+'</div></div>';
+    // trucks — grouped by route, only trucks in use
+    const ordered=[...blocksOf].sort((x,y)=>(x.r.base||'').localeCompare(y.r.base||'')||(x.t0-y.t0));
+    for(const b of ordered){
+      const veh=b.r.vehicles||[];
+      if(!veh.length)continue;
+      let grp='';
+      veh.forEach(v=>{
+        const nm=v.kind==='fleet'?((v.t.type==='Van'?'Van ':'')+v.t.n):('Rental '+v.sz);
+        const sub=v.kind==='fleet'?(v.t.cf.toLocaleString()+' CF · '+esc(v.t.state)):b.r.id;
+        grp+='<div class="tlrow tight"><div class="tllabel"><b>'+esc(nm)+'</b><span>'+sub+'</span></div><div class="tltrack">'+mkBlock(b)+'</div></div>';
+      });
+      rows+='<div class="tlgroup">'+grp+'</div>';
     }
-    blocksOf.filter(b=>(b.r.vehicles||[]).some(v=>v.kind!=='fleet')).forEach(b=>{
-      const v=b.r.vehicles.find(v=>v.kind!=='fleet');
-      rows+='<div class="tlrow"><div class="tllabel"><b>Rental '+esc(v.sz)+'</b><span>'+b.r.id+'</span></div><div class="tltrack">'+mkBlock(b)+'</div></div>';
-    });
   }
   let scale='<div class="tlrow scale"><div class="tllabel"></div><div class="tltrack">';
   for(let h=A;h<=B;h++){const p=(h-A)*60/SPAN*100;scale+='<div class="tlgrid" style="left:'+p+'%"></div>'+(h<B?'<div class="tlhr" style="left:'+p+'%">'+(h%24)+':00</div>':'');}
   scale+='</div></div>';
   el.innerHTML='<div class="tlbar"><b>'+fmtDayLong(currentDay)+'</b>'
-    +'<span class="tltgl"><button class="'+(TLMODE==='foremen'?'on':'')+'" data-m="foremen">👷 Foremen</button><button class="'+(TLMODE==='trucks'?'on':'')+'" data-m="trucks">🚚 Trucks</button></span>'
-    +'<span class="ts">click a block to open its journey</span></div>'
+    +'<span class="tltgl"><button class="'+(TLMODE==='routes'?'on':'')+'" data-m="routes">🗂 Routes</button><button class="'+(TLMODE==='foremen'?'on':'')+'" data-m="foremen">👷 Foremen</button><button class="'+(TLMODE==='trucks'?'on':'')+'" data-m="trucks">🚚 Trucks</button></span>'
+    +(filtersActive()?'<span class="ts">'+RR.length+' of '+routes.length+' routes (filters applied)</span>':'')
+    +'<span class="ts">click a block → map & details open on the right</span></div>'
     +'<div class="tlwrap">'+scale+rows+'</div>';
   el.querySelectorAll('.tltgl button').forEach(b=>b.addEventListener('click',()=>{TLMODE=b.dataset.m;renderTimeline();}));
-  el.querySelectorAll('.tlblock').forEach(b=>b.addEventListener('click',()=>{setViewMode('board');selectRoute(b.dataset.r,true);}));
+  el.querySelectorAll('.tlblock').forEach(b=>b.addEventListener('click',()=>{
+    highlighted=b.dataset.r;mapMode='single';
+    document.querySelector('.layout').classList.add('mapon');
+    setTimeout(()=>{initMap();LMAP.invalidateSize();refreshMap();},document.querySelector('.layout').classList.contains('mapon')?60:480);
+    renderTimeline();
+  }));
 }
 function fmtDayLong(iso){return new Date(iso+'T12:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}
 function calTokenOf(mt){return String(mt||'').replace(/[#\s]/g,'').toUpperCase();}
@@ -2687,18 +2934,25 @@ async function liveRefresh(){
   const btn=document.getElementById('refreshbtn');
   const orig=btn.textContent;
   btn.textContent='↻ Pulling…';btn.disabled=true;
-  const TABS=['List of Bases','Crew Members','Vehicles','Crew Day Offs','Foreman of the Month','Rented Trucks','Rental Options'];
+  const TABS=['List of Bases','Crew Members','Vehicles','Crew Day Offs','Foreman of the Month','Rented Trucks','Rental Options','Truck Holders'];
   const modal=openRfModal(TABS.concat(['Google Calendar jobs']));
   const get=(n,optional)=>fetchTab(n)
     .then(rows=>{rfStep(n,'ok',rows.length+' rows');return rows;})
     .catch(e=>{rfStep(n,optional?'ok':'fail',optional?'skipped — '+e.message:e.message);if(optional)return [];throw e;});
   try{
-    const [bases,crew,vehicles,offs,scores,rented,rentalopts]=await Promise.all([
+    const [bases,crew,vehicles,offs,scores,rented,rentalopts,holders]=await Promise.all([
       get('List of Bases'),get('Crew Members'),
       get('Vehicles'),get('Crew Day Offs'),get('Foreman of the Month',true),
-      get('Rented Trucks',true),get('Rental Options',true)]);
+      get('Rented Trucks',true),get('Rental Options',true),get('Truck Holders',true)]);
     rfStep('build','run','rebuilding…');
     const fresh=rebuildFromTabs({jobs:[],bases,crew,vehicles,offs,scores,rented,rentalopts});
+    DATA.holders={};
+    for(const r of (holders||[])){
+      const tn=(r['Truck N']||'').trim(),fn=(r['Foreman']||'').trim();
+      if(!tn||!fn)continue;
+      const f=fresh.foremen.find(x=>x.name===fn||x.nick===fn);
+      if(f)DATA.holders[tn]=f.name;
+    }
     DATA.trucks=fresh.trucks;DATA.foremen=fresh.foremen;
     DATA.bases=fresh.bases;DATA.dayoffs=fresh.dayoffs;DATA.scores=fresh.scores;DATA.scoreMonth=fresh.scoreMonth;DATA.rentalRates=fresh.rentalRates;
     DATA.fleetPulled=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
@@ -2816,7 +3070,7 @@ document.getElementById('timelinebtn').addEventListener('click',()=>setViewMode(
 document.getElementById('stats').addEventListener('click',e=>{
   const s=e.target.closest('.stat');if(!s)return;
   if(VIEWMODE!=='board')setViewMode('board');
-  const tgt=s.dataset.k==='roster'?(document.getElementById('rosterwrap')||document.getElementById('cards')):document.getElementById('cards');
+  const tgt=s.dataset.k==='roster'?(document.getElementById('leftbar')||document.getElementById('cards')):document.getElementById('cards');
   if(tgt)tgt.scrollIntoView({behavior:'smooth',block:'start'});
 });
 document.getElementById('calpush').addEventListener('click',()=>{GTOKEN?pushCalendarUpdates():connectCalendarFlow();});
