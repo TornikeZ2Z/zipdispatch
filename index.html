@@ -505,6 +505,22 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .skiprep{margin-top:10px;font-size:12.5px}
 .skiprep summary{cursor:pointer;color:#9A3E1D;font-weight:700}
 .skiprep div{margin-top:6px;max-height:180px;overflow:auto;color:var(--dim);font-family:'IBM Plex Mono';font-size:11.5px;line-height:1.6}
+#addjob{border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet);border-radius:10px;font-family:'Inter';font-weight:700;font-size:14px;padding:9px 15px;cursor:pointer}
+#addjob:hover{border-color:var(--fleet)}
+.chip.draft{background:#FFF4D6;border:1.5px solid #E8C96A;color:#7A5B12;font-weight:700}
+.gform.aj2{grid-template-columns:120px 1fr 120px 1fr;max-width:860px}
+.ajerr{color:#9A3E1D;font-weight:600;font-size:13.5px;margin-top:10px;min-height:18px}
+.advlist{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+.advrow{display:flex;align-items:center;gap:13px;border:1.5px solid var(--line2);border-radius:11px;padding:11px 14px}
+.advrow.applied{border-color:var(--fleet-bd);background:var(--fleet-bg)}
+.advn{font-family:'Barlow Condensed';font-size:21px;color:var(--faint);min-width:18px}
+.advmain{flex:1}
+.advhead{font-weight:700;font-size:14.5px}
+.advsub{margin-top:2px}
+.advtag{font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--fleet)}
+.advgo{border:1.5px solid var(--ink);background:var(--ink);color:#fff;border-radius:9px;font-family:'Inter';font-weight:700;font-size:13px;padding:8px 16px;cursor:pointer}
+.advgo:hover{opacity:.85}
+.gplan.gcreate{border-color:#E8C96A;background:#FFFBF0}
 .tlsep{font-family:'Barlow Condensed';font-size:16px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:12px 4px 4px;border-bottom:1px solid var(--line)}
 .tlgroup{border-bottom:1px solid var(--line2);padding:5px 0;margin-bottom:9px}
 .tlrow.tight{min-height:38px;border-bottom:none}
@@ -591,6 +607,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
       <button id="allmapbtn" class="vbtn" title="Every job leg on one map">🗺 Map</button>
       <button id="alljobsbtn" class="vbtn" title="Every imported job in one table — with data-quality checks">☰ Jobs table</button>
       <button id="timelinebtn" class="vbtn" title="The whole day as rows of time blocks — every foreman or truck at a glance">📊 Timeline</button>
+      <button id="addjob" title="A sudden new job or an extra A→B run — add it, and the engine advises who can take it">＋ Add job</button>
       <button id="resetov" title="Undo every manual change you made today">Reset changes</button>
     </div>
     <div id="filterbar">
@@ -1386,6 +1403,7 @@ function cardHTML(r){
     (r.trucksNeeded||0)>=2?chip('multi-truck ×'+r.trucksNeeded):'',
     r.vansNeeded?chip('+ '+r.vansNeeded+' van'+(r.vansNeeded>1?'s':'')):'',
     r.legs.some(l=>AUTOCHAINS.some(c=>c.tail===l.code))?chip('auto-chained PM job','ov'):'',
+    r.legs.some(l=>l._draft)?'<span class="chip draft">📝 draft — push to the calendar with Update</span>':'',
     '<span class="chip ampm">'+(+String(sl[0].start).slice(11,13)<12?'☀️ AM':'🌆 PM')+'</span>',
     (function(){const en=Math.max(...sl.map(l=>l._endMs||Date.parse(l.end||l.start)));const e=new Date(en),s=new Date(Date.parse(sl[0].start));
       return (en>Date.parse(sl[0].start)&&e.getDate()!==s.getDate()&&!r.ldDeparture)?'<span class="chip nd">🌙 runs into the next day · done ~'+e.toTimeString().slice(0,5)+'</span>':'';})(),
@@ -2390,6 +2408,155 @@ function addTruckModal(){
     rebuildRoutes();render();
   });
 }
+let NEWSEQ=1;
+function addJobModal(){
+  const codes=(DATA.days[currentDay]||[]).map(j=>j.code);
+  const m=gModal('＋ Add a job — draft on the board, pushed to the calendar when you say so',
+    '<div class="gform aj2">'
+    +'<label>Customer</label><input id="ajcust" placeholder="Jane Doe">'
+    +'<label>Job Code</label><input id="ajcode" placeholder="auto: NEW-'+NEWSEQ+'">'
+    +'<label>Date</label><input id="ajdate" type="date" value="'+currentDay+'">'
+    +'<label>Start time</label><input id="ajtime" type="time" value="09:00">'
+    +'<label>Pickup address</label><input id="ajpu" placeholder="140 Main St, Trenton NJ 08628">'
+    +'<label>Delivery address</label><input id="ajde" placeholder="55 Oak Ave, Newark NJ 07102">'
+    +'<label>Total CF</label><input id="ajcf" type="number" placeholder="800">'
+    +'<label>Crew Size</label><input id="ajcrew" type="number" placeholder="auto from CF">'
+    +'<label>ACT Time (h)</label><input id="ajact" type="number" step="0.5" placeholder="auto from CF">'
+    +'<label>Trucks / Vans</label><div style="display:flex;gap:8px"><input id="ajtq" type="number" value="1" style="width:70px"> / <input id="ajvq" type="number" value="0" style="width:70px"></div>'
+    +'<label>Packing $</label><input id="ajpk" type="number" placeholder="0">'
+    +'<label>Moving Type</label><select id="ajmt" class="gselect"><option>Local Moving</option><option>Long Distance Moving</option></select>'
+    +'<label>Job Type</label><select id="ajjt" class="gselect"><option>Standard</option><option>Flat Rate</option><option>Labor Work</option><option>Regular Moving</option><option>Straight Moving</option></select>'
+    +'<label>After Job Code</label><input id="ajaft" list="ajcodes" placeholder="(optional — sold as chained)"><datalist id="ajcodes">'+codes.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>'
+    +'</div><div id="ajerr" class="ajerr"></div>'
+    +'<div style="margin-top:12px"><button class="gapply" id="ajok">Add &amp; advise</button></div>');
+  m.querySelector('#ajok').addEventListener('click',()=>{
+    const v=id=>m.querySelector('#'+id).value.trim();
+    const err=msg=>{m.querySelector('#ajerr').innerHTML='⚠ '+msg;};
+    const puA=v('ajpu'),deA=v('ajde');
+    const puZ=zipFromAddr(puA),deZ=zipFromAddr(deA);
+    if(!puZ)return err('Pickup address needs a 5-digit zip.');
+    if(!deZ)return err('Delivery address needs a 5-digit zip.');
+    const pu=zgeoJS(puZ),de=zgeoJS(deZ);
+    if(!pu)return err('Pickup zip '+puZ+' is not in the zip database — double-check it.');
+    if(!de)return err('Delivery zip '+deZ+' is not in the zip database — double-check it.');
+    const cf=+v('ajcf')||0;
+    if(!cf)return err('Total CF is required — the engine sizes the truck with it.');
+    const date=v('ajdate'),time=v('ajtime')||'09:00';
+    if(!date)return err('Pick a date.');
+    const crew=+v('ajcrew')||(cf<=600?2:cf<=1200?3:cf<=1800?4:5);
+    const actH=+v('ajact')||Math.max(2,Math.round(cf/275*2)/2);
+    const code=v('ajcode')||('NEW-'+(NEWSEQ++));
+    if((DATA.days[date]||[]).some(j=>j.code===code))return err('Job code '+code+' already exists on '+date+'.');
+    const start=date+' '+time;
+    const endD=new Date(Date.parse(start)+actH*3600000);
+    const job={
+      code,customer:v('ajcust')||'Walk-in job',start,
+      end:date+' '+endD.toTimeString().slice(0,5),
+      pickupAddr:puA,deliveryAddr:deA,
+      pickup:pu,delivery:de,
+      cityFrom:pu.city,cityTo:de.city,stateFrom:pu.state,stateTo:de.state,
+      cf,crew,actH,trucksQ:+v('ajtq')||1,vansQ:+v('ajvq')||0,
+      packing:+v('ajpk')||0,
+      movingType:v('ajmt'),jobType:v('ajjt'),
+      after:v('ajaft')||null,mf:null,mt:null,eventId:null,_draft:true
+    };
+    job.idx=(DATA.days[date]=DATA.days[date]||[]).length;
+    DATA.days[date].push(job);
+    m.classList.remove('show');
+    if(date!==currentDay){switchDay(date);}else{DATA.jobs=DATA.days[currentDay];rebuildRoutes();render();}
+    populateDays();
+    adviseJob(job);
+  });
+}
+function adviseJob(job){
+  const jobStart=Date.parse(job.start);
+  const mine=routes.find(r=>r.legs.some(l=>l.code===job.code));
+  const travelMs=(a,b)=>hav(a,b)/35*3600000*1.15;
+  const fmtT=ms=>new Date(ms).toTimeString().slice(0,5);
+  const opts=[];
+  if(mine&&mine.foreman&&mine.legs.length>1){
+    opts.push({kind:'engine',eta:jobStart,cost:0,dis:0,applied:true,
+      head:'⛓ Chained by the engine — '+esc(mine.foreman.nick)+' takes it after '+esc(mine.legs[0].code),
+      sub:mine.id+' · '+esc(routeVehText(mine))+' · back at base ~'+(backAtBaseMs(mine)?fmtT(backAtBaseMs(mine)):'—')});
+  } else if(mine&&mine.foreman){
+    opts.push({kind:'engine',eta:jobStart,cost:mine.rentals?1:0,dis:0,applied:true,
+      head:'✅ Engine pick — '+esc(mine.foreman.nick)+' takes it as a fresh route',
+      sub:mine.id+' · '+esc(mine.base)+' base · '+esc(routeVehText(mine))+' · back ~'+(backAtBaseMs(mine)?fmtT(backAtBaseMs(mine)):'—')});
+  } else {
+    opts.push({kind:'none',eta:Infinity,cost:9,dis:9,applied:true,
+      head:'⚠ The engine could not assign it cleanly',sub:'every foreman is committed — see the alternatives below'});
+  }
+  for(const R of routes){
+    if(!R.foreman||R.ldDeparture||R===mine)continue;
+    if(R.legs.some(l=>l.code===job.code))continue;
+    const sl=[...R.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
+    const lastL=sl[sl.length-1];
+    const endLoc=(lastL.delivery&&INREGION(lastL.delivery))?lastL.delivery:lastL.pickup;
+    if(!endLoc)continue;
+    const endMs=Math.max(...sl.map(l=>l._endMs||Date.parse(l.end||l.start)));
+    const eta=endMs+travelMs(endLoc,job.pickup)+15*60000;
+    const feas=eta<=jobStart+10*60000&&(jobStart-R.t0)>=3*3600000;
+    const fv=(R.vehicles||[])[0];
+    const vcf=fv?(fv.kind==='fleet'?fv.t.cf:(/26/.test(fv.sz)?1700:1100)):0;
+    const vcrew=fv&&fv.kind==='fleet'?fv.t.maxCrew:3;
+    if(!feas||vcf<job.cf||vcrew<job.crew)continue;
+    opts.push({kind:'chain',R,eta,cost:0,dis:0,
+      head:'🔗 Chain onto '+R.id+' — '+esc(R.foreman.nick)+' finishes '+esc((lastL.delivery&&INREGION(lastL.delivery))?(lastL.cityTo||lastL.cityFrom):lastL.cityFrom)+' ~'+fmtT(endMs),
+      sub:Math.round(hav(endLoc,job.pickup))+' mi away · can be at the pickup ~'+fmtT(eta)+' · same crew &amp; '+esc(routeVehText(R))});
+  }
+  const busyNames=new Set(routes.filter(r=>r.foreman).map(r=>r.foreman.name));
+  for(const f of DATA.foremen){
+    if(f.status!=='Active'||busyNames.has(f.name)||isOff(f.name))continue;
+    const bn=nearestBaseName(job);
+    const b=DATA.bases[bn];
+    const tmv=travelMs(b,job.pickup);
+    const truck=DATA.trucks.find(k=>k.status==='Active'&&k.state===bn&&k.cf>=job.cf&&k.maxCrew>=job.crew&&!routes.some(r2=>(r2.vehicles||[]).some(v=>v.kind==='fleet'&&v.t.n===k.n)));
+    const cost=(truck?0:1)+(f.base!==bn?1:0);
+    opts.push({kind:'fresh',f,eta:jobStart,cost,dis:0,trv:tmv,
+      head:'👷 '+esc(f.nick)+' is free — fresh route from '+esc(bn),
+      sub:'leave base ~'+fmtT(jobStart-tmv-15*60000)+' ('+Math.round(hav(b,job.pickup))+' mi)'+(truck?' · truck '+esc(truck.n)+' fits':' · no fitting '+bn+' truck free — rental needed')+(f.base!==bn?' · travels from '+esc(f.base):'')});
+  }
+  for(const R of routes){
+    if(!R.foreman||R===mine||R.ldDeparture)continue;
+    const back=backAtBaseMs(R);
+    if(back==null)continue;
+    const b=DATA.bases[R.base];
+    const eta=back+travelMs(b,job.pickup)+20*60000;
+    if(eta>jobStart+10*60000)continue;
+    if((jobStart-R.t0)<3*3600000)continue;
+    if(opts.some(o=>o.kind==='chain'&&o.R===R))continue;
+    opts.push({kind:'second',R,eta,cost:0,dis:1,
+      head:'🌙 '+esc(R.foreman.nick)+' is back at '+esc(R.base)+' base ~'+fmtT(back)+' — second run',
+      sub:'can be at the pickup ~'+fmtT(eta)+' · long day for the crew — back-to-back runs'});
+  }
+  opts.sort((a,b)=>(b.applied?1:0)-(a.applied?1:0)||a.eta-b.eta||a.cost-b.cost||a.dis-b.dis||(a.trv||0)-(b.trv||0));
+  const top=opts.slice(0,6);
+  const m=gModal('Placement advice — '+esc(job.code)+' · '+esc(job.cityFrom)+' → '+esc(job.cityTo)+' · '+tm(job.start),
+    '<div class="gsub">'+job.cf.toLocaleString()+' CF · crew '+job.crew+' · ACT '+job.actH+'h · ranked by: soonest pickup → lowest cost → least disruption. The engine already applied its best pick; tap an alternative to switch.</div>'
+    +'<div class="advlist">'+top.map((o,i)=>'<div class="advrow'+(o.applied?' applied':'')+'">'
+      +'<b class="advn">'+(i+1)+'</b><div class="advmain"><div class="advhead">'+o.head+'</div><div class="advsub ts">'+o.sub+'</div></div>'
+      +(o.applied?'<span class="advtag">on the board</span>':'<button class="advgo" data-i="'+i+'">Apply</button>')
+      +'</div>').join('')+'</div>'
+    +(top.length<=1?'<div class="ajerr">⚠ No clean alternative exists today — consider tomorrow morning, a rental + cross-base foreman, or detaching a chain.</div>':''));
+  m.querySelectorAll('.advgo').forEach(btn=>btn.addEventListener('click',()=>{
+    const o=top[+btn.dataset.i];
+    const j=(DATA.days[currentDay]||[]).find(x=>x.code===job.code);
+    if(!j)return;
+    j.after=null;
+    if(o.kind==='chain'){
+      const sl=[...o.R.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
+      j.after=sl[sl.length-1].code;
+    }
+    rebuildRoutes();
+    if(o.kind==='fresh'||o.kind==='second'){
+      const nr=routes.find(r=>r.legs.some(l=>l.code===j.code));
+      if(nr){nr.pinForeman=(o.f?o.f.name:o.R.foreman.name);rebuildRoutes();}
+    }
+    render();
+    m.classList.remove('show');
+    toast('✓ '+j.code+' re-placed. It stays a 📝 draft until you push it with Update calendar.');
+  }));
+}
 function truckHTML(r){
   if(!r._truckTrace||!r._truckTrace.length)return '';
   const ch=r._truckChosen;
@@ -2596,6 +2763,10 @@ function pendingCalChanges(){
     if(!r.foreman)continue;
     const tok=truckToken(r).toUpperCase();
     for(const l of r.legs){
+      if(l._draft&&!l.eventId){
+        out.push({r,l,create:true,newF:r.foreman.nick,newT:truckToken(r).toUpperCase()});
+        continue;
+      }
       if(!l.eventId||l._synced)continue;
       const curF=l.mf?matchForeman(l.mf):null;
       const fSame=curF&&curF.name===r.foreman.name;
@@ -2627,6 +2798,13 @@ async function pushCalendarUpdates(){
     const m=gModal('Send assignments to Google Calendar',
       '<div class="gsub">'+fmtDayLong(currentDay)+' · '+pend.length+' job'+(pend.length>1?'s':'')+' will be updated. Nothing is sent until you confirm.</div>'
       +'<div class="gplans">'+pend.map(p=>{
+        if(p.create){
+          return '<div class="gplan gcreate">'
+          +'<div class="gphead"><b>🆕 '+esc(p.l.customer||p.l.code)+'</b><span class="ts">'+esc(p.l.code)+' · '+esc(p.l.cityFrom)+' → '+esc(p.l.cityTo)+' · '+tm(p.l.start)+'</span></div>'
+          +'<div class="gpmeta">'+(p.l.cf||0).toLocaleString()+' CF · crew '+(p.l.crew||'—')+(p.l.actH?' · ACT '+p.l.actH+'h':'')+' · '+esc(p.r.base)+' base · '+esc(routeVehText(p.r))+'</div>'
+          +'<div class="gprow"><span>📅</span><div>A <b>new calendar event</b> is created in the company format — title <span class="mono">/#'+esc(p.newF)+'#'+esc(p.newT)+'#</span>, full job details in the description'+(p.r.foreman.email?', '+esc(p.r.foreman.nick)+' invited':'')+'.</div></div>'
+          +'</div>';
+        }
         const was=p.oldF==='—'?null:p.oldF;
         return '<div class="gplan">'
         +'<div class="gphead"><b>'+esc(p.l.customer||p.l.code)+'</b><span class="ts">'+esc(p.l.code)+' · '+esc(p.l.cityFrom)+' → '+esc(p.l.cityTo)+' · '+tm(p.l.start)+'–'+tm(p.l.end||p.l.start)+'</span></div>'
@@ -2650,6 +2828,22 @@ async function pushCalendarUpdates(){
       const res=[];
       for(const p of pend){
         try{
+          if(p.create){
+            const l=p.l;
+            const iso=s=>s.replace(' ','T')+':00';
+            const desc='[ZipDispatch draft]\nJob Code: '+l.code+'\nTotal CF: '+l.cf+'\nCrew Size: '+l.crew+'\nACT Time: '+l.actH+'\nTruck Quantity: '+(l.trucksQ||1)+'\nVan Quantity: '+(l.vansQ||0)+(l.packing?'\nPacking: '+l.packing:'')+'\nMoving Type: '+l.movingType+'\nJob Type: '+l.jobType+(l.after?'\nAfter Job Code: '+l.after:'')+'\nMoving From: '+l.pickupAddr+'\nMoving To: '+l.deliveryAddr+'\n\n[ZipDispatch] foreman '+p.newF+' · '+routeVehText(p.r)+' · '+p.r.base+' base';
+            const body={
+              summary:'('+(l.stateFrom||'')+'-'+(l.stateTo||'')+') '+(l.customer||l.code)+' /#'+p.newF+'#'+p.newT+'#',
+              description:desc,
+              start:{dateTime:iso(l.start),timeZone:'America/New_York'},
+              end:{dateTime:iso(l.end||l.start),timeZone:'America/New_York'},
+              attendees:p.r.foreman.email?[{email:p.r.foreman.email}]:[]
+            };
+            const made=await gapiFetch('calendars/'+encodeURIComponent(GCAL_ID)+'/events?sendUpdates=all',{method:'POST',body:JSON.stringify(body)});
+            l.eventId=made.id;l._synced=true;l._draft=false;
+            res.push({p,ok:true});
+            continue;
+          }
           const ev=await gapiFetch(evPath(p.l.eventId));
           const vehTxt=routeVehText(p.r);
           const blk=ZD_A+'\nForeman: '+p.r.foreman.name+' ('+p.r.foreman.nick+')\nVehicles: '+vehTxt+'\nBase: '+p.r.base+'\nUpdated: '+new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+'\n'+ZD_B;
@@ -2797,6 +2991,13 @@ async function calFullImport(){
     if(d<isoA||d>isoB){days[d]=DATA.days[d];kept++;}
   }
   CAL_SKIPPED=skipped;
+  for(const d of Object.keys(DATA.days||{})){
+    for(const j of DATA.days[d]){
+      if(j._draft&&!j.eventId&&!(days[d]||[]).some(x=>x.code===j.code)){
+        j.idx=(days[d]=days[d]||[]).length;days[d].push(j);
+      }
+    }
+  }
   DATA.days=days;
   DATA.source='Google Calendar (live)';
   DATA.pulled=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
@@ -3150,6 +3351,7 @@ document.getElementById('stats').addEventListener('click',e=>{
   if(tgt)tgt.scrollIntoView({behavior:'smooth',block:'start'});
 });
 document.getElementById('calpush').addEventListener('click',()=>{GTOKEN?pushCalendarUpdates():connectCalendarFlow();});
+document.getElementById('addjob').addEventListener('click',addJobModal);
 document.getElementById('boardbtn').addEventListener('click',()=>{
   if(VIEWMODE!=='board')setViewMode('board');
   if(mapMode==='all'||highlighted){highlighted=null;mapMode='single';document.querySelector('.layout').classList.remove('mapon');render();}
