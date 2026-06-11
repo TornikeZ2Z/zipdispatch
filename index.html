@@ -505,8 +505,6 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .skiprep{margin-top:10px;font-size:12.5px}
 .skiprep summary{cursor:pointer;color:#9A3E1D;font-weight:700}
 .skiprep div{margin-top:6px;max-height:180px;overflow:auto;color:var(--dim);font-family:'IBM Plex Mono';font-size:11.5px;line-height:1.6}
-#addjob{border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet);border-radius:10px;font-family:'Inter';font-weight:700;font-size:14px;padding:9px 15px;cursor:pointer}
-#addjob:hover{border-color:var(--fleet)}
 .chip.draft{background:#FFF4D6;border:1.5px solid #E8C96A;color:#7A5B12;font-weight:700}
 .gform.aj2{grid-template-columns:120px 1fr 120px 1fr;max-width:860px}
 .ajerr{color:#9A3E1D;font-weight:600;font-size:13.5px;margin-top:10px;min-height:18px}
@@ -610,7 +608,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
   <div class="stats" id="stats"></div>
   <div id="rfwrap">
     <div class="rfrowbtns">
-      <button id="calpush" title="Write today's assignments back to the Google Calendar events" disabled>🗓 Update calendar</button>
+      <button id="addjob" title="A sudden new job or an extra A→B trip — add it and get instant placement advice">＋ Add job</button><button id="calpush" title="Write today's assignments back to the Google Calendar events" disabled>🗓 Update calendar</button>
       <button id="refreshbtn" title="One refresh for everything: crew/trucks/day-offs/rentals from the sheet + job changes from the calendar">↻ Refresh</button>
     </div>
     <span id="rfstamp"></span>
@@ -630,7 +628,6 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
       <button id="allmapbtn" class="vbtn" title="Every job leg on one map">🗺 Map</button>
       <button id="alljobsbtn" class="vbtn" title="Every imported job in one table — with data-quality checks">☰ Jobs table</button>
       <button id="timelinebtn" class="vbtn" title="The whole day as rows of time blocks — every foreman or truck at a glance">📊 Timeline</button>
-      <button id="addjob" title="A sudden new job or an extra A→B trip — add it and get instant placement advice">＋ Add job</button>
       <button id="resetov" title="Undo every manual change you made today">Reset changes</button>
     </div>
     <div id="filterbar">
@@ -685,7 +682,8 @@ function buildRoutes(){
   const jobs=DATA.jobs, used=new Set(), routes=[];
   const cmap={}; manualChains.concat(AUTOCHAINS).forEach(c=>cmap[c.tail]=c.after);
   const aft=j=>cmap[j.code]||j.after;
-  for(const h of jobs.filter(j=>j.first&&!cmap[j.code])){
+  for(const h of jobs.filter(j=>j.first&&!aft(j))){
+    if(used.has(h.code))continue;
     const legs=[h]; used.add(h.code);
     let cur=h;
     while(true){
@@ -2550,19 +2548,27 @@ function applyPlacement(job,opt){
   const day=job.start.slice(0,10);
   if(opt){
     job.start=day+' '+hhmm(opt.pickupAt);
+    job.mf=opt.f.nick;
     if(opt.kind==='chain'){
       job.after=opt.head.code;
-      job.mf=opt.f.nick;
-    } else {
-      job.mf=opt.f.nick;
-      if(opt.tk)job.mt=String(opt.tk.n);
-    }
+      opt.r.pinForeman=opt.f.name; // the promise was THIS crew — pin survives the rebuild via the first-leg keep
+    } else if(opt.tk) job.mt=String(opt.tk.n);
   }
   job.end=null;
   job.idx=(DATA.days[day]=DATA.days[day]||[]).length;
   DATA.days[day].push(job);
   if(day===currentDay){DATA.jobs=DATA.days[day];}
-  rebuildRoutes();render();updateCalBtn();
+  rebuildRoutes();
+  if(opt&&opt.kind!=='chain'){
+    const nr=routes.find(r=>r.legs.some(l=>l.code===job.code));
+    if(nr){
+      nr.pinForeman=opt.f.name;
+      nr.pinTrucks=nr.pinTrucks||[];
+      nr.pinTrucks[0]=opt.tk?String(opt.tk.n):(job.cf>RENTAL20_CF?'R26':'R20');
+      rebuildRoutes();
+    }
+  }
+  render();updateCalBtn();
   toast('📝 '+job.code+' added as a draft'+(opt?(' — '+(opt.kind==='chain'?('chained after '+opt.r.id+' with '+opt.f.nick):('new route for '+opt.f.nick))):' — engine will place it')+'. Push it to the calendar with 🗓 Update calendar.');
 }
 function addTruckModal(){
