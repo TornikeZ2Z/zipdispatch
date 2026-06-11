@@ -100,8 +100,9 @@ header .date{color:var(--dim);font-size:15px}
 .mapcard button:hover{background:#33383F}
 
 .rail{padding:20px 24px 100px;min-height:calc(100vh - 71px)}
-.rail{flex:1 1 auto;min-width:0;max-width:1100px;margin:0 auto;width:100%;transition:max-width .45s cubic-bezier(.22,.8,.3,1)}
+.rail{flex:1 1 auto;min-width:0;max-width:1760px;margin:0 auto;width:100%;transition:max-width .45s cubic-bezier(.22,.8,.3,1)}
 .layout.mapon .rail{max-width:none}
+.layout.tableon .rail{max-width:none}
 #mapwrap{flex:0 0 auto;width:0;overflow:hidden;border-right:none;border-left:0 solid var(--line);transition:width .45s cubic-bezier(.22,.8,.3,1)}
 .layout.mapon #mapwrap{width:46vw;border-left-width:1px}
 .jpath{display:flex;align-items:center;flex-wrap:wrap;gap:5px;min-width:0;flex:1}
@@ -2027,6 +2028,7 @@ function renderTable(){
 function setViewMode(mode){
   VIEWMODE=mode;
   const tbl=mode==='table';
+  document.querySelector('.layout').classList.toggle('tableon',tbl);
   document.getElementById('alljobsbtn').classList.toggle('on',tbl);
   ['cards','optipanel','alertbar'].forEach(id=>{const x=document.getElementById(id);if(x)x.style.display=tbl?'none':'';});
   const rw=document.getElementById('rosterwrap');if(rw)rw.style.display=tbl?'none':'';
