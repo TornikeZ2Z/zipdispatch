@@ -221,8 +221,8 @@ header .date{color:var(--dim);font-size:15px}
 .gold{color:var(--faint);text-decoration:line-through;text-decoration-color:#C8A0A0}
 .gnew{font-weight:600}
 .gchg{padding:5px 0;border-bottom:1px solid var(--line);font-size:13.5px}
-.gwide{width:min(920px,94vw)}
-.gxwide{width:min(1280px,96vw)}
+.rfbox.gwide{width:min(980px,94vw)}
+.rfbox.gxwide{width:min(1280px,96vw)}
 .vrow{flex-wrap:wrap}
 .vseg{display:inline-flex;align-items:center;gap:9px}
 .vsep{color:var(--faint);font-weight:600;padding:0 2px}
@@ -413,6 +413,27 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
   .mapcard{max-width:280px}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important}html{scroll-behavior:auto}}
+/* ===== all-jobs table v2: fixed cols, frozen trio, zebra, comfortable ===== */
+#tableview .ajtwrap{overflow:auto;max-height:calc(100vh - 270px);border:1px solid var(--line);border-radius:10px}
+#tableview .ajt{table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:13.5px}
+#tableview .ajt th{position:sticky;top:0;background:var(--bg);text-align:left;padding:11px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);border-bottom:1.5px solid var(--line2);z-index:2;white-space:nowrap}
+#tableview .ajt td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap;background:var(--card)}
+#tableview .ajt tbody tr:nth-child(even) td{background:#F7F7F3}
+#tableview .ajt tbody tr.sus td{background:#FDF3EC}
+#tableview .ajt td.fz1,#tableview .ajt th.fz1{position:sticky;left:0;z-index:1}
+#tableview .ajt td.fz2,#tableview .ajt th.fz2{position:sticky;left:92px;z-index:1}
+#tableview .ajt td.fz3,#tableview .ajt th.fz3{position:sticky;left:208px;z-index:1;box-shadow:6px 0 8px -6px rgba(31,34,38,.18)}
+#tableview .ajt th.fz1,#tableview .ajt th.fz2,#tableview .ajt th.fz3{z-index:3}
+#tableview .ajt td.mono{font-family:'IBM Plex Mono';font-size:12.5px}
+#tableview .ajt td.ajcut{overflow:hidden;text-overflow:ellipsis}
+#tableview .ajt td.ajchk{white-space:normal;color:#9A3E1D;font-size:12.5px;line-height:1.55}
+#tableview .ajaddr{font-size:11.5px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.sm{font-size:12px;padding:3px 9px}
+.gplans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.gplans .gplan{margin-top:0}
+.gpchips{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 6px}
+.gpmeta{font-size:12.5px;color:var(--dim);margin-bottom:8px}
+@media(max-width:980px){.gplans{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1193,15 +1214,12 @@ function cardHTML(r){
     r.vansNeeded?chip('+ '+r.vansNeeded+' van'+(r.vansNeeded>1?'s':'')):'',
     r.legs.some(l=>AUTOCHAINS.some(c=>c.tail===l.code))?chip('auto-chained PM job','ov'):'',
     (function(){const s=sl.find(l=>+String(l.start).slice(11,13)<6);return s?chip('⚠ starts '+tm(s.start)+' — possible AM/PM typo in the calendar','warn'):'';})(),
-    (function(){const m=[...new Set(sl.map(l=>String(l.movingType||'').trim()).filter(Boolean))].join(' / ');return m?'<span class="chip tmove">'+esc(m)+'</span>':'';})(),
-    (function(){const m=[...new Set(sl.map(l=>String(l.jobType||'').trim()).filter(Boolean))].join(' / ');return m?'<span class="chip tjob">'+esc(m)+'</span>':'';})(),
+    typeChip([...new Set(sl.map(l=>String(l.movingType||'').trim()).filter(Boolean))].join(' / '),'tmove'),
+    typeChip([...new Set(sl.map(l=>String(l.jobType||'').trim()).filter(Boolean))].join(' / '),'tjob'),
     r._calSynced?chip('calendar updated ✓',''):'',
-    r.laborOnly?chip('labor work — no moving truck job','ov'):'',
-    r.estimateVisit?chip('in-home estimate visit','ov'):'',
-    r.flatRate?chip('flat rate'):'',
-    r.ldDeparture?chip('long distance — straight (crew drives)'):'',
-    r.hasCarrier?chip('regular move · carrier delivers → '+esc([...r.legs].filter(l=>l._carrier).map(l=>l.cityTo+(l.stateTo?', '+l.stateTo:'')).join(' / ')),'ov'):'',
-    (r.isLD&&!r.ldDeparture&&!r.hasCarrier)?chip('long distance'):'',
+    r.ldDeparture?chip('🛣️ straight LD — crew drives to destination'):'',
+    r.hasCarrier?chip('🚛 carrier delivers → '+esc([...r.legs].filter(l=>l._carrier).map(l=>l.cityTo+(l.stateTo?', '+l.stateTo:'')).join(' / ')),'ov'):'',
+    (r.isLD&&!r.ldDeparture&&!r.hasCarrier)?chip('🛣️ long distance'):'',
     r.piano?chip('piano'):'',
     r.baseOverride?chip('base set manually','ov'):'',
     r.pinForeman?chip(r._pinBusy?'pinned foreman busy!':'foreman pinned','ov'):'',
@@ -1917,6 +1935,17 @@ function truckToken(r){
   if(!v)return '?';
   return v.kind==='fleet'?String(v.t.n).replace('#',''):('RENTAL'+(/26/.test(v.sz)?'26':'20'));
 }
+function typeEmojiMT(mt){return /long/i.test(mt||'')?'🛣️':'📦';}
+function typeEmojiJT(jt){jt=String(jt||'');if(/straight/i.test(jt))return '🚚';if(/regular/i.test(jt))return '🚛';if(/labor/i.test(jt))return '💪';if(/estimate/i.test(jt))return '📋';if(/flat/i.test(jt))return '💵';if(/box/i.test(jt))return '📦';return '';}
+function typeChip(v,cls,small){v=String(v||'').trim();if(!v)return '';const e=cls==='tmove'?typeEmojiMT(v):typeEmojiJT(v);return '<span class="chip '+cls+(small?' sm':'')+'">'+(e?e+' ':'')+esc(v)+'</span>';}
+function routeVehText(r){return (r.vehicles||[]).map(v=>v.kind==='fleet'?((v.t.type==='Van'?'Van ':'Truck ')+v.t.n):('Rental '+v.sz)).join(' + ')||'—';}
+function nearestBaseName(j){
+  if(j.base)return j.base;
+  if(!j.pickup||!DATA.bases)return '—';
+  let best=null,bd=1e9;
+  for(const [n,b] of Object.entries(DATA.bases)){const d=hav(j.pickup,b);if(d<bd){bd=d;best=n;}}
+  return best||'—';
+}
 function jobChecks(j){
   const out=[];
   const h=+String(j.start).slice(11,13);
@@ -1944,6 +1973,13 @@ function renderTable(){
   const rows=[];
   for(const d of days)for(const j of DATA.days[d])rows.push(Object.assign({_day:d,_checks:jobChecks(j)},j));
   const nSus=rows.filter(r=>r._checks.length).length;
+  const COLS=[
+    ['Day',92,'fz1'],['Job Code',116,'fz2'],['Customer',190,'fz3'],
+    ['Time',112],['Pickup',215],['Delivery',215],['Base',104],
+    ['Total CF',84],['Crew Size',86],['Trucks / Vans',104],['ACT Time',86],['Packing $',96],
+    ['Moving Type',172],['Job Type',168],['Kind',118],['After Job Code',128],['# Title Tags',124],['Calendar',86],['Data Checks',280]
+  ];
+  const kindChip=k=>({carrier:'<span class="chip tjob sm">🚛 carrier</span>','straight LD':'<span class="chip tmove sm">🛣️ straight LD</span>',LD:'<span class="chip tmove sm">🛣️ LD</span>',local:'<span class="chip sm">📦 local</span>'})[k]||esc(k);
   const body=()=>{
     const q=(document.getElementById('ajq')||{}).value||'';
     const dayOnly=(document.getElementById('ajd')||{}).checked;
@@ -1951,23 +1987,32 @@ function renderTable(){
     const ql=q.toLowerCase();
     const list=rows.filter(r=>(!dayOnly||r._day===currentDay)&&(!susOnly||r._checks.length)&&(!ql||(r.code+' '+(r.customer||'')+' '+(r.pickupAddr||'')+' '+(r.deliveryAddr||'')+' '+r.cityFrom+' '+(r.cityTo||'')+' '+(r.movingType||'')+' '+(r.jobType||'')+' '+(r.mf||'')+' '+(r.mt||'')).toLowerCase().includes(ql)));
     return '<div class="ts" style="margin:8px 2px">'+list.length+' of '+rows.length+' jobs · source: '+esc(DATA.source||'embedded snapshot')+' · '+(nSus?('<b style="color:#9A3E1D">'+nSus+' with data warnings</b>'):'no data warnings')+'</div>'
-    +'<div class="ajtwrap full"><table class="ajt"><thead><tr><th>Day</th><th>Time</th><th>Code</th><th>Customer</th><th>Pickup</th><th>Delivery</th><th>CF</th><th>Crew</th><th>T/V</th><th>ACT</th><th>Pack $</th><th>Moving · Job type</th><th>Kind</th><th>After</th><th>#tags</th><th>Cal</th><th>Checks</th></tr></thead><tbody>'
-    +list.map(r=>'<tr class="'+(r._checks.length?'sus':'')+'">'
-      +'<td class="mono" title="'+r._day+'">'+fmtDayShort(r._day)+'</td>'
+    +'<div class="ajtwrap full"><table class="ajt" style="width:'+COLS.reduce((s,c)=>s+c[1],0)+'px">'
+    +'<colgroup>'+COLS.map(c=>'<col style="width:'+c[1]+'px">').join('')+'</colgroup>'
+    +'<thead><tr>'+COLS.map(c=>'<th class="'+(c[2]||'')+'">'+c[0]+'</th>').join('')+'</tr></thead><tbody>'
+    +list.map(r=>{
+      const far=r.delivery&&!INREGION(r.delivery);
+      const kind=far?(r.straight?'straight LD':'carrier'):(/long/i.test(r.movingType||'')?'LD':'local');
+      return '<tr class="'+(r._checks.length?'sus':'')+'">'
+      +'<td class="mono fz1" title="'+r._day+'">'+fmtDayShort(r._day)+'</td>'
+      +'<td class="mono fz2">'+esc(r.code)+'</td>'
+      +'<td class="fz3 ajcut" title="'+esc(r.customer||'')+'">'+esc(r.customer||'—')+'</td>'
       +'<td class="mono">'+String(r.start).slice(11,16)+'–'+String(r.end||'').slice(11,16)+'</td>'
-      +'<td class="mono">'+esc(r.code)+'</td>'
-      +'<td class="ajcut" title="'+esc(r.customer||'')+'">'+esc(r.customer||'')+'</td>'
       +'<td class="ajcut" title="'+esc(r.pickupAddr||'')+'">'+esc(r.cityFrom||'')+' <span class="ts">'+(r.pickup?r.pickup.zip:'—')+'</span><div class="ajaddr">'+esc(r.pickupAddr||'')+'</div></td>'
-      +'<td class="ajcut" title="'+esc(r.deliveryAddr||'')+'">'+esc(r.cityTo||'')+' <span class="ts">'+(r.delivery?r.delivery.zip:'—')+'</span><div class="ajaddr">'+esc(r.deliveryAddr||'')+'</div></td>'
-      +'<td>'+(r.cf||0)+'</td><td>'+(r.crew||'')+'</td><td>'+(r.trucksQ||0)+'/'+(r.vansQ||0)+'</td>'
+      +'<td class="ajcut" title="'+esc(r.deliveryAddr||'')+'">'+esc(r.cityTo||'—')+' <span class="ts">'+(r.delivery?r.delivery.zip:'—')+'</span><div class="ajaddr">'+esc(r.deliveryAddr||'')+'</div></td>'
+      +'<td>'+esc(nearestBaseName(r))+'</td>'
+      +'<td>'+(r.cf||0).toLocaleString()+'</td>'
+      +'<td>'+(r.crew||'—')+'</td>'
+      +'<td>'+(r.trucksQ||0)+' / '+(r.vansQ||0)+'</td>'
       +'<td>'+(r.actH?r.actH+'h':'—')+'</td>'
       +'<td>'+(r.packing?Math.round(r.packing).toLocaleString():'—')+'</td>'
-      +'<td>'+esc([r.movingType,r.jobType].filter(Boolean).join(' · '))+'</td>'
-      +'<td>'+kindOf(r)+'</td>'
-      +'<td class="mono">'+esc(r.after||'')+'</td>'
-      +'<td class="mono">'+esc([r.mf,r.mt].filter(Boolean).join('#')||'')+'</td>'
+      +'<td>'+typeChip(r.movingType,'tmove',1)+'</td>'
+      +'<td>'+typeChip(r.jobType,'tjob',1)+'</td>'
+      +'<td>'+kindChip(kind)+'</td>'
+      +'<td class="mono">'+esc(r.after||'—')+'</td>'
+      +'<td class="mono">'+esc([r.mf,r.mt].filter(Boolean).join(' # ')||'—')+'</td>'
       +'<td>'+(r.eventId?'✓':'—')+'</td>'
-      +'<td class="ajchk">'+r._checks.map(esc).join('<br>')+'</td></tr>').join('')
+      +'<td class="ajchk">'+r._checks.map(esc).join('<br>')+'</td></tr>';}).join('')
     +'</tbody></table></div>';
   };
   el.innerHTML='<div class="ajbar"><input id="ajq" placeholder="filter — code, customer, address, city, type, #tag…">'
@@ -2025,10 +2070,12 @@ async function pushCalendarUpdates(){
   ensureGToken(async()=>{
     const m=gModal('Send assignments to Google Calendar',
       '<div class="gsub">'+fmtDayLong(currentDay)+' · '+pend.length+' job'+(pend.length>1?'s':'')+' will be updated. Nothing is sent until you confirm.</div>'
-      +pend.map(p=>{
+      +'<div class="gplans">'+pend.map(p=>{
         const was=p.oldF==='—'?null:p.oldF;
         return '<div class="gplan">'
-        +'<div class="gphead"><b>'+esc(p.l.customer||p.l.code)+'</b><span class="ts">'+esc(p.l.code)+' · '+esc(p.l.cityFrom)+' → '+esc(p.l.cityTo)+' · '+tm(p.l.start)+'</span></div>'
+        +'<div class="gphead"><b>'+esc(p.l.customer||p.l.code)+'</b><span class="ts">'+esc(p.l.code)+' · '+esc(p.l.cityFrom)+' → '+esc(p.l.cityTo)+' · '+tm(p.l.start)+'–'+tm(p.l.end||p.l.start)+'</span></div>'
+        +'<div class="gpchips">'+typeChip(p.l.movingType,'tmove',1)+typeChip(p.l.jobType,'tjob',1)+'</div>'
+        +'<div class="gpmeta">'+(p.l.cf||0).toLocaleString()+' CF · crew '+(p.l.crew||'—')+(p.l.actH?' · ACT '+p.l.actH+'h':'')+(p.l.packing?' · packing $'+Math.round(p.l.packing).toLocaleString():'')+' · '+esc(p.r.base)+' base · '+esc(routeVehText(p.r))+'</div>'
         +'<div class="gprow"><span>👷 Foreman</span><div>'+(p.fSame
             ?'<b>'+esc(p.newF)+'</b> <i class="gqt">already on the event</i>'
             :(was?'<span class="gold">'+esc(was)+'</span> becomes <b>'+esc(p.newF)+'</b>':'<b>'+esc(p.newF)+'</b> gets this job')
@@ -2037,7 +2084,7 @@ async function pushCalendarUpdates(){
             ?'<b>'+esc(p.newT)+'</b> <i class="gqt">already on the event</i>'
             :(p.oldT!=='—'?'<span class="gold">'+esc(p.oldT)+'</span> becomes <b>'+esc(p.newT)+'</b>':'<b>'+esc(p.newT)+'</b> written into the title'))+'</div></div>'
         +'<div class="gqt" style="margin-top:6px">The event keeps all its original notes — a short ZipDispatch summary (foreman · vehicles · base) is added at the end.</div>'
-        +'</div>';}).join('')
+        +'</div>';}).join('')+'</div>'
       +'<div class="gqt" style="margin-top:10px">✅ Only these future events change · 🔒 past events are never touched · ✉️ Google notifies newly invited guests.</div>');
     const foot=document.createElement('button');
     foot.className='gapply';foot.id='gapplybtn';foot.textContent='Looks good — update '+pend.length+' event'+(pend.length>1?'s':'');
@@ -2048,7 +2095,7 @@ async function pushCalendarUpdates(){
       for(const p of pend){
         try{
           const ev=await gapiFetch(evPath(p.l.eventId));
-          const vehTxt=(p.r.vehicles||[]).map(v=>v.kind==='fleet'?((v.t.type==='Van'?'Van ':'Truck ')+v.t.n):('Rental '+v.sz)).join(' + ');
+          const vehTxt=routeVehText(p.r);
           const blk=ZD_A+'\nForeman: '+p.r.foreman.name+' ('+p.r.foreman.nick+')\nVehicles: '+vehTxt+'\nBase: '+p.r.base+'\nUpdated: '+new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+'\n'+ZD_B;
           const body={summary:newTitle(ev.summary,p.r.foreman.nick,truckToken(p.r)),description:upsertZDBlock(ev.description,blk)};
           if(p.r.foreman.email){
