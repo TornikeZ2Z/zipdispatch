@@ -2019,7 +2019,7 @@ function renderFleetStrip(){
     const n=c.dataset.f;
     if(FFSEL.has(n)&&FFSEL.size===1)FFSEL.clear();
     else{FFSEL.clear();FFSEL.add(n);}
-    apply();
+    renderCards();renderFilters();refreshMapIfAll();
   }));
 }
 function backAtBaseMs(r){
