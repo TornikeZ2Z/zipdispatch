@@ -443,7 +443,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .lbcol:hover,.lbopen:hover{color:var(--ink)}
 .lbh{display:flex;align-items:baseline;justify-content:space-between;font-size:12px;font-weight:700;margin:12px 0 5px;color:var(--ink)}
 .lbh span{font-size:10.5px;color:var(--faint);font-weight:600}
-.lbrow{display:flex;align-items:center;gap:7px;padding:4px 5px;border-radius:8px;font-size:13px}
+.lbrow{display:flex;align-items:center}
 .lbrow.dim{opacity:.45}
 .lbrow.truck b{font-weight:700;min-width:26px}
 .lbst{font-size:10.5px;color:var(--faint);min-width:26px}
@@ -502,16 +502,36 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tlgroup{border-bottom:1px solid var(--line2);padding:5px 0;margin-bottom:9px}
 .tlrow.tight{min-height:38px;border-bottom:none}
 .layout.mapon #timelineview .tltrack{min-width:520px}
-/* leftbar v3 */
-#leftbar{width:252px}
-.lbrow{font-size:13.5px;padding:5px 6px;position:relative}
-.lbdots{margin-left:2px;border:0;background:none;color:var(--faint);cursor:pointer;font-size:15px;padding:0 3px;border-radius:6px;visibility:hidden}
-.lbrow:hover .lbdots{visibility:visible}
+/* leftbar v4 — command panel */
+#leftbar{width:308px;padding:14px 15px;top:12px;max-height:calc(100vh - 24px)}
+.lbhead{font-size:12.5px;margin-bottom:9px}
+.lbh{font-size:14px;margin:15px 0 7px;padding-bottom:5px;border-bottom:1.5px solid var(--line)}
+.lbh span{font-size:11.5px}
+.lbrow{font-size:14.5px;padding:7px 7px;position:relative;gap:10px;border-radius:9px}
+.lbrow:hover{background:var(--bg)}
+.lbrow.truck{cursor:pointer}
+.lbrow.truck.dim{cursor:default}
+.tkn{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:27px;border-radius:8px;background:var(--line);font-weight:800;font-size:14px;padding:0 6px;flex-shrink:0}
+.tkn.on{background:var(--fleet-bg);border:1.5px solid var(--fleet-bd);color:var(--fleet)}
+.tkn.rent{background:#FBF3DF;border:1.5px solid #E2C58A;color:#B26B0B}
+.lbmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lbtop{display:flex;align-items:center;gap:8px}
+.lbtop b{font-size:14.5px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbtop em{font-style:normal;font-size:12.5px;color:var(--dim);white-space:nowrap}
+.lbtop em b{color:var(--fleet)}
+.lbsub{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35}
+.lbsub b{color:var(--fleet);font-weight:700}
+.lbbar{flex:1;height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.lbbar i{display:block;height:100%;background:var(--fleet);border-radius:5px}
+.lbrow em{min-width:38px;text-align:right;font-size:12.5px}
+.lbrow.fore .dot{width:11px;height:11px}
+.lbdots{margin-left:0;border:0;background:none;color:var(--line2);cursor:pointer;font-size:17px;padding:1px 5px;border-radius:7px;flex-shrink:0}
+.lbrow:hover .lbdots{color:var(--dim)}
 .lbdots:hover{color:var(--ink);background:var(--bg)}
 .lbpop{position:absolute;right:6px;top:calc(100% - 2px);z-index:40;background:var(--card);border:1.5px solid var(--line2);border-radius:10px;box-shadow:0 8px 28px rgba(31,34,38,.18);min-width:230px;overflow:hidden;display:flex;flex-direction:column}
 .lbpop button{border:0;background:none;text-align:left;font-family:'Inter';font-size:13.5px;padding:10px 13px;cursor:pointer;line-height:1.4}
 .lbpop button:hover{background:var(--bg)}
-.lbadd{margin:7px 0 3px;width:100%;border:1.5px dashed var(--line2);background:none;border-radius:9px;font-family:'Inter';font-weight:600;font-size:13px;color:var(--dim);padding:8px;cursor:pointer}
+.lbadd{margin:9px 0 3px;width:100%;border:1.5px dashed var(--line2);background:none;border-radius:10px;font-family:'Inter';font-weight:700;font-size:14px;color:var(--dim);padding:10px;cursor:pointer}
 .lbadd:hover{border-color:var(--fleet);color:var(--fleet)}
 .lbheld{font-size:10.5px;color:#B26B0B;font-weight:700}
 .lbtw{cursor:pointer}
@@ -2195,14 +2215,15 @@ function renderFleetStrip(){
       const pct=tk.cf>0?Math.min(100,Math.round(cf/tk.cf*100)):0;
       const used=using.length>0;
       const hold=H[tk.n];
-      return '<div class="lbrow truck'+(used?'':' dim')+(tk.rented?' rentedm':'')+'" data-t="'+esc(tk.n)+'" title="'+esc((tk.type==='Van'?'Van ':'Truck ')+tk.n+' · '+tk.cf.toLocaleString()+' CF · cab '+tk.maxCrew+' · '+tk.state+(tk.rented?' · rented':'')+(hold?' · with '+nickOf(hold):'')+(used?(' · '+using.map(r=>r.id).join(', ')):' · spare'))+'">'
-        +'<b>'+esc(String(tk.n).replace('#',''))+'</b>'
-        +'<span class="lbst">'+esc(tk.state)+(tk.type==='Van'?' · van':'')+(hold?' · 🔗'+esc(nickOf(hold)):'')+'</span>'
-        +'<span class="lbbar"><i style="width:'+pct+'%"></i></span>'
-        +'<em>'+(used?pct+'%':'—')+'</em>'
+      return '<div class="lbrow truck'+(used?'':' dim')+(tk.rented?' rentedm':'')+'" data-t="'+esc(tk.n)+'" data-r="'+(used?esc(using[0].id):'')+'" title="'+esc((tk.type==='Van'?'Van ':'Truck ')+tk.n+' · '+tk.cf.toLocaleString()+' CF · cab '+tk.maxCrew+(tk.rented?' · rented':'')+(used?' — click to open '+using[0].id+' on the map':' — spare today'))+'">'
+        +'<b class="tkn'+(used?' on':'')+'">'+esc(String(tk.n).replace('#',''))+'</b>'
+        +'<div class="lbmain"><div class="lbtop"><span class="lbbar"><i style="width:'+pct+'%"></i></span><em>'+(used?pct+'%':'—')+'</em></div>'
+        +'<div class="lbsub">'+esc(tk.state)+(tk.type==='Van'?' van':'')+' · '+tk.cf.toLocaleString()+' CF'+(hold?' · 🔗'+esc(nickOf(hold)):'')+(used?' · <b>'+using.map(r=>r.id).join(' ')+'</b>':' · spare')+'</div></div>'
         +'<button class="lbdots" data-menu="truck" data-t="'+esc(tk.n)+'">⋯</button></div>';
     }).join('');
-    html+=rents.map(x=>'<div class="lbrow truck rentrow" title="'+esc('On-the-day rental for '+x.r.id+' — the engine found no fitting owned truck at '+x.r.base)+'"><b>R</b><span class="lbst">'+esc(x.v.sz)+'</span><span class="lbbar"><i style="width:100%"></i></span><em>'+esc(x.r.id)+'</em></div>').join('');
+    html+=rents.map(x=>'<div class="lbrow truck rentrow" data-r="'+esc(x.r.id)+'" title="'+esc('On-the-day rental for '+x.r.id+' — no fitting owned truck at '+x.r.base+'. Click to open the route.')+'">'
+      +'<b class="tkn rent">R</b><div class="lbmain"><div class="lbtop"><span class="lbbar"><i style="width:100%"></i></span><em>'+esc(x.v.sz)+'</em></div>'
+      +'<div class="lbsub">'+esc(x.r.base)+' · day rental · <b>'+esc(x.r.id)+'</b></div></div></div>').join('');
     html+='<button class="lbadd" id="lbaddtruck">＋ Add rented truck</button>';
   }
   // ── foremen ──
@@ -2218,8 +2239,9 @@ function renderFleetStrip(){
     const heldBy=f=>Object.keys(H).find(tn=>H[tn]===f.name);
     const frow=(g,cls,tag)=>{
       const ht=heldBy(g.f);
-      return '<div class="lbrow fore '+cls+'" data-f="'+esc(g.f.name)+'" title="'+esc(g.f.name+(g.mine?' · '+g.mine.map(r=>r.id).join(', '):'')+(g.reason?' · '+g.reason:'')+(g.auto?' · off per the sheet':'')+(ht?' · holds '+ht:''))+'">'
-      +'<i class="dot"></i><b>'+esc(g.f.nick)+(ht?' <span class="lbheld">🔗'+esc(String(ht).replace('#',''))+'</span>':'')+'</b><em>'+(g.mine?g.mine.length+' rte':tag)+'</em>'
+      return '<div class="lbrow fore '+cls+'" data-f="'+esc(g.f.name)+'" title="'+esc(g.f.name+(g.mine?' · '+g.mine.map(r=>r.id).join(', '):'')+(g.reason?' · '+g.reason:'')+(g.auto?' · off per the sheet':'')+(ht?' · holds '+ht:'')+' — click to filter the board')+'">'
+      +'<i class="dot"></i><div class="lbmain"><div class="lbtop"><b>'+esc(g.f.nick)+(ht?' <span class="lbheld">🔗'+esc(String(ht).replace('#',''))+'</span>':'')+'</b><em>'+(g.mine?'<b>'+g.mine.map(r=>r.id).join(' ')+'</b>':tag)+'</em></div>'
+      +'<div class="lbsub">'+esc(g.f.base||'—')+' base'+(g.mine?' · '+g.mine.reduce((s,r)=>s+r.totalCF,0).toLocaleString()+' CF day':'')+'</div></div>'
       +'<button class="lbdots" data-menu="fore" data-f="'+esc(g.f.name)+'">⋯</button></div>';};
     html+=groups.on.map(g=>frow(g,'on','')).join('')
       +groups.free.map(g=>frow(g,'free','free')).join('')
@@ -2239,6 +2261,11 @@ function renderFleetStrip(){
       renderCards();renderFilters();refreshMapIfAll();renderFleetStrip();
     });
   });
+  el.querySelectorAll('.lbrow.truck[data-r]').forEach(c=>c.addEventListener('click',e=>{
+    if(e.target.closest('.lbdots'))return;
+    const rid=c.dataset.r;
+    if(rid)selectRoute(rid,true);
+  }));
   el.querySelectorAll('.lbdots').forEach(btn=>btn.addEventListener('click',e=>{
     e.stopPropagation();
     if(btn.dataset.menu==='fore')foreMenu(btn,btn.dataset.f);
