@@ -26,7 +26,8 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 ::-webkit-scrollbar-track{background:transparent}
 
 header{display:flex;align-items:center;gap:18px;padding:14px 28px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:nowrap;position:sticky;top:0;z-index:1100}
-.brand{flex-shrink:0;min-width:0}
+.brand{flex-shrink:0;width:360px;min-width:360px}
+#brandlogo{height:40px;display:block;margin-bottom:2px}
 header .date{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:440px;display:block}
 @media (max-width:1480px){header .date{max-width:300px}}
 #daynav{flex-shrink:0}
@@ -378,7 +379,11 @@ details.cands summary:hover{color:var(--ink)}
 #allmapbtn{background:var(--fleet-bg);border:1px solid var(--fleet-bd);color:var(--fleet);font-family:'Inter';font-weight:600;font-size:14px;padding:8px 14px;border-radius:9px;cursor:pointer}
 .vbtn{background:var(--card);border:1.5px solid var(--line2);border-radius:9px;font-family:'Inter';font-weight:600;font-size:14px;padding:8px 14px;cursor:pointer;color:var(--ink)}
 .vbtn:hover{border-color:var(--ink)}
-.vbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.vbtn.on{color:#fff}
+#boardbtn.on{background:#1B1F24;border-color:#1B1F24}
+#allmapbtn.on{background:#0F8A66;border-color:#0F8A66}
+#alljobsbtn.on{background:#B26B0B;border-color:#B26B0B}
+#timelinebtn.on{background:#6C4FD8;border-color:#6C4FD8}
 #tableview{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 16px}
 .ajtwrap.full{max-height:calc(100vh - 280px)}
 .ajt td{white-space:nowrap}
@@ -484,14 +489,14 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tltgl{display:inline-flex;border:1.5px solid var(--line2);border-radius:9px;overflow:hidden}
 .tltgl button{border:0;background:var(--card);font-family:'Inter';font-weight:600;font-size:13.5px;padding:7px 14px;cursor:pointer;color:var(--dim)}
 .tltgl button.on{background:var(--ink);color:#fff}
-.tlwrap{overflow:auto;max-height:calc(100vh - 250px);position:relative}
+.tlwrap{overflow-x:hidden;overflow-y:auto;max-height:calc(100vh - 250px);position:relative}
 .tlrow{display:flex;align-items:stretch;min-height:46px;border-bottom:1px solid var(--line)}
 .tlrow.scale{min-height:26px;border-bottom:1.5px solid var(--line2);position:sticky;top:0;background:var(--card);z-index:3}
 .tlrow.free{opacity:.55;min-height:34px}
 .tllabel{width:170px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:1px;padding:4px 10px 4px 2px;position:sticky;left:0;background:var(--card);z-index:2}
 .tllabel b{font-size:14px}
 .tllabel span{font-size:11px;color:var(--faint)}
-.tltrack{flex:1;position:relative;min-width:760px}
+.tltrack{flex:1;position:relative;min-width:0}
 .tlgrid{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
 .tlhr{position:absolute;top:3px;font-size:10.5px;color:var(--faint);transform:translateX(4px);font-family:'IBM Plex Mono'}
 .tlblock{position:absolute;top:7px;bottom:7px;border-radius:7px;color:#fff;font-size:12px;font-weight:600;padding:0 9px;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;box-shadow:0 1px 4px rgba(31,34,38,.22);transition:transform .1s}
@@ -500,6 +505,18 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tlblock.sel{outline:3px solid var(--ink);z-index:2}
 .tlblock.nd{background-image:linear-gradient(90deg,transparent 78%,rgba(0,0,0,.28) 100%)}
 .chip.nd{background:#EFEAFB;border:1px solid #D4C8F0;color:#4F3D8E;font-weight:700}
+.layout.maponly .rail{display:none}
+.layout.maponly #leftbar{display:none}
+.layout.maponly #mapcard{width:auto;max-width:none;flex:1}
+.chip.calopen,a.calopen{text-decoration:none;background:#EAF3FB;border:1px solid #C8DEF2;color:#1F6FD6;font-weight:700;cursor:pointer}
+a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
+.chip.calopen:hover,a.calopen:hover{border-color:#1F6FD6}
+#dquick{display:flex;gap:7px;padding:9px 10px;border-bottom:1px solid var(--line)}
+#dquick button{flex:1;border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet);border-radius:9px;font-family:'Inter';font-weight:800;font-size:13.5px;padding:8px;cursor:pointer}
+#dquick button:hover{border-color:var(--fleet)}
+.minfo{line-height:1.55}
+.minfo .mirow{padding:3px 0}
+.minfo .mctrls{border-top:1px solid var(--line);margin-top:9px;padding-top:9px}
 #restorebar{display:flex;align-items:center;gap:8px;background:#EFF8F2;border:1.5px solid #BFDCCB;color:#0F5C44;border-radius:12px;padding:11px 15px;font-size:14px;font-weight:600;margin-bottom:11px}
 #restorebar span{color:#4E7A66;font-weight:500}
 #restorebar .rbx{margin-left:auto;border:0;background:none;font-size:15px;color:#4E7A66;cursor:pointer;padding:2px 6px;border-radius:7px}
@@ -588,7 +605,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tlsep{font-family:'Barlow Condensed';font-size:16px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:12px 4px 4px;border-bottom:1px solid var(--line)}
 .tlgroup{border-bottom:1px solid var(--line2);padding:5px 0;margin-bottom:9px}
 .tlrow.tight{min-height:38px;border-bottom:none}
-.layout.mapon #timelineview .tltrack{min-width:520px}
+.layout.mapon #timelineview .tltrack{min-width:0}
 /* leftbar v5 — command panel */
 #leftbar{width:332px;padding:16px 16px;top:12px;max-height:calc(100vh - 24px)}
 .lbhead{font-size:15px;margin-bottom:11px;letter-spacing:.09em}
@@ -662,7 +679,8 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 <body>
 <header>
   <div class="brand">
-    <h1>Zip to Zip — dispatch</h1>
+    <img id="brandlogo" src="logo.svg" alt="Zip To Zip" onerror="this.style.display='none';document.getElementById('brandtxt').style.display='block'">
+    <h1 id="brandtxt" style="display:none">Zip to Zip — dispatch</h1>
     <span class="date" id="hdate"></span>
   </div>
   <div id="daynav">
@@ -1139,6 +1157,7 @@ let mapMode='single';
 let MAPCARD_MIN=false;
 function exitMap(){
   document.querySelector('.layout').classList.remove('mapon');
+  document.querySelector('.layout').classList.remove('maponly');
   mapMode='single';highlighted=null;renderCards();
   if(typeof updateViewBtns==='function')updateViewBtns();
   if(VIEWMODE==='timeline')renderTimeline();
@@ -1559,6 +1578,7 @@ function cardHTML(r){
     })(),
     r.legs.some(l=>l._draft)?'<span class="chip draft">📝 draft — board only, push via Update calendar</span><span class="chip draft rm rmdraft" data-codes="'+esc(r.legs.filter(l=>l._draft).map(l=>l.code).join(','))+'">🗑 remove draft</span>':'',
     r._calSynced?chip('calendar updated ✓',''):'',
+    r.legs.filter(l=>l.eventId).map(l=>'<a class="chip calopen" target="_blank" rel="noopener" href="'+calEditUrl(l.eventId)+'" title="Open '+esc(l.code)+' in Google Calendar — edit anything there; the board pulls your edits in automatically when you come back to this tab">✎ '+esc(l.code)+'</a>').join(''),
     r.piano?chip('piano'):'',
     r.baseOverride?chip('base set manually','ov'):'',
     r.pinForeman?chip(r._pinBusy?'pinned foreman busy!':'foreman pinned','ov'):'',
@@ -2170,6 +2190,7 @@ function drawAllJobs(seq){
   if(document.getElementById('showall'))document.getElementById('showall').onclick=exitMap;
 }
 function selectRoute(id,scrollCard){
+  document.querySelector('.layout').classList.remove('maponly');
   mapMode='single';
   highlighted=(highlighted===id)?null:id;
   const lay=document.querySelector('.layout');
@@ -2795,6 +2816,7 @@ function backAtBaseMs(r){
 function jobChecks(j){
   const out=[];
   if(j.actH&&j.actH>=14)out.push('ACT Time '+j.actH+'h — runs past midnight; check the calendar (typo? 4.5 vs 45)');
+  if(/local/i.test(String(j.movingType||''))&&j.actH&&j.actH>=12&&j.actH<14)out.push('Local Moving with ACT '+j.actH+'h — local jobs finish within a day; double-check the calendar');
   const h=+String(j.start).slice(11,13);
   const svc=/labor|estimate/i.test(j.jobType||'');
   if(h<6)out.push('⏰ starts '+String(j.start).slice(11,16)+' — we don\'t work this early; likely an AM/PM typo in the calendar');
@@ -2861,7 +2883,7 @@ function renderTable(){
       +'<td>'+kindChip(kind)+'</td>'
       +'<td class="mono">'+esc(r.after||'—')+'</td>'
       +'<td class="mono">'+esc([r.mf,r.mt].filter(Boolean).join(' # ')||'—')+'</td>'
-      +'<td>'+(r.eventId?'✓':'—')+'</td>'
+      +'<td>'+(r.eventId?'<a class="calopen" target="_blank" rel="noopener" href="'+calEditUrl(r.eventId)+'" title="Open in Google Calendar — edits sync back automatically">✎ open</a>':'—')+'</td>'
       +'<td><label class="ajsw" title="Take this job off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" class="ajex" data-k="'+esc(jobKey(r))+'" data-t="'+esc(r.customer||r.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(r))?'':' checked')+'><i></i></label></td>'
       +(PAST?'':'<td class="ajchk">'+r._checks.map(esc).join('<br>')+'</td>')+'</tr>';}).join('')
     +'</tbody></table></div>';
@@ -2894,8 +2916,7 @@ function setViewMode(mode){
   VIEWMODE=mode;
   const off=mode!=='board';
   document.querySelector('.layout').classList.toggle('tableon',off);
-  document.getElementById('alljobsbtn').classList.toggle('on',mode==='table');
-  document.getElementById('timelinebtn').classList.toggle('on',mode==='timeline');
+  updateViewBtns();
   ['cards','optifold','alertfold'].forEach(id=>{const x=document.getElementById(id);if(x)x.style.display=off?'none':'';});
   if(!off)syncFolds();
   renderFleetStrip();
@@ -2932,10 +2953,12 @@ function renderTimeline(){
   const A=Math.max(0,minH-1),B=Math.min(24,Math.max(maxH+1,19)),SPAN=(B-A)*60;
   const pos=ms=>{const d=new Date(ms);return ((d.getHours()*60+d.getMinutes())-A*60)/SPAN*100;};
   const kindCol=l=>{
-    if(/labor/i.test(String(l.jobType||'')))return '#5B6770';
-    if(l._far&&l.straight)return '#6C4FD8';
-    if(l._far||/long/i.test(String(l.movingType||'')))return '#C98A1B';
-    return '#128A72';
+    const jt=String(l.jobType||''),mt=String(l.movingType||'');
+    if(/labor/i.test(jt))return '#5B6770';                       // Local Moving · Labor Work
+    const ld=/long/i.test(mt)||l._far;
+    if(ld&&(l.straight||/straight/i.test(jt)))return '#6C4FD8';  // Long Distance · Straight
+    if(ld)return '#C98A1B';                                       // Long Distance · Regular
+    return '#128A72';                                             // Local Moving · Standard / Flat Rate
   };
   const mkB=(b,lblMode)=>{
     const left=Math.max(0,pos(b.st));
@@ -2984,7 +3007,7 @@ function renderTimeline(){
   el.innerHTML='<div class="tlbar"><b>'+fmtDayLong(currentDay)+'</b>'
     +'<span class="tltgl"><button class="'+(TLMODE==='routes'?'on':'')+'" data-m="routes">🗂 Routes</button><button class="'+(TLMODE==='foremen'?'on':'')+'" data-m="foremen">👷 Foremen</button><button class="'+(TLMODE==='trucks'?'on':'')+'" data-m="trucks">🚚 Trucks</button></span>'
     +(filtersActive()?'<span class="ts">'+RR.length+' of '+routes.length+' routes (filters applied)</span>':'')
-    +'<span class="tlleg"><i style="background:#128A72"></i>Local <i style="background:#C98A1B"></i>Long distance <i style="background:#6C4FD8"></i>Straight LD <i style="background:#5B6770"></i>Labor</span>'
+    +'<span class="tlleg"><i style="background:#128A72"></i>Local <i style="background:#5B6770"></i>Local · Labor <i style="background:#6C4FD8"></i>LD · Straight <i style="background:#C98A1B"></i>LD · Regular</span>'
     +'<span class="ts">one bar per job · click a bar → map &amp; details</span></div>'
     +'<div class="tlwrap">'+scale+rows+'</div>';
   el.querySelectorAll('.tltgl button').forEach(b=>b.addEventListener('click',()=>{TLMODE=b.dataset.m;renderTimeline();}));
@@ -3271,6 +3294,18 @@ async function calFullImport(){
   return {ok,skip,days:ds.length,events:items.length,kept};
 }
 let CAL_SKIPPED=[];
+function calEditUrl(eventId){
+  try{return 'https://calendar.google.com/calendar/u/0/r/eventedit/'+btoa(eventId+' '+GCAL_ID).replace(/=+$/,'');}catch(e){return 'https://calendar.google.com/calendar/u/0/r';}
+}
+let LAST_FOCUS_SYNC=0;
+window.addEventListener('focus',()=>{
+  if(!GTOKEN)return;
+  if(Date.now()-LAST_FOCUS_SYNC<45000)return;
+  LAST_FOCUS_SYNC=Date.now();
+  Promise.resolve().then(()=>calSyncCore()).then(s=>{
+    if(s&&((s.upd||0)+(s.add||0)+(s.del||0))>0)toast('🔄 Calendar edits pulled in — '+(s.upd||0)+' updated'+(s.add?' · '+s.add+' new':'')+(s.del?' · '+s.del+' removed':''));
+  }).catch(()=>{});
+});
 function setJobEnabled(key,on,meta){
   if(on)EXCL.delete(key);else EXCL.add(key);
   persistToggles();
@@ -3609,6 +3644,16 @@ function populateDays(){
       +'<span class="dpj">'+DATA.days[d].length+' jobs</span>'
       +(g?'<span class="dpt '+g[1]+'">'+g[0]+'</span>':'')+'</div>';
   }).join('');
+  (function(){
+    const el=document.createElement('div');el.id='dquick';
+    el.innerHTML='<button data-q="t">Today</button><button data-q="m">Tomorrow</button>';
+    document.getElementById('dpanel').prepend(el);
+    el.addEventListener('click',e=>{
+      const b=e.target.closest('button');if(!b)return;
+      switchDay(b.dataset.q==='t'?TODAY_ISO:tomorrowISO());
+      document.getElementById('dpanel').classList.remove('open');dpOpen=false;
+    });
+  })();
   document.getElementById('dpanel').classList.toggle('open',dpOpen);
   document.querySelectorAll('#dpanel .dprow').forEach(r=>r.addEventListener('click',()=>{dpOpen=false;switchDay(r.dataset.d);}));
 }
@@ -3704,11 +3749,13 @@ document.getElementById('allmapbtn').addEventListener('click',()=>{
   const lay=document.querySelector('.layout');
   const wasOn=lay.classList.contains('mapon');
   mapMode='all';highlighted=null;renderCards();
-  lay.classList.add('mapon');
+  lay.classList.add('mapon');lay.classList.add('maponly');
+  updateViewBtns();
   setTimeout(()=>{initMap();LMAP.invalidateSize();refreshMap();},wasOn?60:480);
 });
 window.addEventListener('resize',()=>{if(LMAP)LMAP.invalidateSize();});
 render();
+setViewMode('timeline');updateViewBtns();
 </script>
 </body>
 </html>
