@@ -622,7 +622,26 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .tlrow.offrow{opacity:.85;background:#FBF6F4}
 .offtrack{display:flex;align-items:center;padding-left:10px}
 .warnchip{background:#FBEEE8;border-color:#EBC9B8;color:#9A3E1D}
+.exwrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;background:var(--bg);border:1px dashed var(--line2);border-radius:10px}
+.exbtn{border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet);border-radius:9px;font-family:'Inter';font-weight:800;font-size:13px;padding:7px 13px;cursor:pointer}
+.exbtn:hover{border-color:var(--fleet)}
+.ajform2 textarea{width:100%;font-family:'Inter';font-size:15px;padding:11px 12px;border:1.5px solid var(--line2);border-radius:10px;background:var(--card);resize:vertical}
+.ajform2 textarea:focus{outline:none;border-color:var(--fleet)}
+.cmp{padding:14px 16px;border-radius:12px}
+.cmphead{font-size:14.5px}
+.cmpcols{font-size:14px;gap:26px}
+.cmpcols b{font-size:15px}
+.cmpwhy{font-size:13.5px;margin-top:8px}
 .pmwhy{color:#6B5A14;background:#FBF6E2;border:1px solid #EBDFAE;border-radius:9px;padding:7px 10px;font-size:13px}
+#timelineview .tlsep{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:11px;margin:10px 0 4px;border-left-width:4px;border-left-style:solid}
+#timelineview .tlsep h4{margin:0;font-family:'Barlow Condensed';font-weight:600;font-size:19px;letter-spacing:.06em}
+#timelineview .tlsep .tlmeta{font-size:13.5px;color:var(--dim);font-family:'Inter';letter-spacing:0;text-transform:none;font-weight:500}
+#timelineview .tlsep[data-b="NJ"]{background:#E9F5F0;border-left-color:#0F8A66;color:#0F8A66}
+#timelineview .tlsep[data-b="PA"]{background:#F0EDFB;border-left-color:#7C5CE0;color:#7C5CE0}
+#timelineview .tlsep[data-b="NY"]{background:#E9F1FB;border-left-color:#1F6FD6;color:#1F6FD6}
+#timelineview .tlsep[data-b="DE"]{background:#FAF2E4;border-left-color:#B26B0B;color:#B26B0B}
+#timelineview .tlsep[data-b="CT"]{background:#FAEAF1;border-left-color:#C2417A;color:#C2417A}
+#timelineview .tlsep[data-b="MA"]{background:#E9F4F6;border-left-color:#3E8E9C;color:#3E8E9C}
 .tlsep.tlfold{cursor:pointer;user-select:none}
 .tlsep.tlfold i{display:inline-block;width:18px;font-style:normal;font-weight:800}
 .tlsep.tlfold:hover{filter:brightness(.85)}
@@ -1571,6 +1590,10 @@ function renderCards(){
   if(!window._assignDelegated){
   window._assignDelegated=1;
   document.addEventListener('click',e=>{const s=e.target.closest('select[data-act]');if(s)e.stopPropagation();},true);
+  document.addEventListener('click',e=>{
+    const x=e.target.closest('.exbtn');
+    if(x){e.stopPropagation();explainModal(x.dataset.r);}
+  });
   document.addEventListener('input',e=>{
     const c=e.target.closest('input.cdrop,input.smartloc');
     if(!c)return;
@@ -1697,7 +1720,37 @@ function scoreParts(r){
   ];
 }
 
+function fbKey(r){return currentDay+'|'+r.legs.map(l=>l.code).join('+');}
+function loadFB(){try{return JSON.parse(localStorage.getItem('zd_fb')||'[]');}catch(e){return [];}}
+function reviewCtrlsHTML(r){
+  const fb=loadFB().find(x=>x.key===fbKey(r));
+  return '<div class="exwrap">'
+    +(fb?'<span class="chip" style="background:#F3F8E4;border-color:#D3E3A6" title="'+esc(fb.txt||fb.cat)+'">💬 explained · '+esc(fb.cat)+'</span>':'')
+    +'<button class="exbtn" data-r="'+r.id+'">💬 '+(fb?'Edit explanation':'Explain this decision')+'</button>'
+    +'<span class="ts">review mode — tell the engine why the real pick differed; answers feed future assignment scoring</span></div>';
+}
+function explainModal(rid){
+  const r=routes.find(x=>x.id===rid);if(!r)return;
+  const l=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0];
+  const eng=(r.foreman?r.foreman.name:'—')+' · '+routeVehText(r);
+  const man=(l.mf||'—')+(l.mt?' · '+l.mt:'');
+  const fb=loadFB().find(x=>x.key===fbKey(r))||{};
+  const m=gModal('💬 Explain — '+r.id+' · '+esc(l.customer||l.code),
+    '<div class="gsub">The engine suggested <b>'+esc(eng)+'</b> · the day actually ran with <b>'+esc(man)+'</b>. Tell it why — explanations are stored and will shape future assignment scoring (preferences, customer requests, constraints the engine can\'t see).</div>'
+    +'<div class="ajform2">'
+    +'<div class="ajf full"><label>Reason</label><select id="excat" class="gselect">'+['Customer requested this foreman','Foreman preference / seniority','Truck or equipment issue','Foreman was actually unavailable','Skill fit (piano, packing, language)','The engine was right — the manual pick was the mistake','Other'].map(c=>'<option'+(fb.cat===c?' selected':'')+'>'+c+'</option>').join('')+'</select></div>'
+    +'<div class="ajf full"><label>Details <i>(optional)</i></label><textarea id="extxt" rows="3" placeholder="anything the engine should learn from this day">'+esc(fb.txt||'')+'</textarea></div>'
+    +'</div><div style="margin-top:12px"><button class="gapply" id="exok">Save explanation</button></div>');
+  m.querySelector('#exok').onclick=()=>{
+    const rec={key:fbKey(r),day:currentDay,rid:r.id,codes:r.legs.map(x=>x.code).join('+'),engine:eng,manual:man,cat:m.querySelector('#excat').value,txt:m.querySelector('#extxt').value.trim(),ts:Date.now()};
+    const all=loadFB().filter(x=>x.key!==rec.key);all.push(rec);
+    try{localStorage.setItem('zd_fb',JSON.stringify(all));}catch(e){}
+    if(GTOKEN)shAppendRow('Dispatch Feedback',{'Date':rec.day,'Route':rec.rid,'Job Codes':rec.codes,'Engine Pick':rec.engine,'Actual':rec.manual,'Category':rec.cat,'Details':rec.txt,'Logged':new Date().toISOString()}).then(()=>sheetSaved('explanation saved to the team sheet')).catch(()=>{});
+    m.classList.remove('show');render();toast('💬 saved — thank you, this trains the engine');
+  };
+}
 function assignCtrlsHTML(r){
+  if(currentDay<TODAY_ISO)return reviewCtrlsHTML(r);
   const RO=!canEdit();
   const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
   const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
@@ -3239,7 +3292,10 @@ function renderTimeline(){
     [...RR].sort((x,y)=>(x.base||'').localeCompare(y.base||'')||(x.t0-y.t0)).forEach(r=>{(byB[r.base]=byB[r.base]||[]).push(r);});
     for(const b of Object.keys(byB)){
       const rs=byB[b],col=collapsedBases.has(b);
-      rows+='<div class="tlsep tlfold'+(col?' col':'')+'" data-b="'+esc(b)+'" title="Click to '+(col?'expand':'collapse')+'"><i>'+(col?'+':'−')+'</i>'+esc(b)+' base'+(col?' · '+rs.length+' route'+(rs.length>1?'s':'')+' hidden':'')+'</div>';
+      const _fl=new Set(rs.flatMap(r=>(r.vehicles||[]).filter(v=>v.kind==='fleet').map(v=>v.t.n))).size;
+      const _rn=rs.reduce((s,r)=>s+(r.rentals||0),0);
+      const _cw=rs.map(r=>r.foreman?r.foreman.nick:'—').join(', ');
+      rows+='<div class="tlsep tlfold'+(col?' col':'')+'" data-b="'+esc(b)+'" title="Click to '+(col?'expand':'collapse')+'"><i>'+(col?'+':'−')+'</i><h4>'+esc(b)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+' · '+_fl+' fleet truck'+(_fl!==1?'s':'')+(_rn?' · '+_rn+' rental'+(_rn>1?'s':''):'')+' · '+esc(_cw)+'</span></div>';
       if(col)continue;
       for(const r of rs){
         const vt=(r.vehicles||[]).map(v=>v.kind==='fleet'?('#'+String(v.t.n).replace('#','')):('R·'+String(v.sz||'').replace(' ft',''))).join(' + ');
@@ -3332,12 +3388,19 @@ function updateCalBtn(){
     return;
   }
   b.classList.add('gok');
+  if(!canEdit()){
+    b.textContent='🗓 Update calendar';
+    b.disabled=true;
+    b.title=(currentDay<TODAY_ISO?'Past day — review mode; nothing gets written back to the calendar.':'Calendar write-back works for today & tomorrow only — assignments further out aren\'t final yet, so pushing them would just create churn.');
+    return;
+  }
   const n=pendingCalChanges().length;
   b.textContent=n?('🗓 Update calendar ('+n+')'):'🗓 Update calendar';
   b.disabled=!n;
   b.title=n?('Push '+n+' changed assignment'+(n>1?'s':'')+' for '+currentDay+' to the Google Calendar — with preview & confirmation'):'Connected ✓ — nothing new to push for this day';
 }
 async function pushCalendarUpdates(){
+  if(!canEdit())return toast('🗓 calendar write-back is for today & tomorrow only');
   const pend=pendingCalChanges();
   if(!pend.length)return;
   ensureGToken(async()=>{
@@ -4019,7 +4082,7 @@ document.getElementById('cards').addEventListener('click',e=>{
   toast('Draft removed.');
 });
 document.getElementById('boardbtn').addEventListener('click',()=>{
-  if(VIEWMODE!=='board')setViewMode('board');
+  setViewMode('board');
   if(mapMode==='all'||highlighted){highlighted=null;mapMode='single';document.querySelector('.layout').classList.remove('mapon');render();}
   updateViewBtns();
 });
@@ -4052,8 +4115,9 @@ populateDays();updateHDate();updateStamp();
 rebuildRoutes();
 let PREV_VIEW='timeline';
 document.getElementById('allmapbtn').addEventListener('click',()=>{
-  if(VIEWMODE!=='board'){PREV_VIEW=VIEWMODE;setViewMode('board');} else PREV_VIEW='board';
   const lay=document.querySelector('.layout');
+  const wasFull=lay.classList.contains('maponly');
+  if(VIEWMODE!=='board'){PREV_VIEW=VIEWMODE;setViewMode('board');} else if(!wasFull)PREV_VIEW='board';
   const wasOn=lay.classList.contains('mapon');
   mapMode='all';highlighted=null;renderCards();
   lay.classList.add('mapon');lay.classList.add('maponly');
