@@ -1057,7 +1057,7 @@ function assignAll(routes,w,baseMode){
     r.foremanEval=best;
     r.foremanTravel=best&&best.f.base!==r.base;
     const need=[];r.rentals=0;r._crewGap=false;
-    const atBase=ty=>DATA.trucks.filter(t=>t.status==='Active'&&t.state===r.base&&t.type===ty&&truckActiveOn(t,currentDay)&&free(busyT,t.n,r));
+    const atBase=ty=>DATA.trucks.filter(t=>t.status==='Active'&&t.state===r.base&&t.type===ty&&truckActiveOn(t,currentDay)&&!TRIPAWAY_T[_tn(t.n)]&&free(busyT,t.n,r));
     const take=t=>{book(busyT,t.n,r);need.push({kind:'fleet',t});};
     const truckSlots=Math.max(r.trucksNeeded,(!r.trucksNeeded&&!r.vansNeeded)?1:0);
     const slotsSpec=[];
@@ -1073,6 +1073,7 @@ function assignAll(routes,w,baseMode){
           const _H=DATA.holders||{};
           if(_H[k.n]&&(!r.foreman||_H[k.n]!==r.foreman.name)){const hf=DATA.foremen.find(x=>x.name===_H[k.n]);why='with '+(hf?hf.nick:_H[k.n])+' — locked pairing';}
           else if(!truckActiveOn(k,currentDay))why='rental active '+(k.rentStart||'?')+' → '+(k.rentEnd||k.rentStart||'?')+' — outside this day';
+          else if(TRIPAWAY_T[_tn(k.n)])why='on a straight LD trip ('+TRIPAWAY_T[_tn(k.n)].code+') — back '+TRIPAWAY_T[_tn(k.n)].back;
           else if(k.state!==r.base)why=k.state+' fleet — wrong base';
           else if(!free(busyT,k.n,r))why='busy in this time window';
           else if(k.cf<r.maxCF)why=k.cf.toLocaleString()+' CF — smaller than the '+r.maxCF.toLocaleString()+' CF load';
@@ -1152,25 +1153,26 @@ const WEIGHTS={cf:35,pack:20,ld:20,multi:15,piano:10};
 function getW(){return WEIGHTS;}
 let manualChains=[];
 let AUTOCHAINS=[];
-let TRIPAWAY={};
+let TRIPAWAY={};let TRIPAWAY_T={};
+const _tn=x=>String(x||'').replace(/[#\s]/g,'').toUpperCase();
 function tripAwayMap(dayIso){
-  const out={};
+  const out={};const outT={};
   const d0=Date.parse(dayIso+'T12:00');
   for(let k=1;k<=10;k++){
     const dd=new Date(d0-k*86400000);
     const dIso=dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0')+'-'+String(dd.getDate()).padStart(2,'0');
     for(const j of (DATA.days[dIso]||[])){
-      if(!j.straight||!j.tripDays||j.tripDays<=1||!j.mf)continue;
+      if(!j.straight||!j.tripDays||j.tripDays<=1||(!j.mf&&!j.mt))continue;
       if(k<j.tripDays){
-        const f=matchForeman(j.mf);
-        if(f&&f.status==='Active'){
-          const back=new Date(Date.parse(dIso+'T12:00')+j.tripDays*86400000);
-          out[f.name]={code:j.code,back:back.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})};
-        }
+        const back=new Date(Date.parse(dIso+'T12:00')+j.tripDays*86400000);
+        const backLbl=back.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+        const f=j.mf?matchForeman(j.mf):null;
+        if(f&&f.status==='Active')out[f.name]={code:j.code,back:backLbl};
+        if(j.mt)String(j.mt).split(/[+,]/).forEach(tn=>{const kk=_tn(tn);if(kk&&DATA.trucks.some(x=>_tn(x.n)===kk))outT[kk]={code:j.code,back:backLbl};});
       }
     }
   }
-  return out;
+  return {f:out,t:outT};
 }
 const AUTOOFFLIST=new Set();
 function detectAutoChains(rts){
@@ -1318,7 +1320,7 @@ function filtersActive(){return FFSEL.size>0||BASESEL.size>0||CHFILTER!=='all'||
 const TODAY_ISO=(function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
 const PALETTE=['#0F8A66','#B26B0B','#6C5CE0','#C2417A','#2563EB','#D97706','#0E7490','#7C3AED','#DC2626','#65A30D','#0891B2','#9333EA','#BE185D','#4338CA'];
 function rebuildRoutes(){
-  TRIPAWAY=tripAwayMap(currentDay);
+  const _ta=tripAwayMap(currentDay);TRIPAWAY=_ta.f;TRIPAWAY_T=_ta.t;
   const keep={};
   routes.forEach(r=>{const k=r.legs[0].code;if(r.baseOverride||r.pinForeman||(r.pinTrucks&&r.pinTrucks.some(Boolean)))keep[k]={b:r.baseOverride,p:r.pinForeman,t:r.pinTrucks};});
   AUTOCHAINS=[];
@@ -1381,9 +1383,10 @@ function render(){
   const totCF=routes.reduce((s,r)=>s+r.totalCF,0);
   const fleetUsed=new Set(routes.flatMap(r=>r.vehicles.filter(v=>v.kind==='fleet').map(v=>v.t.n))).size;
   const rentals=routes.reduce((s,r)=>s+r.rentals,0);
+  const shorts=currentDay>=TODAY_ISO?routes.reduce((s,r)=>s+(r.short||0),0):0;
   document.getElementById('stats').innerHTML=
     stat(routes.length,'routes','','cards')+stat(DATA.jobs.filter(j=>!EXCL.has(jobKey(j))).length,'jobs','','cards')+stat(totCF.toLocaleString(),'total CF','','cards')+
-    stat(fleetUsed,'fleet trucks','teal','roster')+stat(rentals,'rentals',rentals>0?'amber':'','roster')+stat(BENCH.foremen.length,'free foremen',BENCH.foremen.length>0?'green':'red','roster');
+    stat(fleetUsed,'fleet trucks','teal','roster')+stat(rentals,'rentals',rentals>0?'amber':'','roster')+(shorts>0?stat(shorts,'trucks short','red','roster'):'')+stat(BENCH.foremen.length,'free foremen',BENCH.foremen.length>0?'green':'red','roster');
   renderFleetStrip();
   (function(){
     let sn=document.getElementById('skipnotebar');
@@ -1483,7 +1486,7 @@ function foremenAvailOn(dayIso){
     if(dayIso>=a&&dayIso<=b){const f=matchForeman(nk);if(f&&f.status==='Active')off.add(f.name);}
   }
   if(dayIso===currentDay)DAYOFF.forEach(n=>off.add(n));
-  const ta=tripAwayMap(dayIso);Object.keys(ta).forEach(n=>{const f=DATA.foremen.find(x=>x.name===n);if(f&&f.status==='Active')off.add(n);});
+  const ta=tripAwayMap(dayIso).f;Object.keys(ta).forEach(n=>{const f=DATA.foremen.find(x=>x.name===n);if(f&&f.status==='Active')off.add(n);});
   return {avail:act.length-off.size,off:off.size,total:act.length};
 }
 function estRoutesOn(dayIso){
@@ -1819,7 +1822,7 @@ function assignCtrlsHTML(r){
     return '<div class="ctrlgrp"><label>'+lbl+'</label><select data-act="truck"'+(RO?' disabled':'')+' data-slot="'+i+'" data-r="'+r.id+'">'
       +'<option value="auto"'+(!pin?' selected':'')+'>suggestion: '+esc(cur)+'</option>'
       +truckOpts.map(k=>'<option value="'+esc(k.n)+'"'+(pin===k.n?' selected':'')+'>'+esc(k.n)+(isRentalTruck(k)?' (rented)':'')+' · '+k.cf.toLocaleString()+' CF · crew '+k.maxCrew+' · '+esc(k.state)+'</option>').join('')
-      +'<option value="R26"'+(pin==='R26'?' selected':'')+'>New rental 26 ft</option><option value="R20"'+(pin==='R20'?' selected':'')+'>New rental 20 ft</option></select></div>';
+      +'</select></div>';
   }).join('');
   return (RO?'<div class="ronote">🔒 read-only — assignments are made for today &amp; tomorrow only</div>':'')+'<div class="ctrls"><div class="ctrlrow">'
     +'<div class="ctrlgrp"><label>Base</label>'+baseSel+'</div>'
@@ -2016,6 +2019,10 @@ function computeSuggestions(){
       const chained=linkMi+hav(lb.delivery,bA);
       const save=sep-chained;
       if(save<6)continue;
+      {const _ws=Math.max(A.t1+linkMi/35*3600000,B.t0);
+       const _p2d=hav(lb.pickup,lb.delivery)/35*3600000*1.15;
+       const _done=_ws+((lb.actH||schedH(lb))*3600000)+_p2d;
+       if(_done>Date.parse(String(lb.start).slice(0,10)+'T23:59'))continue;}
       out.push({A,B,la,lb,linkMi:Math.round(linkMi),save:Math.round(save),gapH});
     }
   }
@@ -3057,7 +3064,7 @@ function findPlacements(job){
     const crossBase=nearestBaseTo(job.pickup)!==f.base;
     const backAt=pickupAt+jobWork+dur(TRAVELH(job.delivery&&INREGION(job.delivery)?job.delivery:job.pickup,baseLoc));
     opts.push({kind:'fresh',f,pickupAt,backAt,cost:(rental?1:0)+(crossBase?1:0),
-      truckTxt:tk?('truck '+tk.n+' · '+tk.cf.toLocaleString()+' CF'):('rental '+(job.cf>RENTAL20_CF?'26 ft':'20 ft')+' — no fitting '+f.base+' truck free'),
+      truckTxt:tk?('truck '+tk.n+' · '+tk.cf.toLocaleString()+' CF'):('no fitting '+f.base+' truck free — route will show TRUCK SHORT; add a dated rental after'),
       rental,crossBase,tk,
       mi:Math.round(hav(baseLoc,job.pickup))});
   }
@@ -3107,9 +3114,7 @@ function applyPlacement(job,opt){
     const nr=routes.find(r=>r.legs.some(l=>l.code===job.code));
     if(nr){
       nr.pinForeman=opt.f.name;
-      nr.pinTrucks=nr.pinTrucks||[];
-      nr.pinTrucks[0]=opt.tk?String(opt.tk.n):(job.cf>RENTAL20_CF?'R26':'R20');
-      rebuildRoutes();
+      if(opt.tk){nr.pinTrucks=nr.pinTrucks||[];nr.pinTrucks[0]=String(opt.tk.n);}
     }
   }
   render();updateCalBtn();
@@ -3926,10 +3931,13 @@ function rebuildFromTabs(T){
     if(!r['Truck N'])continue;
     const st=(r['Status']||'Active').trim();
     if(st&&st!=='Active')continue;
+    const _rd=v=>{v=(v||'').trim();if(!v)return null;return /\//.test(v)?usDate(v):v;};
     trucks.push({n:r['Truck N'].trim(),status:'Active',cf:numV(r['CF']),
       maxCrew:numV(r['Max Crew Size'])||3,
       state:(r['Base']||'').trim(),type:/van/i.test(r['Type']||'')?'Van':'Truck',
-      model:'rental',reg:'rental',rented:true,rate:numV(r['Daily Rate'])||null});
+      model:'rental'+((r['Provider']||'').trim()?' · '+r['Provider'].trim():''),reg:'rental',rented:true,rate:numV(r['Daily Rate'])||null,
+      provider:(r['Provider']||'').trim()||null,rentStart:_rd(r['Rental Start']),rentEnd:_rd(r['Rental End']),
+      fuel:(r['Fuel']||'').trim()||null,dayFee:numV(r['Daily Fee $'])||null,perMile:numV(r['Per Mile $'])||null});
   }
   const rentalRates=[];
   for(const r of (T.rentalopts||[])){
