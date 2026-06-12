@@ -1223,6 +1223,7 @@ function tripAwayMap(dayIso){
 }
 const AUTOOFFLIST=new Set();
 const CHAIN_RULES={maxDriveMin:45,maxCF:700,lateMin:30,maxJobs:3};
+const ACT_LOAD_SHARE=0.6; // owner rule: ACT splits 60% loading at pickup / 40% unloading at delivery
 function detectAutoChains(rts){
   // Universal fit-based chaining (owner spec):
   //  - any job can chain, morning included
@@ -2533,10 +2534,11 @@ function renderItinerary(r,items,seq,resolved){
       const arrive=cursor===null?sched:cursor;
       const workStart=Math.max(arrive,sched);
       totMi+=mi;totMin+=min;
-      const half=act/2*3600000;
-      const departP=workStart+half;
+      const loadMs=act*ACT_LOAD_SHARE*3600000;
+      const unloadMs=act*(1-ACT_LOAD_SHARE)*3600000;
+      const departP=workStart+loadMs;
       const etaD=departP+min*60000;
-      const done=etaD+half;
+      const done=etaD+unloadMs;
       rows.push({t:fmtMs(workStart),txt:'Job #'+it.jobN+' · '+l.code+' · pickup '+l.cityFrom+' — '+(it.carrier?'load':'work')+' '+fmtH(act)+' (ACT)',travel:false});
       if(it.carrier){
         rows.push({t:'',txt:'Hand off to carrier — goods continue to '+l.cityTo+(l.stateTo?', '+l.stateTo:'')+' by carrier. Crew & truck head back with the load to base storage.',travel:true});
@@ -2559,7 +2561,7 @@ function renderItinerary(r,items,seq,resolved){
   tot.innerHTML='Day driving ~<b>'+Math.floor(totMin/60)+'h'+String(Math.round(totMin%60)).padStart(2,'0')+' · '+totMi.toFixed(0)+' miles</b>'
     +' · empty '+Math.round(empMin)+' min / '+empMi.toFixed(0)+' miles'
     +' <span class="rsrc">'+(resolved?'HERE truck routes':'straight-line estimate'+(HEREKEY()?' — refining…':''))+'</span>'
-    +'<br><span class="rsrc">ACT split evenly between loading & unloading; work starts no earlier than the booked time.</span>';
+    +'<br><span class="rsrc">ACT split 60% loading / 40% unloading; work starts no earlier than the booked time.</span>';
 }
 
 function drawAllJobs(seq){
