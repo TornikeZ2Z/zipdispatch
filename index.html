@@ -646,6 +646,10 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 #isbtn.on,#isbtn:not(:empty).act{border-color:#E5A79B}
 .ddwrap #isbtn{white-space:nowrap}
 .nofor{color:#B23A2A!important;font-weight:800;font-style:normal}
+.maplbl{background:rgba(255,255,255,.96);border:1px solid var(--line2);border-left:4px solid #888;border-radius:9px;padding:5px 10px 6px;font-family:'Inter';font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.14);line-height:1.35;width:max-content}
+.maplbl .mlr{font-weight:800;font-family:'Barlow Condensed';font-size:14px;letter-spacing:.04em}
+.maplbl .mlc{display:block;font-weight:500;color:var(--dim);font-size:11.5px}
+.maplbl .mlno{color:#B23A2A;font-weight:800;font-style:normal}
 .confchip{background:#EAF3D2!important;border-color:#B7CD7A!important;color:#3F5410!important;font-weight:800}
 .confbox{background:#F4F9E6;border:1.5px solid #B7CD7A;border-radius:11px;padding:12px 15px;font-size:14.5px;color:#3F5410;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .confbox .uncfbtn{margin-left:auto;background:#fff;border:1.5px solid #B7CD7A;border-radius:8px;padding:6px 13px;font-size:13.5px;font-weight:700;color:#3F5410;cursor:pointer}
@@ -893,7 +897,7 @@ let currentDay=(function(){
 DATA.jobs=(DATA.days&&DATA.days[currentDay])||DATA.jobs||[];
 const STATES = null;
 const RENTAL26_CF = 1700, RENTAL20_CF = 1100;
-function truckActiveOn(t,day){if(!t||!t.rented||!t.rentStart)return true;return day>=t.rentStart&&day<=(t.rentEnd||t.rentStart);}
+function truckActiveOn(t,day){if(!t||!t.rented||!t.rentStart)return true;return day>=t.rentStart&&(!t.rentEnd||day<=t.rentEnd);}
 
 const INREGION=p=>p.lat>36&&p.lat<45.5&&p.lon>-81&&p.lon<-68;
 function hav(a,b){
@@ -1115,7 +1119,7 @@ function assignAll(routes,w,baseMode){
           let why,ok=false;
           const _H=DATA.holders||{};
           if(_H[k.n]&&(!r.foreman||_H[k.n]!==r.foreman.name)){const hf=DATA.foremen.find(x=>x.name===_H[k.n]);why='with '+(hf?hf.nick:_H[k.n])+' — locked pairing';}
-          else if(!truckActiveOn(k,currentDay))why='rental active '+(k.rentStart||'?')+' → '+(k.rentEnd||k.rentStart||'?')+' — outside this day';
+          else if(!truckActiveOn(k,currentDay))why='rental active '+(k.rentStart||'?')+' → '+(k.rentEnd||'open-ended')+' — outside this day';
           else if(TRIPAWAY_T[_tn(k.n)])why='on a straight LD trip ('+TRIPAWAY_T[_tn(k.n)].code+') — back '+TRIPAWAY_T[_tn(k.n)].back;
           else if(k.state!==r.base)why=k.state+' fleet — wrong base';
           else if(!free(busyT,k.n,r))why='busy in this time window';
@@ -2551,6 +2555,16 @@ function drawAllJobs(seq){
   const vis=visibleRoutes();
   vis.forEach((r,idx)=>{
     const col=PALETTE[idx%PALETTE.length];
+    // permanent info chip at the route's first pickup — foreman, trucks, customer at a glance
+    const _fl=[...r.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0))[0];
+    if(_fl&&_fl.pickup){
+      const _tk=((r.short||0)>0?'<i class="mlno">NO TRUCK</i>'+((r.vehicles||[]).some(v=>v.kind!=='short')?' + '+esc(truckRefs(r)):''):esc(truckRefs(r)||'—'));
+      const _fm=(r.foreman?esc(r.foreman.nick):'<i class="mlno">NO FOREMAN</i>');
+      const _cu=esc(String(_fl.customer||'').split(/\s+/).slice(0,2).join(' ').slice(0,20));
+      L.marker([_fl.pickup.lat,_fl.pickup.lon],{interactive:false,zIndexOffset:900,
+        icon:L.divIcon({className:'',iconSize:null,iconAnchor:[-9,30],
+          html:'<div class="maplbl" style="border-left-color:'+col+'"><span class="mlr">'+r.id+(r.confirmed?' ✔':'')+'</span> '+_fm+' · '+_tk+(_cu?'<span class="mlc">'+_cu+'</span>':'')+'</div>'})}).addTo(layerG);
+    }
     for(const l of r.legs){
       if(!l.pickup||!l.delivery)continue;
       const a=[l.pickup.lat,l.pickup.lon];
@@ -3243,7 +3257,7 @@ function addTruckModal(opts){
     +'<div><label>Size — CF capacity</label><input id="atcf" type="number" value="'+defCF+'" min="100" step="50"></div>'
     +'<div><label>Max crew in cab</label><input id="atcrew" type="number" value="3" min="1" max="8"></div>'
     +'<div><label>Rental start</label><input id="atstart" type="date" value="'+esc(currentDay)+'"></div>'
-    +'<div><label>Rental end <i>(last active day)</i></label><input id="atend" type="date" value="'+esc(currentDay)+'"></div>'
+    +'<div><label>Rental end <i>(blank = open-ended)</i></label><input id="atend" type="date"></div>'
     +'<div><label>Base</label><select id="atbase" class="gselect">'+Object.keys(DATA.bases).map(b=>'<option'+(b===((opts&&opts.base)||'NJ')?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'
     +'<div><label>Fuel</label><select id="atfuel" class="gselect"><option>Diesel</option><option>Gasoline</option><option value="">—</option></select></div>'
     +'<div class="atfees full"><span class="atfl">Fees <i>— fill either, both, or neither</i></span><div class="atfrow">'
@@ -3254,7 +3268,7 @@ function addTruckModal(opts){
     +'<div class="full"><label>Plate / label <i>(optional)</i></label><input id="atlbl" placeholder="auto: R'+RENTSEQ+'-Enterprise-'+defCF+'"></div>'
     +'</div><div style="margin-top:16px"><button class="gapply" id="atok">Add truck</button></div>');
   m.querySelector('#atstart').addEventListener('change',e=>{
-    const en=m.querySelector('#atend');if(en.value<e.target.value)en.value=e.target.value;
+    const en=m.querySelector('#atend');if(en.value&&en.value<e.target.value)en.value=e.target.value;
   });
   m.querySelector('#atok').addEventListener('click',()=>{
     const prov=m.querySelector('#atprov').value;
@@ -3262,8 +3276,8 @@ function addTruckModal(opts){
     const base=m.querySelector('#atbase').value;
     const crew=+m.querySelector('#atcrew').value||3;
     const ty=m.querySelector('#attype').value;
-    let rs=m.querySelector('#atstart').value||currentDay, re_=m.querySelector('#atend').value||rs;
-    if(re_<rs)re_=rs;
+    let rs=m.querySelector('#atstart').value||currentDay, re_=m.querySelector('#atend').value||null;
+    if(re_&&re_<rs)re_=rs;
     const fuel=m.querySelector('#atfuel').value||null;
     const fee=parseFloat(m.querySelector('#atfee').value);
     const one=parseFloat(m.querySelector('#atone').value);
@@ -3273,14 +3287,14 @@ function addTruckModal(opts){
       rentStart:rs,rentEnd:re_,fuel,dayFee:isFinite(fee)?fee:null,oneFee:isFinite(one)?one:null,perMile:isFinite(pm)?pm:null,provider:prov};
     DATA.trucks.push(tk);
     saveDayState();
-    if(GTOKEN)shAppendRow('Rented Trucks',{'Status':'Active','Truck N':lbl,'CF':cf,'Max Crew Size':crew,'Base':base,'Type':ty,'Provider':prov,'Rental Start':rs,'Rental End':re_,'Fuel':fuel||'','Daily Fee $':isFinite(fee)?fee:'','One-Time Fee $':isFinite(one)?one:'','Per Mile $':isFinite(pm)?pm:'','Note':SHEET_WRITE_NOTE+' '+mdy(TODAY_ISO)}).then(()=>sheetSaved(lbl+' added')).catch(e=>sheetSaveFailed('truck add',e));
+    if(GTOKEN)shAppendRow('Rented Trucks',{'Status':'Active','Truck N':lbl,'CF':cf,'Max Crew Size':crew,'Base':base,'Type':ty,'Provider':prov,'Rental Start':rs,'Rental End':re_||'','Fuel':fuel||'','Daily Fee $':isFinite(fee)?fee:'','One-Time Fee $':isFinite(one)?one:'','Per Mile $':isFinite(pm)?pm:'','Note':SHEET_WRITE_NOTE+' '+mdy(TODAY_ISO)}).then(()=>sheetSaved(lbl+' added')).catch(e=>sheetSaveFailed('truck add',e));
     else toast(lbl+' added to the board. Connect the calendar to also save it to the sheet.');
     m.classList.remove('show');
     if(opts){
       const r=routes.find(x=>x.id===opts.rid);
       if(r){const slot=(r.vehicles||[]).findIndex(v=>v.kind==='short');
         applyWithDiff(r.id,()=>{r.pinTrucks=r.pinTrucks||[];r.pinTrucks[slot>=0?slot:0]=lbl;});
-        toast('🚚 '+lbl+' rented '+rs+(re_!==rs?' → '+re_:'')+' and assigned to '+opts.rid);
+        toast('🚚 '+lbl+' rented '+rs+(re_?(re_!==rs?' → '+re_:''):' → open-ended')+' and assigned to '+opts.rid);
         return;}
     }
     rebuildRoutes();render();
