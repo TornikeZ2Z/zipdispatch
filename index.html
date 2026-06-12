@@ -502,6 +502,11 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .chip.nd{background:#EFEAFB;border:1px solid #D4C8F0;color:#4F3D8E;font-weight:700}
 #clearfl{border:1.5px solid #EBCDC2;background:#FBEFEA;color:#9A3E1D;border-radius:10px;font-family:'Inter';font-weight:700;font-size:13.5px;padding:9px 14px;cursor:pointer}
 #clearfl:hover{border-color:#9A3E1D}
+.skipnote{display:block;width:100%;text-align:left;border:1.5px solid #EBCDC2;background:#FBEFEA;color:#9A3E1D;border-radius:11px;font-family:'Inter';font-weight:700;font-size:14px;padding:11px 15px;cursor:pointer;margin-bottom:11px}
+.skipnote:hover{border-color:#9A3E1D}
+.skrow{padding:6px 0;border-bottom:1px solid var(--line)}
+.skrow b{display:block;font-size:13.5px}
+.skrow span{font-size:12.5px;color:#9A3E1D}
 .skiprep{margin-top:10px;font-size:12.5px}
 .skiprep summary{cursor:pointer;color:#9A3E1D;font-weight:700}
 .skiprep div{margin-top:6px;max-height:180px;overflow:auto;color:var(--dim);font-family:'IBM Plex Mono';font-size:11.5px;line-height:1.6}
@@ -1117,6 +1122,14 @@ function render(){
     stat(routes.length,'routes','','cards')+stat(DATA.jobs.length,'jobs','','cards')+stat(totCF.toLocaleString(),'total CF','','cards')+
     stat(fleetUsed,'fleet trucks','teal','roster')+stat(rentals,'rentals',rentals>0?'amber':'','roster')+stat(BENCH.foremen.length,'free foremen',BENCH.foremen.length>0?'green':'red','roster');
   renderFleetStrip();
+  (function(){
+    let sn=document.getElementById('skipnotebar');
+    const n=skippedForDay();
+    if(!sn){sn=document.createElement('button');sn.id='skipnotebar';sn.className='skipnote';sn.addEventListener('click',skipModal);
+      const cards=document.getElementById('cards');cards.parentNode.insertBefore(sn,cards);}
+    sn.style.display=(n&&VIEWMODE==='board')?'':'none';
+    if(n)sn.textContent='⚠ '+n+' calendar event'+(n>1?'s':'')+' for this day '+(n>1?'were':'was')+' not imported — click to see exactly why';
+  })();
   document.getElementById('warnstrip').style.display='none';
   renderCards(); renderRoster(); renderOpti(); renderMap();
 }
@@ -2688,10 +2701,13 @@ function renderTable(){
       +(PAST?'':'<td class="ajchk">'+r._checks.map(esc).join('<br>')+'</td>')+'</tr>';}).join('')
     +'</tbody></table></div>';
   };
-  el.innerHTML='<div class="ajbar"><input id="ajq" placeholder="filter — code, customer, address, city, type, #tag…">'
+  const _sk=skippedForDay();
+  el.innerHTML=(_sk?'<button class="skipnote">⚠ '+_sk+' calendar event'+(_sk>1?'s':'')+' for this day '+(_sk>1?'were':'was')+' not imported — see why</button>':'')
+    +'<div class="ajbar"><input id="ajq" placeholder="filter — code, customer, address, city, type, #tag…">'
     +(PAST?'':'<label><input type="checkbox" id="ajs"'+(nSus?'':' disabled')+'> warnings only</label>')
     +'</div><div id="ajbody">'+body()+'</div>';
   const re=()=>{document.getElementById('ajbody').innerHTML=body();};
+  const skn=el.querySelector('.skipnote');if(skn)skn.addEventListener('click',skipModal);
   el.querySelector('#ajq').addEventListener('input',re);
   const s=el.querySelector('#ajs');if(s)s.addEventListener('change',re);
 }
@@ -2925,14 +2941,17 @@ function wallClock(dt){ // '2026-06-20T09:00:00-04:00' → local Date at 09:00 r
 }
 function zipFromAddr(s){const m=String(s||'').match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b\d{5}\b)/);return m?m[1]:null;}
 function parseCalEvent(ev){
-  if(!ev||!ev.start||!(ev.start.dateTime||ev.start.date))return null;
+  parseCalEvent.why='';
+  if(!ev||!ev.start||!(ev.start.dateTime||ev.start.date)){parseCalEvent.why='no start date/time on the event';return null;}
+  if(/\bON\s*HOLD\b/i.test(String(ev.summary||''))){parseCalEvent.why='marked ON HOLD in the title';return null;}
   const L=parseLabels(ev.description);
   const G=k=>L[k.toLowerCase()]!==undefined?L[k.toLowerCase()]:'';
   const code=G('Job Code').trim();
-  if(!code)return null;
+  if(!code){parseCalEvent.why='no "Job Code:" line in the event description'+(ev.description?'':' (description is empty)');return null;}
   const pickupAddr=G('Moving From')||ev.location||'';
-  const pz=zgeoJS(zipFromAddr(pickupAddr));
-  if(!pz)return null;
+  const _zip=zipFromAddr(pickupAddr);
+  const pz=zgeoJS(_zip);
+  if(!pz){parseCalEvent.why=_zip?('pickup zip '+_zip+' is not in the zip database'):'no zip code found in "Moving From" or the event location';return null;}
   const dz=zgeoJS(zipFromAddr(G('Moving To')));
   let start=wallClock(ev.start.dateTime||ev.start.date);
   let end=ev.end?wallClock(ev.end.dateTime||ev.end.date):null;
@@ -2987,7 +3006,10 @@ async function calSyncCore(){
       continue;
     }
     const job=parseCalEvent(ev);
-    if(!job){skip++;CAL_SKIPPED.push((ev.summary||'(no title)')+' · '+String((ev.start||{}).dateTime||(ev.start||{}).date||'')+' (sync)');lines.push('⚠ skipped — '+(ev.summary||ev.id).slice(0,60)+' — could not parse as a job; the previous version (if any) was kept');continue;}
+    if(!job){skip++;
+      const sk={t:(ev.summary||'(no title)'),d:String((ev.start||{}).dateTime||(ev.start||{}).date||'').slice(0,10),why:parseCalEvent.why||'could not be read as a job'};
+      if(!CAL_SKIPPED.some(x=>x.t===sk.t&&x.d===sk.d))CAL_SKIPPED.push(sk);
+      lines.push('⚠ skipped — '+(ev.summary||ev.id).slice(0,60)+' — '+sk.why+'; the previous version (if any) was kept');continue;}
     const was=removeJobByEventId(ev.id);
     const day=job.start.slice(0,10);
     job.idx=(DATA.days[day]=DATA.days[day]||[]).length;
@@ -3016,7 +3038,7 @@ async function calFullImport(){
   for(const ev of items){
     if(ev.status==='cancelled')continue;
     const job=parseCalEvent(ev);
-    if(!job){skip++;skipped.push((ev.summary||'(no title)')+' · '+String((ev.start||{}).dateTime||(ev.start||{}).date||''));continue;}
+    if(!job){skip++;skipped.push({t:(ev.summary||'(no title)'),d:String((ev.start||{}).dateTime||(ev.start||{}).date||'').slice(0,10),why:parseCalEvent.why||'could not be read as a job'});continue;}
     const day=job.start.slice(0,10);
     job.idx=(days[day]=days[day]||[]).length;
     days[day].push(job);ok++;
@@ -3050,9 +3072,17 @@ async function calFullImport(){
   return {ok,skip,days:ds.length,events:items.length,kept};
 }
 let CAL_SKIPPED=[];
-function skipReport(){
-  if(!CAL_SKIPPED.length)return '';
-  return '<details class="skiprep"><summary>'+CAL_SKIPPED.length+' calendar event'+(CAL_SKIPPED.length>1?'s':'')+' skipped (not job-shaped) — click to inspect</summary><div>'+CAL_SKIPPED.slice(0,40).map(esc).join('<br>')+(CAL_SKIPPED.length>40?'<br>…':'')+'</div></details>';
+function skipReport(dayOnly){
+  const list=dayOnly?CAL_SKIPPED.filter(x=>x.d===currentDay):CAL_SKIPPED;
+  if(!list.length)return '';
+  const row=x=>'<div class="skrow"><b>'+esc(x.t)+'</b><span>'+esc(x.d)+' — '+esc(x.why)+'</span></div>';
+  return '<details class="skiprep"'+(dayOnly?' open':'')+'><summary>'+list.length+' calendar event'+(list.length>1?'s':'')+' not imported — why</summary><div>'+list.slice(0,60).map(row).join('')+(list.length>60?'<div>…</div>':'')
+    +'<div class="ts" style="margin-top:8px">Fix in Google Calendar (usually: add a <b>Job Code:</b> line and a zip code in <b>Moving From</b> to the description), then hit ↻ Refresh.</div></div></details>';
+}
+function skippedForDay(){return CAL_SKIPPED.filter(x=>x.d===currentDay).length;}
+function skipModal(){
+  gModal('Calendar events not imported — '+fmtDayLong(currentDay),
+    '<div class="gsub">These exist in Google Calendar but the importer could not read them as jobs. Each line says exactly what is missing.</div>'+skipReport(true));
 }
 async function checkCalendarChanges(){
   ensureGToken(async()=>{
