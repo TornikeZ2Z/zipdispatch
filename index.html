@@ -528,6 +528,26 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tlsep[data-b="MA"]{color:#3E8E9C;border-left:4px solid #3E8E9C;padding-left:9px}
 .tlleg{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--dim)}
 .tlleg i{width:13px;height:13px;border-radius:4px;display:inline-block;margin-left:9px}
+/* vs-manual comparison (CSS was lost in an earlier refactor) */
+.cmp{background:#F6F3FC;border:1px solid #DFD5F3;border-radius:11px;padding:10px 13px;margin:10px 0 4px;font-size:13px}
+.cmphead{display:flex;align-items:center;gap:9px;font-weight:800;font-size:12px;color:#4F3D8E;text-transform:uppercase;letter-spacing:.06em}
+.cmptag{font-size:11.5px;font-weight:700;padding:2.5px 9px;border-radius:8px;text-transform:none;letter-spacing:0}
+.cmptag.ok{background:#E2F2EA;color:#0F8A66}
+.cmptag.diff{background:#FBEFEA;color:#9A3E1D}
+.cmpcols{display:flex;gap:30px;margin-top:8px}
+.cmpcol{display:flex;flex-direction:column;gap:2px;min-width:170px}
+.cmpcol label{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.cmpv{font-weight:600;font-size:13.5px}
+.cmpv em{font-style:normal;color:#4F3D8E;font-weight:800;font-size:12px;margin-left:5px;background:#ECE5F9;padding:1px 7px;border-radius:7px}
+.cmpt{font-family:'IBM Plex Mono';font-size:11.5px;color:var(--dim)}
+.cmpwhy{margin-top:7px;font-size:12.5px;color:var(--dim);border-top:1px dashed #DFD5F3;padding-top:6px}
+.card.mismatch{border-left-color:#7C5CE0}
+/* assignment controls inside the map panel */
+.minfo .ctrls{margin-top:8px;background:none;border:none;padding:0}
+.minfo .ctrls select{font-size:13.5px;padding:7px 9px;max-width:240px}
+/* table rows route into the panel */
+.ajt tbody tr[data-rid]{cursor:pointer}
+.ajt tbody tr.selrow td{background:var(--fleet-bg)!important}
 .skipnote{display:block;width:100%;text-align:left;border:1.5px solid #EBCDC2;background:#FBEFEA;color:#9A3E1D;border-radius:11px;font-family:'Inter';font-weight:700;font-size:14px;padding:11px 15px;cursor:pointer;margin-bottom:11px}
 .skipnote:hover{border-color:#9A3E1D}
 .skrow{padding:6px 0;border-bottom:1px solid var(--line)}
@@ -1117,6 +1137,7 @@ function exitMap(){
   mapMode='single';highlighted=null;renderCards();
   if(typeof updateViewBtns==='function')updateViewBtns();
   if(VIEWMODE==='timeline')renderTimeline();
+  if(VIEWMODE==='table')renderTable();
 }
 const FFSEL=new Set();
 const BASESEL=new Set();
@@ -1387,9 +1408,13 @@ function renderCards(){
     if(!col)html+=rs.map(cardHTML).join('');
   }
   el.innerHTML=html;
-  el.querySelectorAll('.ctrls select').forEach(s=>{
-    s.addEventListener('click',e=>e.stopPropagation());
-    s.addEventListener('change',e=>{
+  if(!window._assignDelegated){
+  window._assignDelegated=1;
+  document.addEventListener('click',e=>{const s=e.target.closest('select[data-act]');if(s)e.stopPropagation();},true);
+  document.addEventListener('change',e=>{
+    const s=e.target.closest('select[data-act]');
+    if(!s)return;
+
       e.stopPropagation();
       const r=routes.find(x=>x.id===s.dataset.r);
       if(!r)return;
@@ -1398,8 +1423,12 @@ function renderCards(){
         else if(s.dataset.act==='truck'){r.pinTrucks=r.pinTrucks||[];r.pinTrucks[+s.dataset.slot||0]=s.value==='auto'?null:s.value;}
         else r.pinForeman=s.value==='auto'?null:s.value;
       });
-    });
+    
+    if(document.querySelector('.layout').classList.contains('mapon')&&highlighted)setTimeout(()=>{try{refreshMap();}catch(_){}},60);
+    if(VIEWMODE==='table')renderTable();
+    if(VIEWMODE==='timeline')renderTimeline();
   });
+}
   el.querySelectorAll('.basesec').forEach(h=>{
     const tog=()=>{const b=h.dataset.b;collapsedBases.has(b)?collapsedBases.delete(b):collapsedBases.add(b);renderCards();};
     h.addEventListener('click',tog);
@@ -1464,6 +1493,30 @@ function scoreParts(r){
   ];
 }
 
+function assignCtrlsHTML(r){
+  const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
+  const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
+  const baseSel='<select data-act="base" data-r="'+r.id+'"><option value="auto"'+(!r.baseOverride?' selected':'')+'>suggestion: '+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' mi':'')+'</option>'
+    +Object.keys(DATA.bases).sort((x,y)=>(_bmi(x)??9e9)-(_bmi(y)??9e9)).map(b=>'<option value="'+b+'"'+(r.baseOverride===b?' selected':'')+'>'+b+(_bmi(b)!==null?' · ~'+_bmi(b)+' mi to 1st pickup':'')+'</option>').join('')+'</select>';
+  const fSel='<select data-act="foreman" data-r="'+r.id+'"><option value="auto"'+(!r.pinForeman?' selected':'')+'>suggestion'+((!r.pinForeman&&r.foreman)?': '+esc(r.foreman.name):'')+'</option>'
+    +DATA.foremen.filter(x=>x.status!=='Cancelled').sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')</option>').join('')+'</select>';
+  const slotsSpec=r._slotsSpec||['Truck'];
+  const truckOpts=DATA.trucks.filter(k=>k.status==='Active').sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true}));
+  const tSels=slotsSpec.map((ty,i)=>{
+    const pin=(r.pinTrucks||[])[i]||null;
+    const cur=r.vehicles&&r.vehicles[i]?(r.vehicles[i].kind==='fleet'?r.vehicles[i].t.n:('rental '+r.vehicles[i].sz)):'—';
+    const lbl=slotsSpec.length>1?(ty==='Van'?'Van':'Truck '+(slotsSpec.filter((x,j)=>x==='Truck'&&j<=i).length)):'Truck';
+    return '<div class="ctrlgrp"><label>'+lbl+'</label><select data-act="truck" data-slot="'+i+'" data-r="'+r.id+'">'
+      +'<option value="auto"'+(!pin?' selected':'')+'>suggestion: '+esc(cur)+'</option>'
+      +truckOpts.map(k=>'<option value="'+esc(k.n)+'"'+(pin===k.n?' selected':'')+'>'+esc(k.n)+(isRentalTruck(k)?' (rented)':'')+' · '+k.cf.toLocaleString()+' CF · crew '+k.maxCrew+' · '+esc(k.state)+'</option>').join('')
+      +'<option value="R26"'+(pin==='R26'?' selected':'')+'>New rental 26 ft</option><option value="R20"'+(pin==='R20'?' selected':'')+'>New rental 20 ft</option></select></div>';
+  }).join('');
+  return '<div class="ctrls"><div class="ctrlrow">'
+    +'<div class="ctrlgrp"><label>Base</label>'+baseSel+'</div>'
+    +'<div class="ctrlgrp"><label>Foreman</label>'+fSel+'</div>'
+    +tSels
+  +'</div></div>';
+}
 function cardHTML(r){
   const sl=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
   const codes=sl.map(l=>l.code).join(' · ');
@@ -1558,26 +1611,7 @@ function cardHTML(r){
   const scoreDetails='<details class="cands"><summary>how difficulty '+r.score+' was scored</summary><div class="candtbl">'+spRows+'</div><p class="helpnote">Weighted blend, normalized to 0–100. Hardest routes pick their foreman and trucks first.</p></details>';
   const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
   const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
-  const baseSel='<select data-act="base" data-r="'+r.id+'"><option value="auto"'+(!r.baseOverride?' selected':'')+'>suggestion: '+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' mi':'')+'</option>'
-    +Object.keys(DATA.bases).sort((x,y)=>(_bmi(x)??9e9)-(_bmi(y)??9e9)).map(b=>'<option value="'+b+'"'+(r.baseOverride===b?' selected':'')+'>'+b+(_bmi(b)!==null?' · ~'+_bmi(b)+' mi to 1st pickup':'')+'</option>').join('')+'</select>';
-  const fSel='<select data-act="foreman" data-r="'+r.id+'"><option value="auto"'+(!r.pinForeman?' selected':'')+'>suggestion'+((!r.pinForeman&&r.foreman)?': '+esc(r.foreman.name):'')+'</option>'
-    +DATA.foremen.filter(x=>x.status!=='Cancelled').sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')</option>').join('')+'</select>';
-  const slotsSpec=r._slotsSpec||['Truck'];
-  const truckOpts=DATA.trucks.filter(k=>k.status==='Active').sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true}));
-  const tSels=slotsSpec.map((ty,i)=>{
-    const pin=(r.pinTrucks||[])[i]||null;
-    const cur=r.vehicles&&r.vehicles[i]?(r.vehicles[i].kind==='fleet'?r.vehicles[i].t.n:('rental '+r.vehicles[i].sz)):'—';
-    const lbl=slotsSpec.length>1?(ty==='Van'?'Van':'Truck '+(slotsSpec.filter((x,j)=>x==='Truck'&&j<=i).length)):'Truck';
-    return '<div class="ctrlgrp"><label>'+lbl+'</label><select data-act="truck" data-slot="'+i+'" data-r="'+r.id+'">'
-      +'<option value="auto"'+(!pin?' selected':'')+'>suggestion: '+esc(cur)+'</option>'
-      +truckOpts.map(k=>'<option value="'+esc(k.n)+'"'+(pin===k.n?' selected':'')+'>'+esc(k.n)+(isRentalTruck(k)?' (rented)':'')+' · '+k.cf.toLocaleString()+' CF · crew '+k.maxCrew+' · '+esc(k.state)+'</option>').join('')
-      +'<option value="R26"'+(pin==='R26'?' selected':'')+'>New rental 26 ft</option><option value="R20"'+(pin==='R20'?' selected':'')+'>New rental 20 ft</option></select></div>';
-  }).join('');
-  const ctrls='<div class="ctrls"><div class="ctrlrow">'
-    +'<div class="ctrlgrp"><label>Base</label>'+baseSel+'</div>'
-    +'<div class="ctrlgrp"><label>Foreman</label>'+fSel+'</div>'
-    +tSels
-  +'</div></div>';
+  const ctrls=assignCtrlsHTML(r);
   return '<div class="card st-'+r.status+(highlighted===r.id?' hl':'')+(cmpMis?' mismatch':'')+'" data-r="'+r.id+'">'
     +'<div class="cardtop"><span class="rpill">'+r.id+'</span>'+pathLine(r)
     +'<button class="vizbtn hdr'+(highlighted===r.id?' on':'')+'" data-r="'+r.id+'">'+(highlighted===r.id?'Hide ▸':'Journey ▸')+'</button>'
@@ -1954,6 +1988,7 @@ function refreshMap(){
           +(bm!=null?(function(){const d=new Date(bm);if(d.getMinutes()||d.getSeconds())d.setHours(d.getHours()+1);d.setMinutes(0,0,0);return ' · <b>back ~'+d.toTimeString().slice(0,5)+'</b>';})():'')+'</div>'
         +'<div class="mirow">'+typeChip(mt,'tmove',1)+typeChip(jt,'tjob',1)+'</div>'
         +'<div class="mirow">'+(r.foreman?'👷 <b>'+esc(r.foreman.nick)+'</b> ('+esc(r.foreman.name)+') · ':'')+'🚚 '+esc(routeVehText(r))+'</div>'
+        +assignCtrlsHTML(r)
         +'</div>';
       })()
     +'<div class="steps" id="steps-'+seq+'"></div>'
@@ -2733,9 +2768,10 @@ function renderTable(){
     +'<colgroup>'+COLS.map(c=>'<col style="width:'+c[1]+'px">').join('')+'</colgroup>'
     +'<thead><tr>'+COLS.map(c=>'<th class="'+(c[2]||'')+'">'+c[0]+'</th>').join('')+'</tr></thead><tbody>'
     +list.map(r=>{
+      const _rid=(routes.find(rt=>rt.legs.some(l=>l.code===r.code))||{}).id||'';
       const far=r.delivery&&!INREGION(r.delivery);
       const kind=far?(r.straight?'straight LD':'carrier'):(/long/i.test(r.movingType||'')?'LD':'local');
-      return '<tr class="'+(r._checks.length?'sus':'')+(EXCL.has(jobKey(r))?' excl':'')+'">'
+      return '<tr class="'+(r._checks.length?'sus':'')+(EXCL.has(jobKey(r))?' excl':'')+(highlighted&&highlighted===_rid?' selrow':'')+'"'+(_rid?' data-rid="'+_rid+'" title="Click — map & assignment panel opens on the right"':'')+'>'
       +'<td class="mono fz1">'+esc(r.code)+'</td>'
       +'<td class="fz2 ajcut" title="'+esc(r.customer||'')+'">'+esc(r.customer||'—')+'</td>'
       +'<td class="mono">'+String(r.start).slice(11,16)+'–'+String(r.end||'').slice(11,16)+'</td>'
@@ -2767,6 +2803,15 @@ function renderTable(){
   el.querySelector('#ajbody').addEventListener('change',e=>{
     const c=e.target.closest('.ajex');if(!c)return;
     setJobEnabled(c.dataset.k,c.checked,{t:c.dataset.t,d:c.dataset.d});
+  });
+  el.querySelector('#ajbody').addEventListener('click',e=>{
+    if(e.target.closest('.ajsw')||e.target.closest('select'))return;
+    const tr=e.target.closest('tr[data-rid]');if(!tr)return;
+    highlighted=tr.dataset.rid;mapMode='single';
+    document.querySelector('.layout').classList.add('mapon');
+    setTimeout(()=>{initMap();LMAP.invalidateSize();refreshMap();},60);
+    el.querySelectorAll('tr.selrow').forEach(x=>x.classList.remove('selrow'));
+    tr.classList.add('selrow');
   });
   el.querySelector('#ajq').addEventListener('input',re);
   const s=el.querySelector('#ajs');if(s)s.addEventListener('change',re);
