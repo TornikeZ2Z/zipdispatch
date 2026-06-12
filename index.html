@@ -1539,9 +1539,11 @@ function dayPlanOn(dayIso){
     const det=detectAutoChains(rts);
     if(det.length){AUTOCHAINS=det;rts=buildRoutes();}
     assignAll(rts,getW(),'nearest');
-    const byF={};rts.forEach(r=>{if(r.foreman)byF[r.foreman.name]=(byF[r.foreman.name]||0)+1;});
+    const byF={};rts.forEach(r=>{if(r.foreman)(byF[r.foreman.name]=byF[r.foreman.name]||[]).push(r.id);});
+    const dd=Object.entries(byF).filter(([,ids])=>ids.length>1);
     _RC[dayIso]={routes:rts.length,unassigned:rts.filter(r=>!r.foreman).length,
-      doubles:Object.values(byF).filter(n=>n>1).length};
+      doubles:dd.length,
+      dblTxt:dd.map(([n,ids])=>{const f=DATA.foremen.find(x=>x.name===n);return (f?f.nick:n)+': '+ids.join('+');}).join(' · ')};
   }catch(e){ const n=(DATA.days[dayIso]||[]).filter(j=>!j.after&&!EXCL.has(jobKey(j))).length;_RC[dayIso]={routes:n,unassigned:0,doubles:0}; }
   finally{ DATA.jobs=keepJobs;AUTOCHAINS=keepAC;currentDay=keepDay; }
   return _RC[dayIso];
