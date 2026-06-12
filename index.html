@@ -575,6 +575,8 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .ajt tbody tr.selrow td{background:var(--fleet-bg)!important}
 /* jobs table v2 */
 #tableview{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.ajt{table-layout:fixed;border-collapse:collapse}
+.ajt td{overflow:hidden}
 .ajt th{font-family:'Barlow Condensed';font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);padding:11px 12px;border-bottom:2px solid var(--line2);background:var(--card)}
 .ajt td{padding:13px 12px;font-size:13.5px;border-bottom:1px solid var(--line);vertical-align:top}
 .ajt tbody tr:hover td{background:var(--bg)}
@@ -1106,6 +1108,26 @@ const WEIGHTS={cf:35,pack:20,ld:20,multi:15,piano:10};
 function getW(){return WEIGHTS;}
 let manualChains=[];
 let AUTOCHAINS=[];
+let TRIPAWAY={};
+function tripAwayMap(dayIso){
+  const out={};
+  const d0=Date.parse(dayIso+'T12:00');
+  for(let k=1;k<=10;k++){
+    const dd=new Date(d0-k*86400000);
+    const dIso=dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0')+'-'+String(dd.getDate()).padStart(2,'0');
+    for(const j of (DATA.days[dIso]||[])){
+      if(!j.straight||!j.tripDays||j.tripDays<=1||!j.mf)continue;
+      if(k<j.tripDays){
+        const f=matchForeman(j.mf);
+        if(f&&f.status==='Active'){
+          const back=new Date(Date.parse(dIso+'T12:00')+j.tripDays*86400000);
+          out[f.name]={code:j.code,back:back.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})};
+        }
+      }
+    }
+  }
+  return out;
+}
 const AUTOOFFLIST=new Set();
 function detectAutoChains(rts){
   const out=[];
@@ -1136,6 +1158,11 @@ function detectAutoChains(rts){
       if(gap<30*60000||gap>6.5*3600000)continue;
       const linkMi=hav(la.delivery,lb.pickup);
       if(gap<linkMi/35*3600000*1.15+30*60000)continue;
+      // same-day rule: the chained crew must be DONE before midnight — locals never roll into the next day
+      {const _ws=Math.max(at1+linkMi/35*3600000*1.15,bt0);
+       const _p2d=(lb.pickup&&lb.delivery)?hav(lb.pickup,lb.delivery)/35*3600000*1.15:0;
+       const _done=_ws+((lb.actH||schedH(lb))*3600000)+_p2d;
+       if(_done>Date.parse(String(lb.start).slice(0,10)+'T23:59'))continue;}
       if(Math.max(...A.legs.map(l=>l.cf),lb.cf)>1750)continue;
       if(Math.max(A.crew,B.crew)>6)continue;
       if(!best||linkMi<best.linkMi)best={A,linkMi,la};
@@ -1167,7 +1194,7 @@ function computeAutoOff(){
   }
 }
 computeAutoOff();
-function isOff(n){return DAYOFF.has(n)||AUTO_OFF.has(n);}
+function isOff(n){return DAYOFF.has(n)||AUTO_OFF.has(n)||!!TRIPAWAY[n];}
 function isRentalTruck(t){
   if(t.rented)return true;
   return /^(ENT|R\d|RENT)/i.test(String(t.n).replace('#',''))||/rental|enterprise|penske|ryder|budget/i.test(String(t.model||'')+' '+String(t.reg||''));
@@ -1247,6 +1274,7 @@ function filtersActive(){return FFSEL.size>0||BASESEL.size>0||CHFILTER!=='all'||
 const TODAY_ISO=(function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
 const PALETTE=['#0F8A66','#B26B0B','#6C5CE0','#C2417A','#2563EB','#D97706','#0E7490','#7C3AED','#DC2626','#65A30D','#0891B2','#9333EA','#BE185D','#4338CA'];
 function rebuildRoutes(){
+  TRIPAWAY=tripAwayMap(currentDay);
   const keep={};
   routes.forEach(r=>{const k=r.legs[0].code;if(r.baseOverride||r.pinForeman||(r.pinTrucks&&r.pinTrucks.some(Boolean)))keep[k]={b:r.baseOverride,p:r.pinForeman,t:r.pinTrucks};});
   AUTOCHAINS=[];
@@ -1411,6 +1439,7 @@ function foremenAvailOn(dayIso){
     if(dayIso>=a&&dayIso<=b){const f=matchForeman(nk);if(f&&f.status==='Active')off.add(f.name);}
   }
   if(dayIso===currentDay)DAYOFF.forEach(n=>off.add(n));
+  const ta=tripAwayMap(dayIso);Object.keys(ta).forEach(n=>{const f=DATA.foremen.find(x=>x.name===n);if(f&&f.status==='Active')off.add(n);});
   return {avail:act.length-off.size,off:off.size,total:act.length};
 }
 function estRoutesOn(dayIso){
@@ -1467,7 +1496,7 @@ async function upgradeRoadMiles(){
   }
 }
 function syncFolds(){
-  [['alertfold','alertbar',['board','timeline']],['optifold','optipanel',['board','timeline']]].forEach(([f,i,views])=>{
+  [['alertfold','alertbar',['board','timeline','table']],['optifold','optipanel',['board','timeline','table']]].forEach(([f,i,views])=>{
     const fold=document.getElementById(f),inner=document.getElementById(i);
     if(!fold||!inner)return;
     const has=inner.innerHTML.trim()!==''&&inner.style.display!=='none';
@@ -1730,6 +1759,7 @@ function cardHTML(r){
     r.legs.some(l=>l._draft)?'<span class="chip draft">📝 draft — board only, push via Update calendar</span><span class="chip draft rm rmdraft" data-codes="'+esc(r.legs.filter(l=>l._draft).map(l=>l.code).join(','))+'">🗑 remove draft</span>':'',
     r._calSynced?chip('calendar updated ✓',''):'',
     r._pmWhy?'<span class="chip" title="'+esc(r._pmWhy)+'">🌗 PM-only · why?</span>':'',
+    r.legs.filter(l=>l.straight&&l.tripDays).map(l=>'<span class="chip" title="Estimated Trip Days from the calendar — the foreman is on the road and blocked from other work until he is back">🛣 '+l.tripDays+'-day trip · foreman blocked</span>').join(''),
     r.legs.filter(l=>l.winEnd).map(l=>'<span class="chip" title="Arrival window — the crew may arrive any time in this range">⏱ '+esc(l.code)+' arrive '+String(l.start).slice(11,16)+'–'+String(l.winEnd).slice(11,16)+'</span>').join(''),
     r.legs.some(l=>l.strict)?'<span class="chip" title="Strict start — the crew must be there at exactly this time">⏰ sharp start</span>':'',
     r.legs.filter(l=>l.carrierDrop).map(l=>'<span class="chip" title="'+esc(l.carrierDropAddr||'')+'">🚛 '+esc(l.code)+' → carrier @ '+esc(l.carrierDrop.city||'')+'</span>').join(''),
@@ -3018,6 +3048,7 @@ function jobChecks(j){
   const out=[];
   const _isLD=/long/i.test(String(j.movingType||''));
   if(j.actH&&j.actH>=14&&!_isLD)out.push('ACT Time '+j.actH+'h — runs past midnight; check the calendar (typo? 4.5 vs 45)');
+  if(j.straight&&_isLD&&!j.tripDays)out.push('Straight LD without "Estimated Trip Days" in the calendar — add it so the engine can block the foreman while he\'s on the road');
   const _blob=(j.customer||'')+' '+(j.jobType||'')+' '+(j.movingType||'')+' '+(j.code||'');
   if(/in.?home.{0,12}estimat|estimat.{0,12}in.?home|\bestimate\b|walk.?through|site (visit|survey)/i.test(_blob))out.push('Looks like an in-home estimate / site visit, not a move — if so, switch it off the board with the On-board toggle (your call, never automatic)');
   if(/local/i.test(String(j.movingType||''))&&j.actH&&j.actH>=12&&j.actH<14)out.push('Local Moving with ACT '+j.actH+'h — local jobs finish within a day; double-check the calendar');
@@ -3070,7 +3101,7 @@ function renderTable(){
     +(function(){
       const byCode={};list.forEach(r=>byCode[r.code]=r);
       const vt=rt=>(rt.vehicles||[]).map(v=>v.kind==='fleet'?('#'+String(v.t.n).replace('#','')):('R·'+String(v.sz||'').replace(' ft',''))).join(' + ');
-      const mk=(r,rt,afterCode,isFirst)=>{
+      const mk=(r,rt,afterCode,isFirst,nextCode)=>{
         const far=r.delivery&&!INREGION(r.delivery);
         const kind=far?(r.straight?'straight LD':'carrier'):(/long/i.test(r.movingType||'')?'LD':'local');
         const chain=rt&&rt.legs.length>1;
@@ -3091,7 +3122,7 @@ function renderTable(){
         +'<td>'+(r.packing?Math.round(r.packing).toLocaleString():'—')+'</td>'
         +'<td>'+typeChip(r.movingType,'tmove',1)+'</td>'
         +'<td>'+typeChip(r.jobType,'tjob',1)+'</td>'
-        +'<td>'+(afterCode?'<span class="chip sm tchain" title="The engine chained this job after '+esc(afterCode)+' on the same route">⛓ after '+esc(afterCode)+'</span>':(r.after?'<span class="ts" title="After Job Code from the sheet">'+esc(r.after)+'</span>':'—'))+'</td>'
+        +'<td>'+(afterCode?'<span class="chip sm tchain" title="The engine chained this job after '+esc(afterCode)+' on the same route — same foreman & truck roll on">⛓ after '+esc(afterCode)+'</span>':(chain&&nextCode?'<span class="chip sm tchain" title="Chain head — the crew continues to '+esc(nextCode)+' after this job">⛓ head → '+esc(nextCode)+'</span>':(r.after?'<span class="ts" title="After Job Code from the sheet">'+esc(r.after)+'</span>':'—')))+'</td>'
         +'<td class="mono">'+esc([r.mf,r.mt].filter(Boolean).join(' # ')||'—')+'</td>'
         +'<td>'+(r.eventId?'<a class="calopen" target="_blank" rel="noopener" href="'+calEditUrl(r.eventId)+'" title="Open in Google Calendar — edits sync back automatically">✎ open</a>':'—')+'</td>'
         +(PAST?'':'<td class="ajchk">'+r._checks.map(esc).join('<br>')+'</td>')+'</tr>';
@@ -3102,7 +3133,7 @@ function renderTable(){
         const legs=[...rt.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).filter(l=>byCode[l.code]);
         if(!legs.length)continue;
         h+='<tr class="tgap"><td colspan="'+COLS.length+'"></td></tr>';
-        legs.forEach((l,i)=>{emitted.add(l.code);h+=mk(byCode[l.code],rt,i>0?legs[i-1].code:null,i===0);});
+        legs.forEach((l,i)=>{emitted.add(l.code);h+=mk(byCode[l.code],rt,i>0?legs[i-1].code:null,i===0,legs[i+1]?legs[i+1].code:null);});
         if(!PAST&&window._expRid===rt.id)h+='<tr class="exprow"><td colspan="'+COLS.length+'">'+assignCtrlsHTML(rt)+'</td></tr>';
       }
       const rest=list.filter(r=>!emitted.has(r.code));
@@ -3431,6 +3462,7 @@ function parseCalEvent(ev){
   if(!end)end=new Date(start.getTime()+4*36e5);
   start=r5js(start);end=r5js(end);
   let actH=durH(G('ACT Time'));
+  const tripDays=(function(){const v=parseFloat(String(G('Estimated Trip Days')||G('Trip Days')||'').replace(/[^0-9.]/g,''));return isFinite(v)&&v>0?v:null;})();
   if(actH==null)actH=Math.max((end-start)/36e5,2);
   // window semantics: start==end → crew must be there sharp; span that differs from ACT → arrival window [start..end]
   const _rawSpanH=(end-start)/36e5;
@@ -3455,7 +3487,7 @@ function parseCalEvent(ev){
     straight:/straight/i.test(jt)?true:(/regular/i.test(jt)?false:/straight/i.test(String(ev.description||''))),
     packing:numV(G('Packing Estimate')),
     customer:G('Customer Name').trim(),
-    start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,
+    start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,tripDays,
     piano:String(ev.summary||'').includes('🎹'),
     rescheduled:String(ev.summary||'').toUpperCase().includes('RESCHEDULED'),
     actH,mf:toks.length>=3?(toks[1].trim()||null):null,mt:toks.length>=4?(toks[2].trim()||null):null
