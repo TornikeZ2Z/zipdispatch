@@ -101,7 +101,7 @@ header .date{color:var(--dim);font-size:15px}
 .mapcard button:hover{background:#33383F}
 
 .rail{padding:20px 24px 100px;min-height:calc(100vh - 71px)}
-.rail{flex:1 1 auto;min-width:0;max-width:1760px;margin:0 auto;width:100%;transition:max-width .45s cubic-bezier(.22,.8,.3,1)}
+.rail{flex:1 1 auto;min-width:0;max-width:none;margin:0 auto;width:100%;transition:max-width .45s cubic-bezier(.22,.8,.3,1)}
 .layout.mapon .rail{max-width:none}
 .layout.tableon .rail{max-width:none}
 #mapwrap{flex:0 0 auto;width:0;overflow:hidden;border-right:none;border-left:0 solid var(--line);transition:width .45s cubic-bezier(.22,.8,.3,1)}
@@ -381,7 +381,7 @@ details.cands summary:hover{color:var(--ink)}
 .vbtn:hover{border-color:var(--ink)}
 .vbtn.on{color:#fff}
 #boardbtn.on{background:#1B1F24;border-color:#1B1F24}
-#allmapbtn.on{background:#0F8A66;border-color:#0F8A66}
+#allmapbtn.on{background:#0F8A66;border-color:#0F8A66;color:#fff}
 #alljobsbtn.on{background:#B26B0B;border-color:#B26B0B}
 #timelinebtn.on{background:#6C4FD8;border-color:#6C4FD8}
 #tableview{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 16px}
@@ -507,7 +507,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .chip.nd{background:#EFEAFB;border:1px solid #D4C8F0;color:#4F3D8E;font-weight:700}
 .layout.maponly .rail{display:none}
 .layout.maponly #leftbar{display:none}
-.layout.maponly #mapcard{width:auto;max-width:none;flex:1}
+.layout.mapon.maponly #mapwrap{width:auto;flex:1 1 auto}
 .chip.calopen,a.calopen{text-decoration:none;background:#EAF3FB;border:1px solid #C8DEF2;color:#1F6FD6;font-weight:700;cursor:pointer}
 a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .chip.calopen:hover,a.calopen:hover{border-color:#1F6FD6}
@@ -1156,8 +1156,10 @@ let highlighted=null;
 let mapMode='single';
 let MAPCARD_MIN=false;
 function exitMap(){
+  const wasFull=document.querySelector('.layout').classList.contains('maponly');
   document.querySelector('.layout').classList.remove('mapon');
   document.querySelector('.layout').classList.remove('maponly');
+  if(wasFull&&PREV_VIEW!=='board'){mapMode='single';highlighted=null;setViewMode(PREV_VIEW);updateViewBtns();return;}
   mapMode='single';highlighted=null;renderCards();
   if(typeof updateViewBtns==='function')updateViewBtns();
   if(VIEWMODE==='timeline')renderTimeline();
@@ -2190,7 +2192,8 @@ function drawAllJobs(seq){
   if(document.getElementById('showall'))document.getElementById('showall').onclick=exitMap;
 }
 function selectRoute(id,scrollCard){
-  document.querySelector('.layout').classList.remove('maponly');
+  setTimeout(updateViewBtns,0);
+
   mapMode='single';
   highlighted=(highlighted===id)?null:id;
   const lay=document.querySelector('.layout');
@@ -2313,8 +2316,9 @@ function updateGcalUI(){updateCalBtn();}
 function updateViewBtns(){
   const b=id=>document.getElementById(id);
   if(!b('boardbtn'))return;
-  b('boardbtn').classList.toggle('on',VIEWMODE==='board'&&mapMode!=='all');
-  b('allmapbtn').classList.toggle('on',mapMode==='all');
+  const _mo=document.querySelector('.layout').classList.contains('maponly');
+  b('boardbtn').classList.toggle('on',VIEWMODE==='board'&&mapMode!=='all'&&!_mo);
+  b('allmapbtn').classList.toggle('on',mapMode==='all'||_mo);
   b('alljobsbtn').classList.toggle('on',VIEWMODE==='table');
   b('timelinebtn').classList.toggle('on',VIEWMODE==='timeline');
 }
@@ -3744,8 +3748,9 @@ function updateStamp(){
 }
 populateDays();updateHDate();updateStamp();
 rebuildRoutes();
+let PREV_VIEW='timeline';
 document.getElementById('allmapbtn').addEventListener('click',()=>{
-  if(VIEWMODE!=='board')setViewMode('board');
+  if(VIEWMODE!=='board'){PREV_VIEW=VIEWMODE;setViewMode('board');} else PREV_VIEW='board';
   const lay=document.querySelector('.layout');
   const wasOn=lay.classList.contains('mapon');
   mapMode='all';highlighted=null;renderCards();
