@@ -622,6 +622,17 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .tlrow.offrow{opacity:.85;background:#FBF6F4}
 .offtrack{display:flex;align-items:center;padding-left:10px}
 .warnchip{background:#FBEEE8;border-color:#EBC9B8;color:#9A3E1D}
+.card.mini{display:flex;align-items:center;gap:12px;padding:11px 15px;cursor:pointer;flex-wrap:wrap;min-height:0}
+.card.mini .mpath{font-size:14.5px}
+.card.mini .mff{font-weight:800;font-size:14px}
+.card.mini:hover{border-color:var(--fleet)}
+.ctgl{width:27px;height:27px;border:1.5px solid var(--line2);background:var(--card);border-radius:8px;cursor:pointer;font-weight:800;font-size:15px;line-height:1;color:var(--dim);flex-shrink:0;padding:0}
+.ctgl:hover{border-color:var(--fleet);color:var(--fleet)}
+.cardtop .ctgl{margin-left:auto}
+.cardtop .ctgl+.vizbtn{margin-left:8px}
+.bulkb{margin-left:auto;display:flex;gap:8px}
+.bulkb button{border:1.5px solid var(--line2);background:var(--card);border-radius:9px;font-family:'Inter';font-weight:700;font-size:13px;padding:7px 12px;cursor:pointer;color:var(--dim)}
+.bulkb button:hover{border-color:var(--fleet);color:var(--fleet)}
 .exwrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;background:var(--bg);border:1px dashed var(--line2);border-radius:10px}
 .exbtn{border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet);border-radius:9px;font-family:'Inter';font-weight:800;font-size:13px;padding:7px 13px;cursor:pointer}
 .exbtn:hover{border-color:var(--fleet)}
@@ -793,6 +804,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
       <button id="allmapbtn" class="vbtn" title="Every job leg on one map — fullscreen">🗺 Map</button>
       <button id="boardbtn" class="vbtn" title="The dispatch board — route cards with assignments">🗂 Board</button>
       <button id="alljobsbtn" class="vbtn" title="Every imported job in one table — with data-quality checks">☰ Jobs table</button>
+      <span class="bulkb"><button id="minbases" title="Collapse or expand every base section — works on Board and Timeline together">⊟ all bases</button><button id="minroutes" title="Minimize or expand every route card on the Board">⊟ all routes</button></span>
 
     </div>
     <div id="filterbar">
@@ -1592,7 +1604,11 @@ function renderCards(){
   document.addEventListener('click',e=>{const s=e.target.closest('select[data-act]');if(s)e.stopPropagation();},true);
   document.addEventListener('click',e=>{
     const x=e.target.closest('.exbtn');
-    if(x){e.stopPropagation();explainModal(x.dataset.r);}
+    if(x){e.stopPropagation();explainModal(x.dataset.r);return;}
+    const tg=e.target.closest('.ctgl');
+    if(tg){e.stopPropagation();const k=tg.dataset.k;if(collapsedRoutes.has(k))collapsedRoutes.delete(k);else collapsedRoutes.add(k);renderCards();return;}
+    const mc=e.target.closest('.card.mini');
+    if(mc){collapsedRoutes.delete(mc.dataset.k);renderCards();}
   });
   document.addEventListener('input',e=>{
     const c=e.target.closest('input.cdrop,input.smartloc');
@@ -1749,6 +1765,25 @@ function explainModal(rid){
     m.classList.remove('show');render();toast('💬 saved — thank you, this trains the engine');
   };
 }
+let collapsedRoutes=new Set();
+function rKey(r){return [...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].code;}
+function miniCardHTML(r,mis){
+  const sl=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
+  const endR=Math.max(...sl.map(l=>l._endMs||Date.parse(l.end||l.start)));
+  const ws=currentDay<TODAY_ISO?0:sl.reduce((s,l)=>s+jobChecks(l).length,0);
+  return '<div class="card mini st-'+r.status+(highlighted===r.id?' hl':'')+(mis?' mismatch':'')+'" data-r="'+r.id+'" data-k="'+esc(rKey(r))+'" title="Click to expand this route">'
+   +'<button class="ctgl" data-k="'+esc(rKey(r))+'" title="Expand">＋</button>'
+   +'<span class="rpill">'+r.id+'</span>'
+   +'<span class="mpath"><b>'+esc(sl[0].cityFrom||'')+'</b> → <b>'+esc(sl[sl.length-1].cityTo&&sl[sl.length-1].cityTo!=='—'?sl[sl.length-1].cityTo:sl[sl.length-1].cityFrom||'')+'</b></span>'
+   +(sl.length>1?'<span class="chip sm" title="'+sl.length+' chained jobs">⛓ '+sl.length+'</span>':'')
+   +'<span class="ts">'+tm(sl[0].start)+' – ~'+new Date(endR).toTimeString().slice(0,5)+'</span>'
+   +'<span class="ts">'+r.totalCF.toLocaleString()+' CF</span>'
+   +'<span class="mff">👷 '+(r.foreman?esc(r.foreman.nick):'—')+'</span>'
+   +'<span class="ts">🚚 '+esc(routeVehText(r))+'</span>'
+   +(r._pmWhy?'<span class="chip sm" title="'+esc(r._pmWhy)+'">🌗</span>':'')
+   +(ws?'<span class="chip warnchip sm" title="data warnings — expand for details">⚠ '+ws+'</span>':'')
+   +'</div>';
+}
 function assignCtrlsHTML(r){
   if(currentDay<TODAY_ISO)return reviewCtrlsHTML(r);
   const RO=!canEdit();
@@ -1875,9 +1910,11 @@ function cardHTML(r){
   const scoreDetails='<details class="cands"><summary>how difficulty '+r.score+' was scored</summary><div class="candtbl">'+spRows+'</div><p class="helpnote">Weighted blend, normalized to 0–100. Hardest routes pick their foreman and trucks first.</p></details>';
   const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
   const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
+  if(collapsedRoutes.has(rKey(r)))return miniCardHTML(r,cmpMis);
   const ctrls=assignCtrlsHTML(r);
   return '<div class="card st-'+r.status+(highlighted===r.id?' hl':'')+(cmpMis?' mismatch':'')+'" data-r="'+r.id+'">'
     +'<div class="cardtop"><span class="rpill">'+r.id+'</span>'+pathLine(r)
+    +'<button class="ctgl" data-k="'+esc(rKey(r))+'" title="Minimize this route — one line with the essentials">−</button>'
     +'<button class="vizbtn hdr'+(highlighted===r.id?' on':'')+'" data-r="'+r.id+'">'+(highlighted===r.id?'Hide ▸':'Journey ▸')+'</button>'
     +'<span class="meter"><span class="lbl">'+diffWord(r.score)+'</span><span class="bar"><i style="width:'+Math.max(r.score,4)+'%;background:'+meterColor(r.score)+'"></i></span><span class="no" style="color:'+meterColor(r.score)+'">'+r.score+'</span></span></div>'
     +'<div class="metaline">'+meta+'</div>'
@@ -4080,6 +4117,18 @@ document.getElementById('cards').addEventListener('click',e=>{
   DATA.jobs=DATA.days[currentDay]||[];
   rebuildRoutes();render();updateCalBtn();
   toast('Draft removed.');
+});
+document.getElementById('minbases').addEventListener('click',()=>{
+  const all=[...new Set(routes.map(r=>r.base).filter(Boolean))];
+  if(all.length&&all.every(b=>collapsedBases.has(b)))collapsedBases.clear();
+  else all.forEach(b=>collapsedBases.add(b));
+  renderCards();if(VIEWMODE==='timeline')renderTimeline();
+});
+document.getElementById('minroutes').addEventListener('click',()=>{
+  if(collapsedRoutes.size>=routes.length)collapsedRoutes.clear();
+  else routes.forEach(r=>collapsedRoutes.add(rKey(r)));
+  if(VIEWMODE!=='board')setViewMode('board');
+  renderCards();
 });
 document.getElementById('boardbtn').addEventListener('click',()=>{
   setViewMode('board');
