@@ -2555,7 +2555,6 @@ function restoreDayState(day,announce){
     if(!r)return;
     r.baseOverride=o.b;r.pinForeman=o.p;r.pinTrucks=(o.t||[]).slice();applied++;
   });
-  if(applied)rebuildRoutes();
   const n=(st.ov||[]).length+(st.chains||[]).length+(st.det||[]).length+(st.off||[]).length;
   if(announce&&(n||(st.drafts||[]).length)&&!_restoredShown.has(day)){
     _restoredShown.add(day);
