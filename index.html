@@ -1900,7 +1900,8 @@ function cardHTML(r){
     if(v.rate&&ti)extra=' · <b>~$'+v.rate+'/day × ~'+ti.days+'d ≈ $'+(v.rate*ti.days).toLocaleString()+'</b>'+(v.provider?' ('+esc(v.provider)+')':'');
     else if(v.rate)extra=' · <b>~$'+v.rate+'/day</b>'+(v.provider?' ('+esc(v.provider)+')':'');
     if(ti)extra+=' · returns ~'+ti.retLbl;
-    return '<span class="vseg"><span class="vbadge amber">R</span><span>'+lbl+'Rental '+v.sz+' — fleet busy/empty'+extra+'</span></span>';
+    if(v.kind==='short')return '<span class="vseg"><span class="vbadge" style="background:#FBEAE5;color:#B23A2A;border-color:#E5A79B">!</span><span style="color:#B23A2A"><b>No '+esc(v.sz||'truck')+' free</b> — add a dated rental (button above)'+(ti?' · crew returns ~'+ti.retLbl:'')+'</span></span>';
+    return '<span class="vseg"><span class="vbadge amber">R</span><span>'+lbl+'Rental '+v.sz+' — was rented that day'+extra+'</span></span>';
   });
   const vrows=vsegs.length?'<div class="vrow">'+vsegs.join('<span class="vsep">+</span>')+'</div>':'';
   // — manual-plan comparison (from calendar title tags) —
@@ -3253,7 +3254,7 @@ function renderTable(){
     +'<thead><tr>'+COLS.map(c=>'<th class="'+(c[2]||'')+'">'+c[0]+'</th>').join('')+'</tr></thead><tbody>'
     +(function(){
       const byCode={};list.forEach(r=>byCode[r.code]=r);
-      const vt=rt=>(rt.vehicles||[]).map(v=>v.kind==='fleet'?('#'+String(v.t.n).replace('#','')):('R·'+String(v.sz||'').replace(' ft',''))).join(' + ');
+      const vt=rt=>(rt.vehicles||[]).map(v=>v.kind==='fleet'?('#'+String(v.t.n).replace('#','')):(v.kind==='rental'?('R·'+String(v.sz||'').replace(' ft','')):'⚠no truck')).join(' + ');
       const mk=(r,rt,afterCode,isFirst,nextCode)=>{
         const far=r.delivery&&!INREGION(r.delivery);
         const kind=far?(r.straight?'straight LD':'carrier'):(/long/i.test(r.movingType||'')?'LD':'local');
@@ -3379,7 +3380,7 @@ function renderTimeline(){
     const w=Math.max(2.5,right-left);
     const fn=b.r.foreman?b.r.foreman.name:'⚠ unassigned';
     const v=(b.r.vehicles||[])[0];
-    const vtxt=v?(v.kind==='fleet'?v.t.n:'R·'+String(v.sz||'').replace(' ft','')):'';
+    const vtxt=v?(v.kind==='fleet'?v.t.n:(v.kind==='rental'?('R·'+String(v.sz||'').replace(' ft','')):'⚠no truck')):'';
     const idxTag=b.n>1?(b.i+1)+'/'+b.n+' · ':'';
     const lbl=idxTag+b.r.id+' · '+(lblMode==='foremen'?'':fn+' · ')+b.l.cityFrom+' → '+(b.l.cityTo||'labor')+' · '+(b.l.cf||0).toLocaleString()+' CF'+(vtxt?' · '+vtxt:'')+(b.multi?' · → multi-day':(b.nd?' · → next day':''));
     const tip=b.r.id+' · '+fn+' · '+b.l.code+' · '+b.l.cityFrom+' → '+(b.l.cityTo||'—')+' · '+tm(b.l.start)+(b.en?('–'+new Date(b.en).toTimeString().slice(0,5)+(b.nd?' next day':'')):' → multi-day')+' · '+(b.l.cf||0).toLocaleString()+' CF'+(vtxt?' · '+vtxt:'')+' — click for the map & details';
@@ -3398,7 +3399,7 @@ function renderTimeline(){
       rows+='<div class="tlsep tlfold'+(col?' col':'')+'" data-b="'+esc(b)+'" title="Click to '+(col?'expand':'collapse')+'"><i>'+(col?'+':'−')+'</i><h4>'+esc(b)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+' · '+_fl+' fleet truck'+(_fl!==1?'s':'')+(_rn?' · '+_rn+' rental'+(_rn>1?'s':''):'')+' · '+esc(_cw)+'</span></div>';
       if(col)continue;
       for(const r of rs){
-        const vt=(r.vehicles||[]).map(v=>v.kind==='fleet'?('#'+String(v.t.n).replace('#','')):('R·'+String(v.sz||'').replace(' ft',''))).join(' + ');
+        const vt=(r.vehicles||[]).map(v=>v.kind==='fleet'?('#'+String(v.t.n).replace('#','')):(v.kind==='rental'?('R·'+String(v.sz||'').replace(' ft','')):'⚠no truck')).join(' + ');
         rows+='<div class="tlrow"><div class="tllabel"><b>'+r.id+(r.legs.length>1?' ⛓':'')+'</b><span>'+esc(r.foreman?r.foreman.nick:'unassigned')+' · '+r.totalCF.toLocaleString()+' CF'+(vt?' · '+esc(vt):'')+(r.legs.length>1?' · '+r.legs.length+' jobs':'')+'</span></div><div class="tltrack">'+trackOf(r,'routes')+'</div></div>';
       }
     }
@@ -3424,8 +3425,8 @@ function renderTimeline(){
       if(!veh.length)continue;
       let grp='';
       veh.forEach(v=>{
-        const nm=v.kind==='fleet'?((v.t.type==='Van'?'Van ':'')+v.t.n):('Rental '+v.sz);
-        const sub=v.kind==='fleet'?(v.t.cf.toLocaleString()+' CF · '+esc(v.t.state)):r.id;
+        const nm=v.kind==='fleet'?((v.t.type==='Van'?'Van ':'')+v.t.n):(v.kind==='rental'?('Rental '+v.sz):('⚠ no truck'));
+        const sub=v.kind==='fleet'?(v.t.cf.toLocaleString()+' CF · '+esc(v.t.state)):(v.kind==='short'?('add a '+(v.sz||'truck')+' rental · '+r.id):r.id);
         grp+='<div class="tlrow tight"><div class="tllabel"><b>'+esc(nm)+'</b><span>'+sub+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';
       });
       rows+='<div class="tlgroup">'+grp+'</div>';
