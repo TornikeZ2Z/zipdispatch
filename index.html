@@ -506,9 +506,11 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tlblock.sel{outline:3px solid var(--ink);z-index:2}
 .tlblock.nd{background-image:linear-gradient(90deg,transparent 78%,rgba(0,0,0,.28) 100%)}
 .chip.nd{background:#EFEAFB;border:1px solid #D4C8F0;color:#4F3D8E;font-weight:700}
-.layout.maponly .rail{display:none}
+.layout.mapon.maponly{flex-direction:column}
 .layout.maponly #leftbar{display:none}
-.layout.mapon.maponly #mapwrap{width:auto;flex:1 1 auto}
+.layout.maponly .rail{width:100%;max-width:none;min-height:0;padding:20px 24px 10px}
+.layout.maponly #cards,.layout.maponly #cmpsummary,.layout.maponly #rosterwrap{display:none!important}
+.layout.mapon.maponly #mapwrap{position:relative;top:0;width:100%;flex:1 1 auto;height:calc(100vh - 300px);min-height:480px;border-left:none;border-top:1px solid var(--line)}
 .chip.calopen,a.calopen{text-decoration:none;background:#EAF3FB;border:1px solid #C8DEF2;color:#1F6FD6;font-weight:700;cursor:pointer}
 a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .chip.calopen:hover,a.calopen:hover{border-color:#1F6FD6}
@@ -599,6 +601,12 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .ajmore{margin-top:12px}
 .ajmore summary{cursor:pointer;font-weight:700;font-size:13.5px;color:var(--dim)}
 .ajmore[open] summary{margin-bottom:9px}
+.ajt tr.tgap td{height:16px;border-bottom:none;background:transparent!important;padding:0}
+.ajt tr.tgap.lbl td{height:auto;padding:16px 12px 6px;font-family:'Barlow Condensed';font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.ajt tr.chainrow td:first-child{box-shadow:inset 3px 0 0 #8CAF2C}
+.chip.tchain{background:#EFF6E0;border:1px solid #D3E3A6;color:#4F6B14}
+.mexcls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mexwrap{display:inline-flex;align-items:center;gap:7px}
 .tlsep.tlfold{cursor:pointer;user-select:none}
 .tlsep.tlfold i{display:inline-block;width:18px;font-style:normal;font-weight:800}
 .tlsep.tlfold:hover{filter:brightness(.85)}
@@ -1397,7 +1405,7 @@ async function upgradeRoadMiles(){
   }
 }
 function syncFolds(){
-  [['alertfold','alertbar',['board','timeline']],['optifold','optipanel',['board']]].forEach(([f,i,views])=>{
+  [['alertfold','alertbar',['board','timeline']],['optifold','optipanel',['board','timeline']]].forEach(([f,i,views])=>{
     const fold=document.getElementById(f),inner=document.getElementById(i);
     if(!fold||!inner)return;
     const has=inner.innerHTML.trim()!==''&&inner.style.display!=='none';
@@ -1473,6 +1481,8 @@ function renderCards(){
   window._assignDelegated=1;
   document.addEventListener('click',e=>{const s=e.target.closest('select[data-act]');if(s)e.stopPropagation();},true);
   document.addEventListener('change',e=>{
+    const ex=e.target.closest('.mexcl input');
+    if(ex){e.stopPropagation();setJobEnabled(ex.dataset.k,ex.checked,{t:ex.dataset.t,d:ex.dataset.d});return;}
     const s=e.target.closest('select[data-act]');
     if(!s)return;
 
@@ -2051,6 +2061,7 @@ function refreshMap(){
           +(bm!=null?(function(){const d=new Date(bm);if(d.getMinutes()||d.getSeconds())d.setHours(d.getHours()+1);d.setMinutes(0,0,0);return ' · <b>back ~'+d.toTimeString().slice(0,5)+'</b>';})():'')+'</div>'
         +'<div class="mirow">'+typeChip(mt,'tmove',1)+typeChip(jt,'tjob',1)+'</div>'
         +'<div class="mirow">'+(r.foreman?'👷 <b>'+esc(r.foreman.nick)+'</b> ('+esc(r.foreman.name)+') · ':'')+'🚚 '+esc(routeVehText(r))+'</div>'
+        +'<div class="mirow mexcls">'+sl2.map(l=>'<span class="mexwrap"><label class="ajsw mexcl" title="Take '+esc(l.code)+' off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" data-k="'+esc(jobKey(l))+'" data-t="'+esc(l.customer||l.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(l))?'':' checked')+'><i></i></label><span class="ts">on board · '+esc(l.code)+'</span></span>').join('')+'</div>'
         +assignCtrlsHTML(r)
         +'</div>';
       })()
@@ -2906,9 +2917,9 @@ function renderTable(){
   const nSus=rows.filter(r=>r._checks.length).length;
   const COLS=[
     ['Job Code',116,'fz1'],['Customer',190,'fz2'],
-    ['Time',118],['Pickup',215],['Delivery',215],['Base',104],
+    ['Time',118],['Pickup',215],['Delivery',215],['Base',104],['Foreman',176],['Truck',118],
     ['Total CF',84],['Crew Size',86],['Trucks / Vans',104],['ACT Time',86],['Packing $',96],
-    ['Moving Type',172],['Job Type',168],['Kind',118],['After Job Code',128],['# Title Tags',124],['Calendar',86]
+    ['Moving Type',172],['Job Type',168],['After Job Code',150],['# Title Tags',124],['Calendar',86]
   ].concat([['On board',86]]).concat(PAST?[]:[['Data Checks',280]]);
   const kindChip=k=>({carrier:'<span class="chip tjob sm">🚛 carrier</span>','straight LD':'<span class="chip tmove sm">🛣️ straight LD</span>',LD:'<span class="chip tmove sm">🛣️ LD</span>',local:'<span class="chip sm">📦 local</span>'})[k]||esc(k);
   const body=()=>{
@@ -2920,30 +2931,47 @@ function renderTable(){
     +'<div class="ajtwrap full"><table class="ajt" style="width:'+COLS.reduce((s,c)=>s+c[1],0)+'px">'
     +'<colgroup>'+COLS.map(c=>'<col style="width:'+c[1]+'px">').join('')+'</colgroup>'
     +'<thead><tr>'+COLS.map(c=>'<th class="'+(c[2]||'')+'">'+c[0]+'</th>').join('')+'</tr></thead><tbody>'
-    +list.map(r=>{
-      const _rid=(routes.find(rt=>rt.legs.some(l=>l.code===r.code))||{}).id||'';
-      const far=r.delivery&&!INREGION(r.delivery);
-      const kind=far?(r.straight?'straight LD':'carrier'):(/long/i.test(r.movingType||'')?'LD':'local');
-      return '<tr class="'+(r._checks.length?'sus':'')+(EXCL.has(jobKey(r))?' excl':'')+(highlighted&&highlighted===_rid?' selrow':'')+'"'+(_rid?' data-rid="'+_rid+'" title="Click — map & assignment panel opens on the right"':'')+'>'
-      +'<td class="mono fz1">'+esc(r.code)+'</td>'
-      +'<td class="fz2 ajcut" title="'+esc(r.customer||'')+'">'+esc(r.customer||'—')+'</td>'
-      +'<td class="mono">'+String(r.start).slice(11,16)+'–'+String(r.end||'').slice(11,16)+'</td>'
-      +'<td class="ajcut" title="'+esc(r.pickupAddr||'')+'">'+esc(r.cityFrom||'')+' <span class="ts">'+(r.pickup?r.pickup.zip:'—')+'</span><div class="ajaddr">'+esc(r.pickupAddr||'')+'</div></td>'
-      +'<td class="ajcut" title="'+esc(kind==='carrier'?'carrier delivers — full address lives in the job':(r.deliveryAddr||''))+'">'+esc(r.cityTo||'—')+' <span class="ts">'+(r.delivery?r.delivery.zip:'—')+'</span>'+(kind==='carrier'?'':'<div class="ajaddr">'+esc(r.deliveryAddr||'')+'</div>')+'</td>'
-      +'<td>'+esc(nearestBaseName(r))+'</td>'
-      +'<td>'+(r.cf||0).toLocaleString()+'</td>'
-      +'<td>'+(r.crew||'—')+'</td>'
-      +'<td>'+(r.trucksQ||0)+' / '+(r.vansQ||0)+'</td>'
-      +'<td>'+(r.actH?r.actH+'h':'—')+'</td>'
-      +'<td>'+(r.packing?Math.round(r.packing).toLocaleString():'—')+'</td>'
-      +'<td>'+typeChip(r.movingType,'tmove',1)+'</td>'
-      +'<td>'+typeChip(r.jobType,'tjob',1)+'</td>'
-      +'<td>'+kindChip(kind)+'</td>'
-      +'<td class="mono">'+esc(r.after||'—')+'</td>'
-      +'<td class="mono">'+esc([r.mf,r.mt].filter(Boolean).join(' # ')||'—')+'</td>'
-      +'<td>'+(r.eventId?'<a class="calopen" target="_blank" rel="noopener" href="'+calEditUrl(r.eventId)+'" title="Open in Google Calendar — edits sync back automatically">✎ open</a>':'—')+'</td>'
-      +'<td><label class="ajsw" title="Take this job off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" class="ajex" data-k="'+esc(jobKey(r))+'" data-t="'+esc(r.customer||r.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(r))?'':' checked')+'><i></i></label></td>'
-      +(PAST?'':'<td class="ajchk">'+r._checks.map(esc).join('<br>')+'</td>')+'</tr>';}).join('')
+    +(function(){
+      const byCode={};list.forEach(r=>byCode[r.code]=r);
+      const vt=rt=>(rt.vehicles||[]).map(v=>v.kind==='fleet'?('#'+String(v.t.n).replace('#','')):('R·'+String(v.sz||'').replace(' ft',''))).join(' + ');
+      const mk=(r,rt,afterCode,isFirst)=>{
+        const far=r.delivery&&!INREGION(r.delivery);
+        const kind=far?(r.straight?'straight LD':'carrier'):(/long/i.test(r.movingType||'')?'LD':'local');
+        const chain=rt&&rt.legs.length>1;
+        return '<tr class="'+(r._checks.length?'sus':'')+(EXCL.has(jobKey(r))?' excl':'')+(chain?' chainrow':'')+(highlighted&&rt&&highlighted===rt.id?' selrow':'')+'"'+(rt?' data-rid="'+rt.id+'" title="Click — map & assignment panel opens on the right"':'')+'>'
+        +'<td class="mono fz1">'+esc(r.code)+(isFirst&&rt?' <span class="ts">'+rt.id+'</span>':'')+(chain&&!isFirst?' <span class="ts">⛓</span>':'')+'</td>'
+        +'<td class="fz2 ajcut" title="'+esc(r.customer||'')+'">'+esc(r.customer||'—')+'</td>'
+        +'<td class="mono">'+String(r.start).slice(11,16)+'–'+String(r.end||'').slice(11,16)+'</td>'
+        +'<td class="ajcut" title="'+esc(r.pickupAddr||'')+'">'+esc(r.cityFrom||'')+' <span class="ts">'+(r.pickup?r.pickup.zip:'—')+'</span><div class="ajaddr">'+esc(r.pickupAddr||'')+'</div></td>'
+        +'<td class="ajcut" title="'+esc(kind==='carrier'?'carrier delivers — full address lives in the job':(r.deliveryAddr||''))+'">'+esc(r.cityTo||'—')+' <span class="ts">'+(r.delivery?r.delivery.zip:'—')+'</span>'+(kind==='carrier'?'':'<div class="ajaddr">'+esc(r.deliveryAddr||'')+'</div>')+'</td>'
+        +'<td>'+esc(nearestBaseName(r))+'</td>'
+        +'<td class="ajcut">'+(rt&&rt.foreman?esc(rt.foreman.name)+' <span class="ts">'+esc(rt.foreman.nick)+'</span>':'<span class="ts">—</span>')+'</td>'
+        +'<td class="mono">'+(rt?esc(vt(rt))||'—':'—')+'</td>'
+        +'<td>'+(r.cf||0).toLocaleString()+'</td>'
+        +'<td>'+(r.crew||'—')+'</td>'
+        +'<td>'+(r.trucksQ||0)+' / '+(r.vansQ||0)+'</td>'
+        +'<td>'+(r.actH?r.actH+'h':'—')+'</td>'
+        +'<td>'+(r.packing?Math.round(r.packing).toLocaleString():'—')+'</td>'
+        +'<td>'+typeChip(r.movingType,'tmove',1)+'</td>'
+        +'<td>'+typeChip(r.jobType,'tjob',1)+'</td>'
+        +'<td>'+(afterCode?'<span class="chip sm tchain" title="The engine chained this job after '+esc(afterCode)+' on the same route">⛓ after '+esc(afterCode)+'</span>':(r.after?'<span class="ts" title="After Job Code from the sheet">'+esc(r.after)+'</span>':'—'))+'</td>'
+        +'<td class="mono">'+esc([r.mf,r.mt].filter(Boolean).join(' # ')||'—')+'</td>'
+        +'<td>'+(r.eventId?'<a class="calopen" target="_blank" rel="noopener" href="'+calEditUrl(r.eventId)+'" title="Open in Google Calendar — edits sync back automatically">✎ open</a>':'—')+'</td>'
+        +'<td><label class="ajsw" title="Take this job off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" class="ajex" data-k="'+esc(jobKey(r))+'" data-t="'+esc(r.customer||r.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(r))?'':' checked')+'><i></i></label></td>'
+        +(PAST?'':'<td class="ajchk">'+r._checks.map(esc).join('<br>')+'</td>')+'</tr>';
+      };
+      const RTS=(filtersActive()?visibleRoutes():routes).slice().sort((a,b)=>(a.base||'').localeCompare(b.base||'')||String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
+      const emitted=new Set();let h='';
+      for(const rt of RTS){
+        const legs=[...rt.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).filter(l=>byCode[l.code]);
+        if(!legs.length)continue;
+        h+='<tr class="tgap"><td colspan="'+COLS.length+'"></td></tr>';
+        legs.forEach((l,i)=>{emitted.add(l.code);h+=mk(byCode[l.code],rt,i>0?legs[i-1].code:null,i===0);});
+      }
+      const rest=list.filter(r=>!emitted.has(r.code));
+      if(rest.length)h+='<tr class="tgap lbl"><td colspan="'+COLS.length+'">off board / not routed</td></tr>'+rest.map(r=>mk(r,null,null,false)).join('');
+      return h;
+    })()
     +'</tbody></table></div>';
   };
   const _sk=skippedForDay();
