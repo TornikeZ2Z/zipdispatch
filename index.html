@@ -502,6 +502,32 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .chip.nd{background:#EFEAFB;border:1px solid #D4C8F0;color:#4F3D8E;font-weight:700}
 #clearfl{border:1.5px solid #EBCDC2;background:#FBEFEA;color:#9A3E1D;border-radius:10px;font-family:'Inter';font-weight:700;font-size:13.5px;padding:9px 14px;cursor:pointer}
 #clearfl:hover{border-color:#9A3E1D}
+#dbtn{width:252px;min-width:252px;max-width:252px;justify-content:center}
+#dprev,#dnext{width:42px;flex-shrink:0}
+.secfold{margin-bottom:10px;border:1px solid var(--line);border-radius:13px;background:var(--card);overflow:hidden}
+.secfold>summary{cursor:pointer;list-style:none;font-family:'Barlow Condensed';font-size:17px;letter-spacing:.04em;font-weight:700;padding:10px 16px;color:var(--ink);display:flex;align-items:center;gap:8px;user-select:none}
+.secfold>summary::before{content:'▸';font-size:13px;color:var(--dim);transition:transform .12s}
+.secfold[open]>summary::before{transform:rotate(90deg)}
+.secfold>summary:hover{background:var(--bg)}
+.secfold>div{padding:0 12px 10px}
+.secfold #alertbar,.secfold #optipanel{margin-bottom:0}
+.basesec{border-left:5px solid var(--line2);padding-left:12px;border-radius:6px;background:var(--bg)}
+.basesec[data-b="NJ"]{border-left-color:#0F8A66;background:#0F8A6612}
+.basesec[data-b="PA"]{border-left-color:#7C5CE0;background:#7C5CE012}
+.basesec[data-b="NY"]{border-left-color:#1F6FD6;background:#1F6FD612}
+.basesec[data-b="DE"]{border-left-color:#B26B0B;background:#B26B0B12}
+.basesec[data-b="CT"]{border-left-color:#C2417A;background:#C2417A12}
+.basesec[data-b="MA"]{border-left-color:#3E8E9C;background:#3E8E9C12}
+.basesec[data-b="NJ"] h3{color:#0F8A66}.basesec[data-b="PA"] h3{color:#7C5CE0}.basesec[data-b="NY"] h3{color:#1F6FD6}
+.basesec[data-b="DE"] h3{color:#B26B0B}.basesec[data-b="CT"] h3{color:#C2417A}.basesec[data-b="MA"] h3{color:#3E8E9C}
+.tlsep[data-b="NJ"]{color:#0F8A66;border-left:4px solid #0F8A66;padding-left:9px}
+.tlsep[data-b="PA"]{color:#7C5CE0;border-left:4px solid #7C5CE0;padding-left:9px}
+.tlsep[data-b="NY"]{color:#1F6FD6;border-left:4px solid #1F6FD6;padding-left:9px}
+.tlsep[data-b="DE"]{color:#B26B0B;border-left:4px solid #B26B0B;padding-left:9px}
+.tlsep[data-b="CT"]{color:#C2417A;border-left:4px solid #C2417A;padding-left:9px}
+.tlsep[data-b="MA"]{color:#3E8E9C;border-left:4px solid #3E8E9C;padding-left:9px}
+.tlleg{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--dim)}
+.tlleg i{width:13px;height:13px;border-radius:4px;display:inline-block;margin-left:9px}
 .skipnote{display:block;width:100%;text-align:left;border:1.5px solid #EBCDC2;background:#FBEFEA;color:#9A3E1D;border-radius:11px;font-family:'Inter';font-weight:700;font-size:14px;padding:11px 15px;cursor:pointer;margin-bottom:11px}
 .skipnote:hover{border-color:#9A3E1D}
 .skrow{padding:6px 0;border-bottom:1px solid var(--line)}
@@ -636,7 +662,8 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
     <div class="railhead">
       <h2>Routes by base — calendar order</h2>
     </div>
-    <div id="alertbar"></div>
+    <details class="secfold" id="alertfold" open><summary>⚠️ Shortage alerts</summary><div id="alertbar"></div></details>
+    <details class="secfold" id="optifold" open><summary>🧩 Route optimizer — re-chaining</summary><div id="optipanel"></div></details>
     <div id="viewbar">
       <span class="tblab">View</span>
       <button id="boardbtn" class="vbtn on" title="The dispatch board — route cards with assignments">🗂 Board</button>
@@ -656,7 +683,6 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
     </div>
     <div id="ffsummary"></div>
     <div id="cmpsummary"></div>
-    <div id="optipanel"></div>
     
     <div id="cards"></div>
     <div id="tableview" style="display:none"></div>
@@ -1288,6 +1314,14 @@ async function upgradeRoadMiles(){
     }));
   }
 }
+function syncFolds(){
+  [['alertfold','alertbar'],['optifold','optipanel']].forEach(([f,i])=>{
+    const fold=document.getElementById(f),inner=document.getElementById(i);
+    if(!fold||!inner)return;
+    const has=inner.innerHTML.trim()!==''&&inner.style.display!=='none';
+    fold.style.display=(has&&VIEWMODE==='board')?'':'none';
+  });
+}
 function renderCards(){
   const el=document.getElementById('cards');
   renderFilters();
@@ -1296,6 +1330,7 @@ function renderCards(){
   if(VIEWMODE==='table')renderTable();
   if(VIEWMODE==='timeline')renderTimeline();
   setTimeout(upgradeRoadMiles,0);
+  setTimeout(syncFolds,0);
   let shown=visibleRoutes();
   const ff=FFSEL.size===1?[...FFSEL][0]:null;
   const ffShown=ff?shown.filter(r=>r.foreman&&r.foreman.name===ff):[];
@@ -1854,10 +1889,7 @@ function refreshMap(){
     if(prev)addTravel(prev,a,jobN===1?('Leave '+r.base+' base → job #1'):('Travel to job #'+jobN));
     if(l._carrier){
       // crew loads at pickup; carrier hauls to destination; crew & truck return to base
-      const bFar=[l.delivery.lat,l.delivery.lon];
-      const cp=curvePts(a,bFar,1,1);
-      const cl=L.polyline(cp,{color:'#9AA0A8',weight:2.5,opacity:0.6,dashArray:'2 10',lineCap:'round'}).addTo(layerG);
-      cl.bindTooltip('<div class="tt">Carrier leg → '+esc(l.cityTo)+(l.stateTo?', '+esc(l.stateTo):'')+'</div><div class="ts">goods continue with the carrier — crew & truck return to base</div>',{sticky:true,className:'lpop',opacity:1});
+      // regular moving: the carrier hauls the goods — the crew's world ends at the pickup, so no line is drawn to the far delivery
       const it={type:'job',leg:l,jobN,from:a,to:null,carrier:true,inreg:false,fallback:0};
       items.push(it);
       stopN++;stopMarker(a,stopN,'P',col,'<div class="tt">Stop '+stopN+' · job #'+jobN+' pickup (carrier move) · '+tm(l.start)+'</div><div class="ts">'+esc(l.pickupAddr||l.cityFrom)+'</div>');
@@ -2043,16 +2075,18 @@ function drawAllJobs(seq){
         const bFar=[l.delivery.lat,l.delivery.lon];
         const cp=curvePts(a,bFar,1,1);
         const carrier=!!l._carrier;
-        const farCasing=L.polyline(cp,{color:'#FFFFFF',weight:carrier?4:6,opacity:0.8,lineCap:'round',interactive:false}).addTo(layerG);
-        const farLine=L.polyline(cp,{color:carrier?'#9AA0A8':col,weight:carrier?2.5:3.5,opacity:carrier?0.6:0.85,lineCap:'round',dashArray:carrier?'2 10':'9 7'}).addTo(layerG);
-        if(!carrier)items.push({line:farLine,casing:farCasing,a,b:bFar});
-        farLine.bindTooltip('<div class="tt">'+esc(l.customer||l.code)+'</div>'
-          +'<div class="ts">'+esc(l.code)+' · '+r.id+' · '+(l._carrier?'carrier leg →':'long distance →')+' '+esc(l.cityTo)+(l.delivery.state?', '+esc(l.delivery.state):'')+(l._carrier?' (crew returns to base)':'')+'</div>'
-          +'<div class="ts">'+(cachedRoadMi(l.pickup,l.delivery)!=null?Math.round(cachedRoadMi(l.pickup,l.delivery)).toLocaleString():'~'+Math.round(hav(l.pickup,l.delivery)*1.15).toLocaleString())+' mi · '+l.cf.toLocaleString()+' CF · '+(r.foreman?esc(r.foreman.name):'')+'</div>'
-          +'<div class="ts" style="color:var(--fleet)">click to open this route</div>',{sticky:true,className:'lpop',opacity:1});
-        farLine.on('click',()=>selectRoute(r.id,true));
-        farLine.on('mouseover',()=>farLine.setStyle({weight:6}));
-        farLine.on('mouseout',()=>farLine.setStyle({weight:3.5}));
+        if(!carrier){
+          const farCasing=L.polyline(cp,{color:'#FFFFFF',weight:6,opacity:0.8,lineCap:'round',interactive:false}).addTo(layerG);
+          const farLine=L.polyline(cp,{color:col,weight:3.5,opacity:0.85,lineCap:'round',dashArray:'9 7'}).addTo(layerG);
+          items.push({line:farLine,casing:farCasing,a,b:bFar});
+          farLine.bindTooltip('<div class="tt">'+esc(l.customer||l.code)+'</div>'
+            +'<div class="ts">'+esc(l.code)+' · '+r.id+' · long distance → '+esc(l.cityTo)+(l.delivery.state?', '+esc(l.delivery.state):'')+'</div>'
+            +'<div class="ts">'+(cachedRoadMi(l.pickup,l.delivery)!=null?Math.round(cachedRoadMi(l.pickup,l.delivery)).toLocaleString():'~'+Math.round(hav(l.pickup,l.delivery)*1.15).toLocaleString())+' mi · '+l.cf.toLocaleString()+' CF · '+(r.foreman?esc(r.foreman.name):'')+'</div>'
+            +'<div class="ts" style="color:var(--fleet)">click to open this route</div>',{sticky:true,className:'lpop',opacity:1});
+          farLine.on('click',()=>selectRoute(r.id,true));
+          farLine.on('mouseover',()=>farLine.setStyle({weight:6}));
+          farLine.on('mouseout',()=>farLine.setStyle({weight:3.5}));
+        }
         L.circleMarker(a,{radius:5,color:'#fff',weight:2,fillColor:col,fillOpacity:1}).addTo(layerG);
         continue;
       }
@@ -2255,7 +2289,13 @@ async function shUpdateCellByMatch(tab,match,setCol,setVal){
 function colA1(i){let s='';i++;while(i){s=String.fromCharCode(65+(i-1)%26)+s;i=Math.floor((i-1)/26);}return s;}
 function mdy(iso){const [y,m,d]=iso.split('-');return (+m)+'/'+(+d)+'/'+y;}
 function sheetSaved(what){toast('✓ '+what+' — saved to the team sheet.');}
-function sheetSaveFailed(what,e){toast('⚠ '+what+' applied on the board, but the sheet write failed: '+e.message);}
+function sheetSaveFailed(what,e){
+  gModal('⚠ Saved on the board — but NOT in the team sheet',
+    '<div class="gsub">The '+esc(what)+' is live on this board, but writing it to the Google Sheet failed:</div>'
+    +'<div class="skrow"><b>'+esc(e&&e.message?e.message:'request failed')+'</b><span>'
+    +(GTOKEN?'If this mentions permissions, click 🗓 Connect Calendar once to re-approve with Sheets access.':'Click 🗓 Connect Calendar to grant access, then redo the change.')
+    +'</span></div>');
+}
 async function dayOffToSheet(f,on){
   if(!GTOKEN){toast('Applied on the board. Connect the calendar button to also save day-offs to the team sheet.');return;}
   try{
@@ -2599,7 +2639,8 @@ function applyPlacement(job,opt){
   toast('📝 '+job.code+' added as a draft'+(opt?(' — '+(opt.kind==='chain'?('chained after '+opt.r.id+' with '+opt.f.nick):('new route for '+opt.f.nick))):' — engine will place it')+'. Push it to the calendar with 🗓 Update calendar.');
 }
 function addTruckModal(){
-  const m=gModal('Add a rented truck','<div class="gsub">Goes into the base fleet immediately — no penalty, used whenever it fits. Saved to the <b>Rented Trucks</b> sheet tab so the whole team sees it.</div>'
+  const m=gModal('Add a rented truck','<div class="gsub">Goes into the base fleet immediately — no penalty, used whenever it fits. Saved to the <b>Rented Trucks</b> tab of the team sheet (the app creates the tab on first save).</div>'
+    +(GTOKEN?'':'<div class="ajerr" style="display:block;margin:8px 0">⚠ Not connected — the truck will live only on this board. Press <b>🗓 Connect Calendar</b> first (one Google approval) and adds will save to the sheet for the whole team.</div>')
     +'<div class="gform">'
     +'<label>Size</label><div class="gsizes"><button data-cf="1100" data-sz="20 ft" class="on">20 ft · ~1,100 CF</button><button data-cf="1700" data-sz="26 ft">26 ft · ~1,700 CF</button><button data-cf="557" data-sz="van">Van · ~557 CF</button></div>'
     +'<label>Exact CF (optional)</label><input id="atcf" type="number" placeholder="1100">'
@@ -2737,7 +2778,8 @@ function setViewMode(mode){
   document.querySelector('.layout').classList.toggle('tableon',off);
   document.getElementById('alljobsbtn').classList.toggle('on',mode==='table');
   document.getElementById('timelinebtn').classList.toggle('on',mode==='timeline');
-  ['cards','optipanel','alertbar'].forEach(id=>{const x=document.getElementById(id);if(x)x.style.display=off?'none':'';});
+  ['cards','optifold','alertfold'].forEach(id=>{const x=document.getElementById(id);if(x)x.style.display=off?'none':'';});
+  if(!off)syncFolds();
   renderFleetStrip();
   const rw=document.getElementById('rosterwrap');if(rw)rw.style.display=off?'none':'';
   document.getElementById('tableview').style.display='none';
@@ -2771,16 +2813,23 @@ function renderTimeline(){
   }));
   const A=Math.max(0,minH-1),B=Math.min(24,Math.max(maxH+1,19)),SPAN=(B-A)*60;
   const pos=ms=>{const d=new Date(ms);return ((d.getHours()*60+d.getMinutes())-A*60)/SPAN*100;};
-  const colOf={};routes.forEach((r,i)=>colOf[r.id]=PALETTE[i%PALETTE.length]);
+  const kindCol=l=>{
+    if(/labor/i.test(String(l.jobType||'')))return '#5B6770';
+    if(l._far&&l.straight)return '#6C4FD8';
+    if(l._far||/long/i.test(String(l.movingType||'')))return '#C98A1B';
+    return '#128A72';
+  };
   const mkB=(b,lblMode)=>{
     const left=Math.max(0,pos(b.st));
     const right=(b.multi||b.nd)?100:Math.min(100,pos(b.en));
     const w=Math.max(2.5,right-left);
-    const fn=b.r.foreman?b.r.foreman.nick:'⚠ unassigned';
+    const fn=b.r.foreman?b.r.foreman.name:'⚠ unassigned';
+    const v=(b.r.vehicles||[])[0];
+    const vtxt=v?(v.kind==='fleet'?v.t.n:'R·'+String(v.sz||'').replace(' ft','')):'';
     const idxTag=b.n>1?(b.i+1)+'/'+b.n+' · ':'';
-    const lbl=idxTag+(lblMode==='routes'?(fn+' · '+b.l.cityFrom):(b.r.id+' · '+b.l.cityFrom))+(b.multi?' → multi-day':(b.nd?' → next day':''));
-    const tip=b.r.id+' · '+fn+' · '+b.l.code+' · '+tm(b.l.start)+(b.en?('–'+new Date(b.en).toTimeString().slice(0,5)+(b.nd?' next day':'')):' → multi-day')+' · '+(b.l.cf||0).toLocaleString()+' CF — click for the map & details';
-    return '<div class="tlblock'+(b.multi?' ld':'')+(b.nd?' nd':'')+(highlighted===b.r.id?' sel':'')+'" data-r="'+b.r.id+'" style="left:'+left+'%;width:'+w+'%;background:'+colOf[b.r.id]+'" title="'+esc(tip)+'">'+esc(lbl)+'</div>';
+    const lbl=idxTag+b.r.id+' · '+(lblMode==='foremen'?'':fn+' · ')+b.l.cityFrom+' → '+(b.l.cityTo||'labor')+' · '+(b.l.cf||0).toLocaleString()+' CF'+(vtxt?' · '+vtxt:'')+(b.multi?' · → multi-day':(b.nd?' · → next day':''));
+    const tip=b.r.id+' · '+fn+' · '+b.l.code+' · '+b.l.cityFrom+' → '+(b.l.cityTo||'—')+' · '+tm(b.l.start)+(b.en?('–'+new Date(b.en).toTimeString().slice(0,5)+(b.nd?' next day':'')):' → multi-day')+' · '+(b.l.cf||0).toLocaleString()+' CF'+(vtxt?' · '+vtxt:'')+' — click for the map & details';
+    return '<div class="tlblock'+(b.multi?' ld':'')+(b.nd?' nd':'')+(highlighted===b.r.id?' sel':'')+'" data-r="'+b.r.id+'" style="left:'+left+'%;width:'+w+'%;background:'+kindCol(b.l)+'" title="'+esc(tip)+'">'+esc(lbl)+'</div>';
   };
   const trackOf=(r,lblMode)=>legBlocks(r).map(b=>mkB(b,lblMode)).join('');
   let rows='';
@@ -2788,7 +2837,7 @@ function renderTimeline(){
     const ordered=[...RR].sort((x,y)=>(x.base||'').localeCompare(y.base||'')||(x.t0-y.t0));
     let lastBase=null;
     for(const r of ordered){
-      if(r.base!==lastBase){rows+='<div class="tlsep">'+esc(r.base)+' base</div>';lastBase=r.base;}
+      if(r.base!==lastBase){rows+='<div class="tlsep" data-b="'+esc(r.base)+'">'+esc(r.base)+' base</div>';lastBase=r.base;}
       rows+='<div class="tlrow"><div class="tllabel"><b>'+r.id+(r.legs.length>1?' ⛓':'')+'</b><span>'+esc(r.foreman?r.foreman.nick:'unassigned')+' · '+r.totalCF.toLocaleString()+' CF'+(r.legs.length>1?' · '+r.legs.length+' jobs':'')+'</span></div><div class="tltrack">'+trackOf(r,'routes')+'</div></div>';
     }
   } else if(TLMODE==='foremen'){
@@ -2817,7 +2866,8 @@ function renderTimeline(){
   el.innerHTML='<div class="tlbar"><b>'+fmtDayLong(currentDay)+'</b>'
     +'<span class="tltgl"><button class="'+(TLMODE==='routes'?'on':'')+'" data-m="routes">🗂 Routes</button><button class="'+(TLMODE==='foremen'?'on':'')+'" data-m="foremen">👷 Foremen</button><button class="'+(TLMODE==='trucks'?'on':'')+'" data-m="trucks">🚚 Trucks</button></span>'
     +(filtersActive()?'<span class="ts">'+RR.length+' of '+routes.length+' routes (filters applied)</span>':'')
-    +'<span class="ts">chained routes show one bar per job · click a bar → map &amp; details</span></div>'
+    +'<span class="tlleg"><i style="background:#128A72"></i>Local <i style="background:#C98A1B"></i>Long distance <i style="background:#6C4FD8"></i>Straight LD <i style="background:#5B6770"></i>Labor</span>'
+    +'<span class="ts">one bar per job · click a bar → map &amp; details</span></div>'
     +'<div class="tlwrap">'+scale+rows+'</div>';
   el.querySelectorAll('.tltgl button').forEach(b=>b.addEventListener('click',()=>{TLMODE=b.dataset.m;renderTimeline();}));
   el.querySelectorAll('.tlblock').forEach(b=>b.addEventListener('click',()=>{
@@ -3212,24 +3262,20 @@ async function fetchTab(name){
   const head=rows[0].map(h=>h.trim());
   return rows.slice(1).map(rw=>{const o={};head.forEach((h,i)=>o[h]=rw[i]!==undefined?rw[i]:'');return o;});
 }
+let RF_ISSUES=[];
 function rfStep(key,state,info){
-  const el=document.getElementById('rf-'+key.replace(/\W/g,''));
-  if(!el)return;
-  el.className='rfrow '+state;
-  el.querySelector('.rfst').textContent=state==='run'?'…':(state==='ok'?'✓':'✕');
-  if(info)el.querySelector('.rfin').textContent=info;
+  if(state==='fail')RF_ISSUES.push({key,info:info||'failed'});
 }
-function openRfModal(tabs){
-  let m=document.getElementById('rfmodal');
-  if(!m){m=document.createElement('div');m.id='rfmodal';document.body.appendChild(m);}
-  m.innerHTML='<div class="rfbox"><h3>Refreshing — fleet (sheet) + jobs (calendar)</h3>'
-    +tabs.map(n=>'<div class="rfrow run" id="rf-'+n.replace(/\W/g,'')+'"><span class="rfst">…</span><span class="rfnm">'+n+'</span><span class="rfin">fetching</span></div>').join('')
-    +'<div class="rfrow" id="rf-build"><span class="rfst"> </span><span class="rfnm">Rebuild board</span><span class="rfin">waiting</span></div>'
-    +'<div id="rfhint"></div><button id="rfclose">Close</button></div>';
-  m.classList.add('show');
-  m.querySelector('#rfclose').onclick=()=>m.classList.remove('show');
-  return m;
+function rfFinish(){
+  if(RF_ISSUES.length){
+    gModal('Refresh finished — with '+RF_ISSUES.length+' issue'+(RF_ISSUES.length>1?'s':''),
+      '<div class="gsub">Everything else was updated. These need attention:</div>'
+      +RF_ISSUES.map(x=>'<div class="skrow"><b>'+esc(x.key)+'</b><span>'+esc(x.info)+'</span></div>').join(''));
+  } else {
+    toast('✓ Refreshed — fleet & calendar up to date · '+new Date().toTimeString().slice(0,5));
+  }
 }
+function openRfModal(tabs){RF_ISSUES=[];return {classList:{add(){},remove(){}},querySelector:()=>({onclick:null})};}
 function rebuildFromTabs(T){
   const bases={};
   for(const r of T.bases){
@@ -3341,7 +3387,7 @@ function rebuildFromTabs(T){
 async function liveRefresh(){
   const btn=document.getElementById('refreshbtn');
   const orig=btn.textContent;
-  btn.textContent='↻ Pulling…';btn.disabled=true;
+  btn.textContent='↻ Refreshing…';btn.disabled=true;
   const TABS=['List of Bases','Crew Members','Vehicles','Crew Day Offs','Foreman of the Month','Rented Trucks','Rental Options','Truck Holders'];
   const modal=openRfModal(TABS.concat(['Google Calendar jobs']));
   const get=(n,optional)=>fetchTab(n)
@@ -3354,6 +3400,8 @@ async function liveRefresh(){
       get('Rented Trucks',true),get('Rental Options',true),get('Truck Holders',true),get('Excluded Events',true)]);
     rfStep('build','run','rebuilding…');
     const fresh=rebuildFromTabs({jobs:[],bases,crew,vehicles,offs,scores,rented,rentalopts});
+    if(!Object.keys(fresh.bases||{}).length||!(fresh.foremen||[]).length||!(fresh.trucks||[]).length)
+      throw new Error('the sheet pull came back empty (bases/foremen/trucks missing) — kept the previous data');
     for(const r of (exrows||[])){
       if((r['Status']||'')==='Excluded'&&(r['Event Id']||'').trim())EXCL.add(r['Event Id'].trim());
     }
@@ -3389,11 +3437,11 @@ async function liveRefresh(){
     manualChains=[];AUTOOFFLIST.clear();DAYOFF.clear();CHANGED={};highlighted=null;mapMode='single';
     document.querySelector('.layout').classList.remove('mapon');
     computeAutoOff();rebuildRoutes();render();populateDays();updateHDate();
-    rfStep('build','fail','reset to embedded pull instead');
-    const hint=document.getElementById('rfhint');
-    if(hint)hint.innerHTML='<b>Why this happens:</b> '+esc(e&&e.message?e.message:'request blocked')
-      +'.<br>Checklist: 1) sheet → Share → <b>Anyone with the link · Viewer</b> · 2) open this page from a real host (Netlify / GitHub Pages) — the claude.ai preview and some sandboxes block all external requests · 3) tab names must stay exactly: Jobs Data, List of Bases, Crew Members, Vehicles, Crew Day Offs, Foreman of the Month.';
+    rfStep('build','fail','reset to the embedded snapshot instead');
+    rfStep('Likely cause',(e&&e.message?e.message:'request blocked')+' — checklist: the sheet is shared as Anyone-with-link · Viewer; the page is opened from the live URL; tab names are unchanged.','fail');
+    RF_ISSUES.push({key:'Likely cause',info:(e&&e.message?e.message:'request blocked')+' — checklist: sheet shared as Anyone-with-link · Viewer; page opened from the live URL; tab names unchanged.'});
   }
+  rfFinish();
   btn.textContent=orig;btn.disabled=false;
 }
 
