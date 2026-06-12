@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 44" width="340" height="44">
+  <g fill="none">
+    <path d="M4 8 L20 8 L8 22 L24 22 L4 40 L12 26 L0 26 Z" fill="#0F8A66"/>
+    <text x="34" y="25" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="23" letter-spacing="1" fill="#1B1F24">ZIP TO ZIP</text>
+    <text x="34" y="40" font-family="Arial, sans-serif" font-weight="700" font-size="11.5" letter-spacing="5.5" fill="#0F8A66">DISPATCH</text>
+    <g transform="translate(196,4)">
+      <rect x="0" y="10" width="26" height="15" rx="2.5" fill="#0F8A66"/>
+      <path d="M26 14 h9 l6 6 v5 h-15 Z" fill="#0F8A66" opacity=".82"/>
+      <circle cx="8" cy="27.5" r="3.6" fill="#1B1F24"/><circle cx="8" cy="27.5" r="1.5" fill="#fff"/>
+      <circle cx="32" cy="27.5" r="3.6" fill="#1B1F24"/><circle cx="32" cy="27.5" r="1.5" fill="#fff"/>
+      <path d="M-12 14 h8 M-16 19 h12 M-12 24 h8" stroke="#0F8A66" stroke-width="2.2" stroke-linecap="round" opacity=".55"/>
+    </g>
+  </g>
+</svg>
