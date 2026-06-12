@@ -500,6 +500,11 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tlblock.sel{outline:3px solid var(--ink);z-index:2}
 .tlblock.nd{background-image:linear-gradient(90deg,transparent 78%,rgba(0,0,0,.28) 100%)}
 .chip.nd{background:#EFEAFB;border:1px solid #D4C8F0;color:#4F3D8E;font-weight:700}
+#restorebar{display:flex;align-items:center;gap:8px;background:#EFF8F2;border:1.5px solid #BFDCCB;color:#0F5C44;border-radius:12px;padding:11px 15px;font-size:14px;font-weight:600;margin-bottom:11px}
+#restorebar span{color:#4E7A66;font-weight:500}
+#restorebar .rbx{margin-left:auto;border:0;background:none;font-size:15px;color:#4E7A66;cursor:pointer;padding:2px 6px;border-radius:7px}
+#restorebar .rbx:hover{background:#DFF0E6}
+.ronote{font-size:12.5px;font-weight:700;color:#8A6116;background:#FFF6E3;border:1px solid #F0E2BC;border-radius:9px;padding:7px 11px;margin-bottom:7px;display:inline-block}
 #clearfl{border:1.5px solid #EBCDC2;background:#FBEFEA;color:#9A3E1D;border-radius:10px;font-family:'Inter';font-weight:700;font-size:13.5px;padding:9px 14px;cursor:pointer}
 #clearfl:hover{border-color:#9A3E1D}
 #dbtn{width:252px;min-width:252px;max-width:252px;justify-content:center}
@@ -1494,11 +1499,12 @@ function scoreParts(r){
 }
 
 function assignCtrlsHTML(r){
+  const RO=!canEdit();
   const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
   const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
-  const baseSel='<select data-act="base" data-r="'+r.id+'"><option value="auto"'+(!r.baseOverride?' selected':'')+'>suggestion: '+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' mi':'')+'</option>'
+  const baseSel='<select data-act="base"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.baseOverride?' selected':'')+'>suggestion: '+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' mi':'')+'</option>'
     +Object.keys(DATA.bases).sort((x,y)=>(_bmi(x)??9e9)-(_bmi(y)??9e9)).map(b=>'<option value="'+b+'"'+(r.baseOverride===b?' selected':'')+'>'+b+(_bmi(b)!==null?' · ~'+_bmi(b)+' mi to 1st pickup':'')+'</option>').join('')+'</select>';
-  const fSel='<select data-act="foreman" data-r="'+r.id+'"><option value="auto"'+(!r.pinForeman?' selected':'')+'>suggestion'+((!r.pinForeman&&r.foreman)?': '+esc(r.foreman.name):'')+'</option>'
+  const fSel='<select data-act="foreman"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.pinForeman?' selected':'')+'>suggestion'+((!r.pinForeman&&r.foreman)?': '+esc(r.foreman.name):'')+'</option>'
     +DATA.foremen.filter(x=>x.status!=='Cancelled').sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')</option>').join('')+'</select>';
   const slotsSpec=r._slotsSpec||['Truck'];
   const truckOpts=DATA.trucks.filter(k=>k.status==='Active').sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true}));
@@ -1506,12 +1512,12 @@ function assignCtrlsHTML(r){
     const pin=(r.pinTrucks||[])[i]||null;
     const cur=r.vehicles&&r.vehicles[i]?(r.vehicles[i].kind==='fleet'?r.vehicles[i].t.n:('rental '+r.vehicles[i].sz)):'—';
     const lbl=slotsSpec.length>1?(ty==='Van'?'Van':'Truck '+(slotsSpec.filter((x,j)=>x==='Truck'&&j<=i).length)):'Truck';
-    return '<div class="ctrlgrp"><label>'+lbl+'</label><select data-act="truck" data-slot="'+i+'" data-r="'+r.id+'">'
+    return '<div class="ctrlgrp"><label>'+lbl+'</label><select data-act="truck"'+(RO?' disabled':'')+' data-slot="'+i+'" data-r="'+r.id+'">'
       +'<option value="auto"'+(!pin?' selected':'')+'>suggestion: '+esc(cur)+'</option>'
       +truckOpts.map(k=>'<option value="'+esc(k.n)+'"'+(pin===k.n?' selected':'')+'>'+esc(k.n)+(isRentalTruck(k)?' (rented)':'')+' · '+k.cf.toLocaleString()+' CF · crew '+k.maxCrew+' · '+esc(k.state)+'</option>').join('')
       +'<option value="R26"'+(pin==='R26'?' selected':'')+'>New rental 26 ft</option><option value="R20"'+(pin==='R20'?' selected':'')+'>New rental 20 ft</option></select></div>';
   }).join('');
-  return '<div class="ctrls"><div class="ctrlrow">'
+  return (RO?'<div class="ronote">🔒 read-only — assignments are made for today &amp; tomorrow only</div>':'')+'<div class="ctrls"><div class="ctrlrow">'
     +'<div class="ctrlgrp"><label>Base</label>'+baseSel+'</div>'
     +'<div class="ctrlgrp"><label>Foreman</label>'+fSel+'</div>'
     +tSels
@@ -2190,7 +2196,68 @@ function refreshMapIfAll(){
 let CHANGED={};
 function vehRefs(r){return r.vehicles.map(v=>v.kind==='fleet'?v.t.n:('R'+(v.sz.includes('26')?'26':'20'))).join('+');}
 function takeSnap(){const s={};routes.forEach(r=>{s[r.legs[0].code]={f:r.foreman?r.foreman.name:null,b:r.base,v:vehRefs(r)};});return s;}
+const ZD_KEY='zd_state_v1';
+function tomorrowISO(){return new Date(new Date(TODAY_ISO+'T12:00').getTime()+86400000).toISOString().slice(0,10);}
+function canEdit(d){d=d||currentDay;return d>=TODAY_ISO&&d<=tomorrowISO();}
+function loadZD(){try{return JSON.parse(localStorage.getItem(ZD_KEY)||'{}');}catch(e){return {};}}
+function saveZD(z){try{localStorage.setItem(ZD_KEY,JSON.stringify(z));}catch(e){}}
+function saveDayState(){
+  const z=loadZD();z.days=z.days||{};
+  for(const d of Object.keys(z.days))if(d<TODAY_ISO)delete z.days[d];
+  if(canEdit()){
+    const ov=[];
+    routes.forEach(r=>{if(r.baseOverride||r.pinForeman||(r.pinTrucks&&r.pinTrucks.some(Boolean)))ov.push({k:r.legs[0].code,b:r.baseOverride||null,p:r.pinForeman||null,t:(r.pinTrucks||[]).slice()});});
+    const drafts=(DATA.days[currentDay]||[]).filter(j=>j._draft&&!j.eventId);
+    const st={ov,chains:manualChains.slice(),det:[...AUTOOFFLIST],off:[...DAYOFF],drafts,ts:Date.now()};
+    if(ov.length||st.chains.length||st.det.length||st.off.length||drafts.length)z.days[currentDay]=st;
+    else delete z.days[currentDay];
+  }
+  z.trucks=DATA.trucks.filter(k=>k._appAdded&&k.status==='Active');
+  z.holders=DATA.holders||{};
+  saveZD(z);
+}
+const _restoredShown=new Set();
+function restoreDayState(day,announce){
+  const z=loadZD();
+  if(!window._zdGlobals){
+    window._zdGlobals=1;
+    (z.trucks||[]).forEach(k=>{if(!DATA.trucks.some(x=>x.n===k.n))DATA.trucks.push(k);});
+    if(z.holders&&Object.keys(z.holders).length)DATA.holders=Object.assign({},z.holders,DATA.holders||{});
+  }
+  const st=(z.days||{})[day];
+  if(!st||!canEdit(day))return false;
+  DAYOFF.clear();(st.off||[]).forEach(n=>DAYOFF.add(n));
+  manualChains=(st.chains||[]).slice();
+  AUTOOFFLIST.clear();(st.det||[]).forEach(x=>AUTOOFFLIST.add(x));
+  (st.drafts||[]).forEach(j=>{const arr=DATA.days[day]=DATA.days[day]||[];if(!arr.some(x=>x.code===j.code)){j.idx=arr.length;arr.push(j);}});
+  if(day===currentDay)DATA.jobs=DATA.days[day]||[];
+  computeAutoOff();rebuildRoutes();
+  let applied=0;
+  (st.ov||[]).forEach(o=>{
+    const r=routes.find(x=>x.legs[0]&&x.legs[0].code===o.k)||routes.find(x=>x.legs.some(l=>l.code===o.k));
+    if(!r)return;
+    r.baseOverride=o.b;r.pinForeman=o.p;r.pinTrucks=(o.t||[]).slice();applied++;
+  });
+  if(applied)rebuildRoutes();
+  const n=(st.ov||[]).length+(st.chains||[]).length+(st.det||[]).length+(st.off||[]).length;
+  if(announce&&(n||(st.drafts||[]).length)&&!_restoredShown.has(day)){
+    _restoredShown.add(day);
+    showRestoreBar(day,n,(st.drafts||[]).length);
+  } else if(announce){const b=document.getElementById('restorebar');if(b)b.style.display='none';}
+  return true;
+}
+function showRestoreBar(day,n,dn){
+  let b=document.getElementById('restorebar');
+  if(!b){b=document.createElement('div');b.id='restorebar';
+    const cards=document.getElementById('cards');cards.parentNode.insertBefore(b,cards);}
+  b.innerHTML='↩ Restored your unsaved work for <b>'+fmtDayLong(day)+'</b> — '
+    +(n?n+' manual change'+(n>1?'s':''):'')+(n&&dn?' · ':'')+(dn?dn+' draft job'+(dn>1?'s':''):'')
+    +' <span>· Reset changes discards them</span><button class="rbx" title="Hide">✕</button>';
+  b.style.display='';
+  b.querySelector('.rbx').addEventListener('click',()=>{b.style.display='none';});
+}
 function applyWithDiff(editedRid,fn){
+  if(!canEdit()){toast('🔒 This day is read-only — manual changes are for today & tomorrow only.');return;}
   const snap=takeSnap();CHANGED={};
   fn();render();
   const msgs=[];
@@ -2204,6 +2271,7 @@ function applyWithDiff(editedRid,fn){
     if(d.length&&r.id!==editedRid){CHANGED[r.id]=d;msgs.push('<b>'+r.id+'</b> '+d.join(', '));}
   });
   if(msgs.length){renderCards();toast('Ripple effect — your change also affected: '+msgs.join(' · '));}
+  saveDayState();
 }
 function toast(msg){
   let n=document.getElementById('locknote');
@@ -2475,6 +2543,7 @@ function truckMenu(btn,tn){
      fn:()=>{ if(H[tn]){delete H[tn];holderToSheet(tn,null);rebuildRoutes();render();} else pairForemanModal(tk); }},
     tk.rented?{label:'🗑 Remove — rental returned',fn:()=>{
       tk.status='Returned';
+      setTimeout(saveDayState,0);
       if(GTOKEN)shUpdateCellByMatch('Rented Trucks',row=>String(row['Truck N']).trim()===String(tn).trim(),'Status','Returned').then(()=>sheetSaved(tn+' marked returned')).catch(e=>sheetSaveFailed('truck removal',e));
       else toast(tn+' removed from the board. Connect the calendar button to also save it to the sheet.');
       rebuildRoutes();render();
@@ -2488,6 +2557,7 @@ function pairForemanModal(tk){
   m.querySelector('#pairok').addEventListener('click',()=>{
     const n=m.querySelector('#pairsel').value;
     (DATA.holders=DATA.holders||{})[tk.n]=n;
+    saveDayState();
     holderToSheet(tk.n,n);
     m.classList.remove('show');
     rebuildRoutes();render();
@@ -2502,6 +2572,7 @@ function pairTruckModal(f){
     const tn=m.querySelector('#pairsel2').value;
     Object.keys(H).forEach(k=>{if(H[k]===f.name)delete H[k];});
     H[tn]=f.name;
+    saveDayState();
     holderToSheet(tn,f.name);
     m.classList.remove('show');
     rebuildRoutes();render();
@@ -2518,7 +2589,7 @@ function addJobModal(){
     +'<div class="ajform">'
     +'<label>Customer</label><input id="ajcu" placeholder="Name">'
     +'<label>Job Code</label><input id="ajco" value="NEW-'+String(DRAFTSEQ).padStart(3,'0')+'">'
-    +'<label>Date</label><input id="ajdt" type="date" value="'+currentDay+'">'
+    +'<label>Date</label><input id="ajdt" type="date" min="'+TODAY_ISO+'" max="'+tomorrowISO()+'" value="'+(canEdit()?currentDay:TODAY_ISO)+'">'
     +'<label>Start</label><div class="ajrow"><input id="ajst" type="time" value="13:00"><label class="ajasap"><input type="checkbox" id="ajasap"> ASAP — earliest possible</label></div>'
     +'<label>Pickup address</label><input id="ajpa" placeholder="street, city, ST zip — zip is what matters">'
     +'<label>Delivery address</label><input id="ajda" placeholder="street, city, ST zip (optional for labor-only)">'
@@ -2671,6 +2742,7 @@ function applyPlacement(job,opt){
     }
   }
   render();updateCalBtn();
+  saveDayState();
   toast('📝 '+job.code+' added as a draft'+(opt?(' — '+(opt.kind==='chain'?('chained after '+opt.r.id+' with '+opt.f.nick):('new route for '+opt.f.nick))):' — engine will place it')+'. Push it to the calendar with 🗓 Update calendar.');
 }
 function addTruckModal(){
@@ -2692,6 +2764,7 @@ function addTruckModal(){
     const lbl=(m.querySelector('#atlbl').value||'').trim()||('R'+(RENTSEQ++)+'-'+sz.sz.replace(' ',''));
     const tk={n:lbl,status:'Active',cf,maxCrew:crew,state:base,type:/van/i.test(sz.sz)?'Van':'Truck',model:'rental',reg:'rental',rented:true,_appAdded:true};
     DATA.trucks.push(tk);
+    saveDayState();
     if(GTOKEN)shAppendRow('Rented Trucks',{'Status':'Active','Truck N':lbl,'CF':cf,'Max Crew Size':crew,'Base':base,'Type':tk.type,'Daily Rate':'','Note':SHEET_WRITE_NOTE+' '+mdy(TODAY_ISO)}).then(()=>sheetSaved(lbl+' added')).catch(e=>sheetSaveFailed('truck add',e));
     else toast(lbl+' added to the board. Connect the calendar button to also save it to the sheet.');
     m.classList.remove('show');
@@ -3490,11 +3563,14 @@ async function liveRefresh(){
   btn.textContent=orig;btn.disabled=false;
 }
 
+if(restoreDayState(currentDay,true))render();
 document.getElementById('resetov').addEventListener('click',()=>{
   const n=manualChangeCount();
   if(!n)return;
   routes.forEach(r=>{r.baseOverride=null;r.pinForeman=null;r.pinTrucks=[];});
   manualChains=[];AUTOOFFLIST.clear();DAYOFF.clear();CHANGED={};
+  const z=loadZD();if(z.days){delete z.days[currentDay];saveZD(z);}
+  const rb=document.getElementById('restorebar');if(rb)rb.style.display='none';
   rebuildRoutes();render();
   toast('Reset complete — '+n+' manual change'+(n>1?'s':'')+' undone (pins, base overrides, re-chains, day-off toggles). The board is back to pure engine suggestions.');
 });
@@ -3543,9 +3619,11 @@ function stepDay(dir){
 }
 function switchDay(d){
   currentDay=d;DATA.jobs=DATA.days[d]||[];
-  manualChains=[];AUTOOFFLIST.clear();CHANGED={};highlighted=null;mapMode='single';
+  manualChains=[];AUTOOFFLIST.clear();DAYOFF.clear();CHANGED={};highlighted=null;mapMode='single';
   document.querySelector('.layout').classList.remove('mapon');
-  computeAutoOff();rebuildRoutes();render();updateHDate();populateDays();
+  computeAutoOff();rebuildRoutes();
+  if(restoreDayState(d,true)){}
+  render();updateHDate();populateDays();
 }
 document.getElementById('mapcard').addEventListener('click',e=>{
   if(e.target.closest('.mcx')){exitMap();return;}
