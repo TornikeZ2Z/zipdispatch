@@ -814,6 +814,71 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .chip.draft{background:#FFF4D6;border:1px solid #EBD79A;color:#7A5B12;font-weight:700}
 .chip.draft.rm{cursor:pointer}
 .chip.draft.rm:hover{border-color:#9A3E1D;color:#9A3E1D}
+
+/* ═══════════ MOBILE (≤820px) — full dispatching, Timeline-first ═══════════ */
+#mobmenu,#mobbar,#mobbk{display:none}
+@media (max-width:820px){
+  html{ -webkit-text-size-adjust:100% }
+  body{padding-bottom:88px}
+  header{position:sticky;top:0;z-index:1200;background:var(--bg);flex-wrap:wrap;gap:8px;padding:8px 10px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  .brand img{height:24px}
+  #hdate,#rfstamp,#brandtxt{display:none!important}
+  #daynav{order:2;flex:1;justify-content:center}
+  #rfwrap{order:3;margin-left:auto}
+  #mobmenu{display:inline-flex;align-items:center;justify-content:center;order:1;width:42px;height:42px;font-size:21px;border:1.5px solid var(--line2);border-radius:10px;background:var(--card);cursor:pointer}
+  #stats{order:4;width:100%;display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  #stats>*{flex:0 0 auto;padding:5px 10px}
+  #stats>*:nth-child(2),#stats>*:nth-child(3),#stats>*:nth-child(4),#stats>*:nth-child(5){display:none}
+  .layout{display:block}
+  /* leftbar → drawer */
+  #leftbar{position:fixed;left:0;top:0;bottom:0;width:min(86vw,340px);z-index:1500;transform:translateX(-105%);transition:transform .25s ease;overflow-y:auto;background:var(--bg);box-shadow:8px 0 30px rgba(0,0,0,.25);padding:14px 14px calc(20px + env(safe-area-inset-bottom));margin:0;max-height:none}
+  #leftbar.mopen{transform:none}
+  #mobbk{position:fixed;inset:0;background:rgba(20,22,16,.45);z-index:1450}
+  #mobbk.show{display:block}
+  /* toolbars scroll horizontally */
+  #viewbar,#filterbar{display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px;padding-bottom:4px}
+  #viewbar>*,#filterbar>*{flex:0 0 auto}
+  /* dropdown panels become bottom sheets */
+  .ddpanel.open,#dpanel.open{position:fixed!important;left:10px;right:10px;bottom:96px;top:auto!important;max-height:55vh;overflow:auto;z-index:1700;box-shadow:0 -10px 36px rgba(0,0,0,.3);border-radius:14px}
+  /* cards: stacked controls, big touch targets */
+  .ctrlrow{flex-direction:column;align-items:stretch;gap:10px}
+  .ctrlgrp{width:100%}
+  .ctrls select,.cellsel{width:100%;min-height:44px}
+  input,select,textarea{font-size:16px!important}
+  .cfbtn{width:100%;min-height:46px}
+  .card{padding:14px 12px}
+  /* timeline: horizontal scroll + sticky labels */
+  #timelineview{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #timelineview>div{min-width:1150px}
+  .tllabel{position:sticky;left:0;background:var(--card);z-index:3;box-shadow:2px 0 8px rgba(0,0,0,.07);padding-right:8px}
+  /* table momentum scroll */
+  #tableview{-webkit-overflow-scrolling:touch}
+  /* map journey panel → bottom sheet */
+  #mapcard{position:fixed!important;left:0;right:0;bottom:76px;top:auto!important;width:auto!important;max-width:none!important;max-height:50vh;overflow:auto;z-index:1300;border-radius:16px 16px 0 0;margin:0}
+  /* modals → full-screen sheets */
+  #gmodal>div,#gmodal .gbox{width:100vw!important;max-width:100vw!important;height:100dvh;max-height:100dvh!important;border-radius:0!important;overflow:auto;box-sizing:border-box;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+  .gform2{grid-template-columns:1fr!important}
+  .atfrow{grid-template-columns:1fr!important}
+  /* bottom action bar */
+  #mobbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(252,251,248,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line2);z-index:1400}
+  #mobbar button{flex:1;min-height:46px;font-size:14.5px!important;white-space:nowrap}
+  #locknote{bottom:104px}
+  #undonote{bottom:158px}
+  .maplbl{font-size:11px;padding:4px 8px}
+  .offstrip,.alrows{gap:6px}
+}
+@media (min-width:821px){ #mobbar,#mobmenu,#mobbk{display:none!important} }
+/* ═══════════ iPad (821–1080px) — desktop + touch polish ═══════════ */
+@media (min-width:821px) and (max-width:1080px){
+  #leftbar{width:238px}
+  .ddbtn,.vbtn{padding:10px 14px}
+  .ctrls select,.cellsel{min-height:42px}
+  .ctgl,.mexcl{transform:scale(1.12)}
+  #stats>*{padding:7px 11px}
+}
+@media (hover:none){
+  .ddbtn,.vbtn,button{cursor:default}
+}
 </style>
 </head>
 <body><script>(function(){const _dp=Date.parse.bind(Date);Date.parse=function(s){const v=_dp(s);if(!isNaN(v)||typeof s!=='string')return v;return _dp(s.replace(' ','T'));};})();</script>
@@ -4455,6 +4520,42 @@ setInterval(()=>{
   if(Date.now()<GTOKEXP-420000)return;
   try{window._silentTok=1;_tokenClient.requestAccessToken({prompt:''});}catch(e){}
 },300000);
+
+/* ═══ mobile layout engine ═══ */
+const MOBBP=820;
+function applyMobileLayout(){
+  const m=window.innerWidth<=MOBBP;
+  document.documentElement.classList.toggle('mob',m);
+  let bar=document.getElementById('mobbar');
+  if(m){
+    if(!bar){bar=document.createElement('div');bar.id='mobbar';document.body.appendChild(bar);}
+    ['addjob','calpush','confall'].forEach(id=>{const el=document.getElementById(id);if(el&&el.parentElement!==bar)bar.appendChild(el);});
+    if(!document.getElementById('mobmenu')){
+      const b=document.createElement('button');b.id='mobmenu';b.textContent='☰';b.title='Fleet & foremen';
+      const h=document.querySelector('header');if(h)h.prepend(b);
+      const bk=document.createElement('div');bk.id='mobbk';document.body.appendChild(bk);
+      b.addEventListener('click',()=>{document.getElementById('leftbar').classList.toggle('mopen');bk.classList.toggle('show');});
+      bk.addEventListener('click',()=>{document.getElementById('leftbar').classList.remove('mopen');bk.classList.remove('show');});
+    }
+  } else if(bar&&bar.children.length){
+    const home=document.querySelector('.rfrowbtns');
+    if(home)['addjob','calpush','confall'].forEach(id=>{const el=document.getElementById(id);if(el&&el.parentElement===bar)home.insertBefore(el,document.getElementById('resetov'));});
+    const lb=document.getElementById('leftbar');if(lb)lb.classList.remove('mopen');
+    const bk=document.getElementById('mobbk');if(bk)bk.classList.remove('show');
+  }
+}
+window.addEventListener('resize',()=>{clearTimeout(window.__mlT);window.__mlT=setTimeout(applyMobileLayout,160);});
+applyMobileLayout();
+if(window.innerWidth<=MOBBP){try{setViewMode('timeline');}catch(e){}}
+/* touch devices: tap a chip to read its explanation (hover titles don't exist on touch) */
+document.addEventListener('click',e=>{
+  try{
+    if(!(window.matchMedia&&window.matchMedia('(hover: none)').matches))return;
+    if(e.target.closest('select,input,a,button,.alday,[data-act]'))return;
+    const c=e.target.closest('.chip,.cmptag,.ronote');
+    if(c&&c.title)toast(c.title.length>260?c.title.slice(0,257)+'…':c.title);
+  }catch(err){}
+});
 </script>
 </body>
 </html>
