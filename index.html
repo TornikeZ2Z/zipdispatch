@@ -1222,42 +1222,48 @@ function tripAwayMap(dayIso){
   return {f:out,t:outT};
 }
 const AUTOOFFLIST=new Set();
+const CHAIN_RULES={maxDriveMin:45,maxCF:700,lateMin:30,maxJobs:3};
 function detectAutoChains(rts){
+  // Universal fit-based chaining (owner spec):
+  //  - any job can chain, morning included
+  //  - every job in a chain <= 700 CF
+  //  - drive between jobs <= 45 min
+  //  - arrive at the next customer no later than booked start + 30 min (early = wait, work starts at booked time)
+  //  - smallest link distance wins
+  //  - up to 3 jobs per chain (3rd added on the next pass)
+  //  - the whole chain finishes the same day
   const out=[];
   const tailsTaken=new Set();
   const singles=rts.filter(r=>r.legs.length===1&&!r.legs[0].after
-      &&(r.legs[0].start||'').slice(11,13)>='12'
+      &&(r.legs[0].cf||0)<=CHAIN_RULES.maxCF
       &&!AUTOOFFLIST.has(r.legs[0].code))
     .sort((a,b)=>Date.parse(a.legs[0].start)-Date.parse(b.legs[0].start));
   for(const B of singles){
     if(B.ldDeparture)continue;          // straight LD departures are not chainable; carrier pickups are
-    if(B.crew>3)continue;               // chaining only for 2–3 man local jobs
     const lb=B.legs[0];
     if(!lb.pickup||!lb.delivery||!INREGION(lb.delivery))continue;
     const bt0=Date.parse(lb.start);
     let best=null;
     for(const A of rts){
       if(A===B||A.ldDeparture)continue;
-      if(A.crew>3)continue;             // chaining only for 2–3 man local jobs
-      const lastAct=Math.max(...A.legs.map(l=>l.actH||schedH(l)));
-      if(lastAct>6)continue;            // heavy/long job — never chain onto it
-      if(tailsTaken.has(A.id))continue;
+      if(A.legs.length>=CHAIN_RULES.maxJobs)continue;            // chain is full
+      if(A.legs.some(x=>(x.cf||0)>CHAIN_RULES.maxCF))continue;   // every job in the chain must be small
+      if(tailsTaken.has(A.id))continue;                          // one new tail per head per pass
       const la=[...A.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).slice(-1)[0];
       if(!la.delivery||!INREGION(la.delivery))continue;
       const at1=Math.max(...A.legs.map(l=>l._endMs||Date.parse(l.end||l.start||0)));
-      const at0=Math.min(...A.legs.map(l=>Date.parse(l.start||0)));
-      if(bt0-at0<3*3600000)continue;    // company rule: at least 3h between job starts (need ~3h to finish the first)
-      const gap=bt0-at1;
-      if(gap<30*60000||gap>6.5*3600000)continue;
-      const linkMi=hav(la.delivery,lb.pickup);
-      if(gap<linkMi/35*3600000*1.15+30*60000)continue;
-      // same-day rule: the chained crew must be DONE before midnight — locals never roll into the next day
-      {const _ws=Math.max(at1+linkMi/35*3600000*1.15,bt0);
+      const rm=cachedRoadMi(la.delivery,lb.pickup);
+      const linkMi=(rm!=null?rm:hav(la.delivery,lb.pickup)*1.15);
+      const driveMs=linkMi/35*3600000;
+      if(driveMs>CHAIN_RULES.maxDriveMin*60000)continue;         // link drive cap
+      const eta=at1+driveMs;
+      if(eta>bt0+CHAIN_RULES.lateMin*60000)continue;             // on time, +30 min grace
+      // same-day rule: the chained crew must be DONE before midnight
+      {const _ws=Math.max(eta,bt0);
        const _p2d=(lb.pickup&&lb.delivery)?hav(lb.pickup,lb.delivery)/35*3600000*1.15:0;
        const _done=_ws+((lb.actH||schedH(lb))*3600000)+_p2d;
        if(_done>Date.parse(String(lb.start).slice(0,10)+'T23:59'))continue;}
-      if(Math.max(...A.legs.map(l=>l.cf),lb.cf)>1750)continue;
-      if(Math.max(A.crew,B.crew)>6)continue;
+      if(Math.max(A.crew,B.crew)>6)continue;                     // one cab carries the crew
       if(!best||linkMi<best.linkMi)best={A,linkMi,la};
     }
     if(best){
@@ -1376,8 +1382,12 @@ function rebuildRoutes(){
   routes.forEach(r=>{const k=r.legs[0].code;if(r.baseOverride||r.pinForeman||r.trucksOverride!=null||r.confirmed||(r.pinTrucks&&r.pinTrucks.some(Boolean)))keep[k]={b:r.baseOverride,p:r.pinForeman,t:r.pinTrucks,tn:r.trucksOverride,c:r.confirmed};});
   AUTOCHAINS=[];
   routes=buildRoutes();
-  const det=detectAutoChains(routes);
-  if(det.length){AUTOCHAINS=det;routes=buildRoutes();}
+  for(let _g=0;_g<2;_g++){
+    const det=detectAutoChains(routes);
+    if(!det.length)break;
+    AUTOCHAINS=AUTOCHAINS.concat(det);
+    routes=buildRoutes();
+  }
   routes.forEach(r=>{const k=keep[r.legs[0].code];if(k){r.baseOverride=k.b;r.pinForeman=k.p;r.pinTrucks=k.t||[];r.trucksOverride=(k.tn!=null?k.tn:null);r.confirmed=!!k.c;}});
 }
 
@@ -1388,28 +1398,28 @@ function annotatePmWhy(){
   try{
     for(const r of routes){
       delete r._pmWhy;
-      const sl=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
-      const f=sl[0];
-      if(!f||!f.start)continue;
-      const sh=+String(f.start).slice(11,13);
-      if(sh<12||r.legs.length>1||f.after)continue;
-      const st=Date.parse(f.winEnd||f.start);
-      let bestGap=null,feasible=0;
-      for(const m of routes){
-        if(m===r)continue;
-        const ml=[...m.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
-        if(+String(ml[0].start).slice(11,13)>=12)continue;
-        const last=ml[ml.length-1];
-        const endMs=m.t1!=null?m.t1:Date.parse(last.end||last.start);
-        const from=(last._carrier||!last.delivery)?last.pickup:last.delivery;
-        const trav=(from&&f.pickup)?hav(from,f.pickup)/35*3600000*1.15:0;
-        const gap=Math.round((st-(endMs+trav))/60000);
-        if(gap>=0)feasible++;
-        if(bestGap===null||gap>bestGap)bestGap=gap;
+      if(r.legs.length>1)continue;
+      const l=r.legs[0];
+      const isPM=String(l.start).slice(11,13)>='12';
+      if((l.cf||0)>CHAIN_RULES.maxCF){
+        if(isPM)r._pmWhy='kept standalone — '+(l.cf||0).toLocaleString()+' CF is over the '+CHAIN_RULES.maxCF+' CF chain limit; chains carry small jobs only, so this one needs its own crew';
+        continue;
       }
-      if(bestGap===null)r._pmWhy='PM job kept standalone — there are no morning routes on this day to chain it after';
-      else if(feasible===0)r._pmWhy='PM job kept standalone — every morning route finishes too late to reach '+f.cityFrom+' by '+String(f.winEnd||f.start).slice(11,16)+' (closest miss ~'+Math.abs(bestGap)+' min)';
-      else r._pmWhy='PM job kept standalone — '+feasible+' morning route'+(feasible>1?'s':'')+' could arrive in time, but truck size / crew fit / cost made a fresh route the better pick';
+      if(r.ldDeparture||!l.pickup||!l.delivery||!INREGION(l.delivery))continue;
+      const bt0=Date.parse(l.start);
+      let near=0,late=0;
+      for(const A of routes){
+        if(A===r||A.ldDeparture)continue;
+        const la=[...A.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).slice(-1)[0];
+        if(!la||!la.delivery||!INREGION(la.delivery))continue;
+        if(A.legs.some(x=>(x.cf||0)>CHAIN_RULES.maxCF)||A.legs.length>=CHAIN_RULES.maxJobs)continue;
+        const mi=hav(la.delivery,l.pickup)*1.15;
+        if(mi/35*60>CHAIN_RULES.maxDriveMin)continue;
+        near++;
+        const at1=Math.max(...A.legs.map(x=>x._endMs||Date.parse(x.end||x.start||0)));
+        if(at1+mi/35*3600000>bt0+CHAIN_RULES.lateMin*60000)late++;
+      }
+      if(near>0&&late===near)r._pmWhy='kept standalone — '+near+' route'+(near>1?'s':'')+' finish within a '+CHAIN_RULES.maxDriveMin+'-min drive, but every one would arrive more than '+CHAIN_RULES.lateMin+' min after the booked start';
     }
   }catch(e){}
 }
@@ -1558,8 +1568,12 @@ function dayPlanOn(dayIso){
     currentDay=dayIso;
     AUTOCHAINS=[];
     let rts=buildRoutes();
-    const det=detectAutoChains(rts);
-    if(det.length){AUTOCHAINS=det;rts=buildRoutes();}
+    for(let _g=0;_g<2;_g++){
+      const det=detectAutoChains(rts);
+      if(!det.length)break;
+      AUTOCHAINS=AUTOCHAINS.concat(det);
+      rts=buildRoutes();
+    }
     assignAll(rts,getW(),'nearest');
     const byF={};rts.forEach(r=>{if(r.foreman)(byF[r.foreman.name]=byF[r.foreman.name]||[]).push(r.id);});
     const dd=Object.entries(byF).filter(([,ids])=>ids.length>1);
@@ -1956,7 +1970,7 @@ function cardHTML(r){
     r.legs.length>1?chip('chained ×'+r.legs.length):'',
     (r.trucksNeeded||0)>=2?chip('multi-truck ×'+r.trucksNeeded):'',
     r.vansNeeded?chip('+ '+r.vansNeeded+' van'+(r.vansNeeded>1?'s':'')):'',
-    r.legs.some(l=>AUTOCHAINS.some(c=>c.tail===l.code))?chip('auto-chained PM job','ov'):'',
+    r.legs.some(l=>AUTOCHAINS.some(c=>c.tail===l.code))?chip('auto-chained job','ov'):'',
     r.legs.some(l=>l._draft)?'<span class="chip draft">📝 draft — push to the calendar with Update</span>':'',
     '<span class="chip ampm">'+(+String(sl[0].start).slice(11,13)<12?'☀️ AM':'🌆 PM')+'</span>',
     (function(){const en=Math.max(...sl.map(l=>l._endMs||Date.parse(l.end||l.start)));const e=new Date(en),s=new Date(Date.parse(sl[0].start));
@@ -2178,7 +2192,7 @@ function renderOpti(){
       +'</div>'
       +'<button class="chx" '+(kind==='auto'?'data-auto="'+esc(c.tail)+'"':'data-i="'+idx+'"')+'>Detach</button></div>';
   }
-  if(AUTOCHAINS.length)html+='<div class="optiapplied"><div class="chgrouphead">Auto-chained PM jobs <span>start ≥ 12:00 — sold as chained, engine found their morning crew</span></div>'+AUTOCHAINS.map(c=>chainRow(c,'auto')).join('')+'</div>';
+  if(AUTOCHAINS.length)html+='<div class="optiapplied"><div class="chgrouphead">Auto-chained jobs <span>each ≤700 CF · link ≤45 min · on time within +30 — engine found their morning crew</span></div>'+AUTOCHAINS.map(c=>chainRow(c,'auto')).join('')+'</div>';
   if(manualChains.length)html+='<div class="optiapplied"><div class="chgrouphead">Manual re-chains</div>'+manualChains.map((c,i)=>chainRow(c,'manual',i)).join('')+'</div>';
   if(!sugs.length)html+='<p class="helpnote">No further beneficial re-chains found for today.</p>';
   box.innerHTML=html;
