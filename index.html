@@ -4395,7 +4395,7 @@ document.getElementById('dprev').addEventListener('click',()=>stepDay(-1));
 document.getElementById('dnext').addEventListener('click',()=>stepDay(1));
 document.getElementById('dbtn').addEventListener('click',e=>{e.stopPropagation();dpOpen=!dpOpen;document.getElementById('dpanel').classList.toggle('open',dpOpen);
   if(dpOpen){const c=document.querySelector('#dpanel .dprow.cur');if(c)c.scrollIntoView({block:'center'});}});
-[['mtbtn','mt','mtpanel'],['shbtn','sh','shpanel'],['chbtn','ch','chpanel'],['bbtn','b','bpanel'],['ffbtn','ff','ffpanel']].forEach(([btn,key,panel])=>{
+[['mtbtn','mt','mtpanel'],['shbtn','sh','shpanel'],['chbtn','ch','chpanel'],['bbtn','b','bpanel'],['ffbtn','ff','ffpanel'],['isbtn','is','ispanel']].forEach(([btn,key,panel])=>{
   document.getElementById(btn).addEventListener('click',e=>{
     e.stopPropagation();
     const was=DD[key];
