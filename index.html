@@ -643,6 +643,15 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .tlshortrow{background:#FFF6F4;border-radius:8px}
 .offstrip{margin-top:14px;padding:13px 16px;background:#FBF4EC;border:1.5px dashed #D9A06B;border-radius:12px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .offstrip>b{color:#9A3E1D;font-size:14.5px}
+.nofor{color:#B23A2A!important;font-weight:800;font-style:normal}
+#undonote{position:fixed;bottom:74px;left:50%;transform:translateX(-50%) translateY(20px);background:#15200A;color:#fff;padding:13px 18px;border-radius:12px;font-size:15px;z-index:1200;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 28px rgba(0,0,0,.3)}
+#undonote.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+#undonote .tundo{margin-left:12px;background:#8CAF2C;color:#15200A;border:none;border-radius:9px;font-weight:800;font-size:14.5px;padding:8px 16px;cursor:pointer}
+.cellsel{font-family:'Inter';font-size:13.5px;padding:6px 8px;border:1.5px solid var(--line2);border-radius:8px;background:var(--card);max-width:100%;cursor:pointer}
+.cellsel.nofor{border-color:#E5A79B;background:#FBEAE5;color:#B23A2A;font-weight:800}
+#tableview .ajt td.fz0,#tableview .ajt th.fz0,#tableview .ajt td.fz1,#tableview .ajt th.fz1,#tableview .ajt td.fz2,#tableview .ajt th.fz2{z-index:2}
+#tableview .ajt thead th{z-index:3;border-bottom:2px solid var(--line2)}
+#tableview .ajt thead th.fz0,#tableview .ajt thead th.fz1,#tableview .ajt thead th.fz2{z-index:4}
 .card.st-short .rpill{background:#FBEAE5;border-color:#E5A79B;color:#B23A2A}
 .addrentbtn{border-color:#E5A79B!important;background:#FBEAE5!important;color:#B23A2A!important}
 .gform2 .full{grid-column:1/-1}
@@ -1064,7 +1073,8 @@ function assignAll(routes,w,baseMode){
     const need=[];r.rentals=0;r._crewGap=false;
     const atBase=ty=>DATA.trucks.filter(t=>t.status==='Active'&&t.state===r.base&&t.type===ty&&truckActiveOn(t,currentDay)&&!TRIPAWAY_T[_tn(t.n)]&&free(busyT,t.n,r));
     const take=t=>{book(busyT,t.n,r);need.push({kind:'fleet',t});};
-    const truckSlots=Math.max(r.trucksNeeded,(!r.trucksNeeded&&!r.vansNeeded)?1:0);
+    const _tnEff=(r.trucksOverride!=null?r.trucksOverride:r.trucksNeeded);
+    const truckSlots=Math.max(_tnEff,(!_tnEff&&!r.vansNeeded)?1:0);
     const slotsSpec=[];
     for(let i=0;i<truckSlots;i++)slotsSpec.push('Truck');
     for(let i=0;i<r.vansNeeded;i++)slotsSpec.push('Van');
@@ -1327,12 +1337,12 @@ const PALETTE=['#0F8A66','#B26B0B','#6C5CE0','#C2417A','#2563EB','#D97706','#0E7
 function rebuildRoutes(){
   const _ta=tripAwayMap(currentDay);TRIPAWAY=_ta.f;TRIPAWAY_T=_ta.t;
   const keep={};
-  routes.forEach(r=>{const k=r.legs[0].code;if(r.baseOverride||r.pinForeman||(r.pinTrucks&&r.pinTrucks.some(Boolean)))keep[k]={b:r.baseOverride,p:r.pinForeman,t:r.pinTrucks};});
+  routes.forEach(r=>{const k=r.legs[0].code;if(r.baseOverride||r.pinForeman||r.trucksOverride!=null||(r.pinTrucks&&r.pinTrucks.some(Boolean)))keep[k]={b:r.baseOverride,p:r.pinForeman,t:r.pinTrucks,tn:r.trucksOverride};});
   AUTOCHAINS=[];
   routes=buildRoutes();
   const det=detectAutoChains(routes);
   if(det.length){AUTOCHAINS=det;routes=buildRoutes();}
-  routes.forEach(r=>{const k=keep[r.legs[0].code];if(k){r.baseOverride=k.b;r.pinForeman=k.p;r.pinTrucks=k.t||[];}});
+  routes.forEach(r=>{const k=keep[r.legs[0].code];if(k){r.baseOverride=k.b;r.pinForeman=k.p;r.pinTrucks=k.t||[];r.trucksOverride=(k.tn!=null?k.tn:null);}});
 }
 
 function meterColor(s){return s>=60?'var(--hazard)':s>=30?'var(--rental)':'var(--fleet)';}
@@ -1494,9 +1504,25 @@ function foremenAvailOn(dayIso){
   const ta=tripAwayMap(dayIso).f;Object.keys(ta).forEach(n=>{const f=DATA.foremen.find(x=>x.name===n);if(f&&f.status==='Active')off.add(n);});
   return {avail:act.length-off.size,off:off.size,total:act.length};
 }
+const _RC={};
+function rcInvalidate(day){if(day)delete _RC[day];else for(const k of Object.keys(_RC))delete _RC[k];}
+function routesCountOn(dayIso){
+  if(_RC[dayIso]!=null)return _RC[dayIso];
+  // run the real engine for that day (jobs swapped in, chains detected), cached
+  const keepJobs=DATA.jobs,keepAC=AUTOCHAINS;
+  try{
+    DATA.jobs=DATA.days[dayIso]||[];
+    AUTOCHAINS=[];
+    let rts=buildRoutes();
+    const det=detectAutoChains(rts);
+    if(det.length){AUTOCHAINS=det;rts=buildRoutes();}
+    _RC[dayIso]=rts.length;
+  }catch(e){ _RC[dayIso]=(DATA.days[dayIso]||[]).filter(j=>!j.after&&!EXCL.has(jobKey(j))).length; }
+  finally{ DATA.jobs=keepJobs;AUTOCHAINS=keepAC; }
+  return _RC[dayIso];
+}
 function estRoutesOn(dayIso){
-  const js=DATA.days[dayIso]||[];
-  return js.filter(j=>!j.after&&!EXCL.has(jobKey(j))).length; // heads minus switched-off; auto-chains can only reduce this
+  return routesCountOn(dayIso);
 }
 function renderAlert(){
   const el=document.getElementById('alertbar');
@@ -1521,7 +1547,7 @@ function renderAlert(){
       '<span class="alday'+(p.crit?' c':'')+'" data-d="'+p.iso+'">'+fmt(p.iso)+' — '+p.need+' routes vs '+p.avail+' foremen'
       +(p.crit?' · <b>'+p.gap+' short</b>':' · zero spare')+(p.off?' ('+p.off+' on day-off)':'')+'</span>').join('')
     +(probs.length>5?'<span class="almore">+'+(probs.length-5)+' more days in the next 30</span>':'')+'</div>'
-    +'';
+    +'<div class="ts" style="margin-top:7px">live — engine-true counts that recalculate with your on/off-board switches and chains · click a day to open it</div>';
   el.querySelectorAll('.alday').forEach(s=>s.addEventListener('click',()=>switchDay(s.dataset.d)));
 }
 let _miSeq=0;
@@ -1679,10 +1705,11 @@ function renderCards(){
       const r=routes.find(x=>x.id===s.dataset.r);
       if(!r)return;
       const _act=s.dataset.act,_slot=+s.dataset.slot||0,_rid=r.id;
-      const _prev=_act==='base'?r.baseOverride:(_act==='truck'?(r.pinTrucks||[])[_slot]:r.pinForeman);
+      const _prev=_act==='base'?r.baseOverride:(_act==='truck'?(r.pinTrucks||[])[_slot]:(_act==='tn'?r.trucksOverride:r.pinForeman));
       applyWithDiff(r.id,()=>{
         if(s.dataset.act==='base')r.baseOverride=s.value==='auto'?null:s.value;
         else if(s.dataset.act==='truck'){r.pinTrucks=r.pinTrucks||[];r.pinTrucks[+s.dataset.slot||0]=s.value==='auto'?null:s.value;}
+        else if(s.dataset.act==='tn'){r.trucksOverride=s.value==='auto'?null:+s.value;}
         else r.pinForeman=s.value==='auto'?null:s.value;
       });
       setTimeout(()=>toastUndo(_rid+' '+_act+' updated.',()=>{
@@ -1690,6 +1717,7 @@ function renderCards(){
         applyWithDiff(_rid,()=>{
           if(_act==='base')rr.baseOverride=_prev||null;
           else if(_act==='truck'){rr.pinTrucks=rr.pinTrucks||[];rr.pinTrucks[_slot]=_prev||null;}
+          else if(_act==='tn')rr.trucksOverride=(_prev!=null?_prev:null);
           else rr.pinForeman=_prev||null;
         });
       }),50);
@@ -1805,7 +1833,7 @@ function miniCardHTML(r,mis){
    +(sl.length>1?'<span class="chip sm" title="'+sl.length+' chained jobs">⛓ '+sl.length+'</span>':'')
    +'<span class="ts">'+tm(sl[0].start)+' – ~'+new Date(endR).toTimeString().slice(0,5)+'</span>'
    +'<span class="ts">'+r.totalCF.toLocaleString()+' CF</span>'
-   +'<span class="mff">👷 '+(r.foreman?esc(r.foreman.nick):'—')+'</span>'
+   +'<span class="mff">👷 '+(r.foreman?esc(r.foreman.nick):'<i class="nofor">⚠ NO FOREMAN</i>')+'</span>'
    +'<span class="ts">🚚 '+esc(routeVehText(r))+'</span>'
    +(r._pmWhy?'<span class="chip sm" title="'+esc(r._pmWhy)+'">🌗</span>':'')
    +(ws?'<span class="chip warnchip sm" title="data warnings — expand for details">⚠ '+ws+'</span>':'')
@@ -1824,17 +1852,20 @@ function assignCtrlsHTML(r){
   const truckOpts=DATA.trucks.filter(k=>k.status==='Active').sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true}));
   const tSels=slotsSpec.map((ty,i)=>{
     const pin=(r.pinTrucks||[])[i]||null;
-    const cur=r.vehicles&&r.vehicles[i]?(r.vehicles[i].kind==='fleet'?r.vehicles[i].t.n:('rental '+r.vehicles[i].sz)):'—';
+    const cur=r.vehicles&&r.vehicles[i]?(r.vehicles[i].kind==='fleet'?r.vehicles[i].t.n:(r.vehicles[i].kind==='rental'?('rental '+r.vehicles[i].sz):'⚠ none free — add a rental')):'—';
     const lbl=slotsSpec.length>1?(ty==='Van'?'Van':'Truck '+(slotsSpec.filter((x,j)=>x==='Truck'&&j<=i).length)):'Truck';
     return '<div class="ctrlgrp"><label>'+lbl+'</label><select data-act="truck"'+(RO?' disabled':'')+' data-slot="'+i+'" data-r="'+r.id+'">'
       +'<option value="auto"'+(!pin?' selected':'')+'>suggestion: '+esc(cur)+'</option>'
       +truckOpts.map(k=>'<option value="'+esc(k.n)+'"'+(pin===k.n?' selected':'')+'>'+esc(k.n)+(isRentalTruck(k)?' (rented)':'')+' · '+k.cf.toLocaleString()+' CF · crew '+k.maxCrew+' · '+esc(k.state)+'</option>').join('')
       +'</select></div>';
   }).join('');
+  const tnSel='<div class="ctrlgrp"><label>Trucks</label><select data-act="tn"'+(RO?' disabled':'')+' data-r="'+r.id+'" title="Number of Trucks the sales team sold this job with — override if the load really needs fewer or more">'
+    +'<option value="auto"'+(r.trucksOverride==null?' selected':'')+'>sales: '+r.trucksNeeded+'</option>'
+    +[1,2,3].map(n=>'<option value="'+n+'"'+(r.trucksOverride===n?' selected':'')+'>'+n+' truck'+(n>1?'s':'')+'</option>').join('')+'</select></div>';
   return (RO?'<div class="ronote">🔒 read-only — assignments are made for today &amp; tomorrow only</div>':'')+'<div class="ctrls"><div class="ctrlrow">'
     +'<div class="ctrlgrp"><label>Base</label>'+baseSel+'</div>'
     +'<div class="ctrlgrp"><label>Foreman</label>'+fSel+'</div>'
-    +tSels
+    +tnSel+tSels
   +'</div></div>';
 }
 function cardHTML(r){
@@ -1873,6 +1904,7 @@ function cardHTML(r){
     })(),
     r.legs.some(l=>l._draft)?'<span class="chip draft">📝 draft — board only, push via Update calendar</span><span class="chip draft rm rmdraft" data-codes="'+esc(r.legs.filter(l=>l._draft).map(l=>l.code).join(','))+'">🗑 remove draft</span>':'',
     r._calSynced?chip('calendar updated ✓',''):'',
+    (r.trucksNeeded>1||r.trucksOverride!=null)?'<span class="chip" title="Number of Trucks from the calendar — the sales team sold this job with '+r.trucksNeeded+' truck'+(r.trucksNeeded!==1?'s':'')+'. Adjust with the Trucks selector below if the load really needs a different count.">📋 sales: '+r.trucksNeeded+' truck'+(r.trucksNeeded!==1?'s':'')+(r.trucksOverride!=null?' → you: '+r.trucksOverride:'')+'</span>':'',
     r.short?'<span class="chip shortchip" title="'+r.short+' truck slot'+(r.short>1?'s have':' has')+' no real truck for this day — use the add-rental button below">🚨 NO TRUCK'+(r.short>1?' ×'+r.short:'')+'</span>':'',
     r._pmWhy?'<span class="chip" title="'+esc(r._pmWhy)+'">🌗 PM-only · why?</span>':'',
     r.legs.filter(l=>l.straight&&l.tripDays).map(l=>'<span class="chip" title="Estimated Trip Days from the calendar — the foreman is on the road and blocked from other work until he is back">🛣 '+l.tripDays+'-day trip · foreman blocked</span>').join(''),
@@ -2331,7 +2363,7 @@ function refreshMap(){
           +sl2.filter(l=>l.eventId).map(l=>'<a class="chip calopen" target="_blank" rel="noopener" href="'+calEditUrl(l.eventId)+'" title="Open '+esc(l.code)+' in Google Calendar — edits sync back automatically">✎ '+esc(l.code)+'</a>').join('')
           +'</div>'
         +(r._pmWhy?'<div class="mirow pmwhy">🌗 '+esc(r._pmWhy)+'</div>':'')
-        +'<div class="mirow">'+(r.foreman?'👷 <b>'+esc(r.foreman.nick)+'</b> ('+esc(r.foreman.name)+') · ':'')+'🚚 '+esc(routeVehText(r))+'</div>'
+        +'<div class="mirow">👷 '+(r.foreman?'<b>'+esc(r.foreman.nick)+'</b> ('+esc(r.foreman.name)+')':'<b class="nofor">⚠ NO FOREMAN</b>')+' · 🚚 '+(r.short?'<b class="nofor">'+esc(routeVehText(r))+'</b>':esc(routeVehText(r)))+'</div>'
         +sl2.filter(l=>l._carrier).map(l=>'<div class="mirow cdwrap"><span class="ts" style="flex-shrink:0">🚛 '+esc(l.code)+' carrier drop-off</span><span class="cdcol"><input class="cdrop" data-code="'+esc(l.code)+'" value="'+esc(l.carrierDropAddr||'')+'" placeholder="default: crew returns to base — or type the carrier\'s address / zip"><span class="ajhint cdhint">'+(l.carrierDrop?'✓ '+esc(l.carrierDrop.city)+', '+esc(l.carrierDrop.state):'')+'</span></span></div>').join('')
         +'<div class="mirow mexcls">'+sl2.map(l=>'<span class="mexwrap"><label class="ajsw mexcl" title="Take '+esc(l.code)+' off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" data-k="'+esc(jobKey(l))+'" data-t="'+esc(l.customer||l.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(l))?'':' checked')+'><i></i></label><span class="ts">on board · '+esc(l.code)+'</span></span>').join('')+'</div>'
         +assignCtrlsHTML(r)
@@ -2551,7 +2583,7 @@ function saveDayState(){
   for(const d of Object.keys(z.days))if(d<TODAY_ISO)delete z.days[d];
   if(canEdit()){
     const ov=[];
-    routes.forEach(r=>{if(r.baseOverride||r.pinForeman||(r.pinTrucks&&r.pinTrucks.some(Boolean)))ov.push({k:r.legs[0].code,b:r.baseOverride||null,p:r.pinForeman||null,t:(r.pinTrucks||[]).slice()});});
+    routes.forEach(r=>{if(r.baseOverride||r.pinForeman||r.trucksOverride!=null||(r.pinTrucks&&r.pinTrucks.some(Boolean)))ov.push({k:r.legs[0].code,b:r.baseOverride||null,p:r.pinForeman||null,t:(r.pinTrucks||[]).slice(),tn:(r.trucksOverride!=null?r.trucksOverride:null)});});
     const drafts=(DATA.days[currentDay]||[]).filter(j=>j._draft&&!j.eventId);
     const cdrops={};(DATA.days[currentDay]||[]).forEach(j=>{if(j.carrierDropAddr)cdrops[j.code]=j.carrierDropAddr;});
     const st={ov,chains:manualChains.slice(),det:[...AUTOOFFLIST],off:[...DAYOFF],drafts,cdrops,ts:Date.now()};
@@ -2582,7 +2614,7 @@ function restoreDayState(day,announce){
   (st.ov||[]).forEach(o=>{
     const r=routes.find(x=>x.legs[0]&&x.legs[0].code===o.k)||routes.find(x=>x.legs.some(l=>l.code===o.k));
     if(!r)return;
-    r.baseOverride=o.b;r.pinForeman=o.p;r.pinTrucks=(o.t||[]).slice();applied++;
+    r.baseOverride=o.b;r.pinForeman=o.p;r.pinTrucks=(o.t||[]).slice();r.trucksOverride=(o.tn!=null?o.tn:null);applied++;
   });
   const n=(st.ov||[]).length+(st.chains||[]).length+(st.det||[]).length+(st.off||[]).length;
   if(announce&&(n||(st.drafts||[]).length)&&!_restoredShown.has(day)){
@@ -2619,12 +2651,12 @@ function applyWithDiff(editedRid,fn){
   saveDayState();
 }
 function toastUndo(msg,fn){
-  let n=document.getElementById('locknote');
-  if(!n){n=document.createElement('div');n.id='locknote';document.body.appendChild(n);}
-  n.innerHTML=msg+' <button class="tundo">Undo</button>';
+  let n=document.getElementById('undonote');
+  if(!n){n=document.createElement('div');n.id='undonote';document.body.appendChild(n);}
+  n.innerHTML=msg+' <button class="tundo">↩ Undo</button>';
   n.querySelector('.tundo').onclick=()=>{n.classList.remove('show');try{fn();}catch(e){}};
   n.classList.add('show');
-  clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),8000);
+  clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),10000);
 }
 function toast(msg){
   let n=document.getElementById('locknote');
@@ -3210,6 +3242,7 @@ function jobChecks(j){
   const out=[];
   const _isLD=/long/i.test(String(j.movingType||''));
   if(j.actH&&j.actH>=14&&!_isLD)out.push('ACT Time '+j.actH+'h — runs past midnight; check the calendar (typo? 4.5 vs 45)');
+  if(!_isLD&&j.actH){const _sm=Date.parse(String(j.start||'').replace(' ','T'));const _dn=_sm+j.actH*3600000;if(isFinite(_sm)&&new Date(_dn).getDate()!==new Date(_sm).getDate())out.push('Local job runs past midnight — starts '+String(j.start).slice(11,16)+' with '+j.actH+'h ACT, finishing ~'+new Date(_dn).toTimeString().slice(0,5)+' next day. Double-check the calendar start/end times.');}
   if(j.straight&&_isLD&&!j.tripDays&&!/same\s*day/i.test((j.jobType||'')+' '+(j.movingType||'')))out.push('Straight LD without "Estimated Trip Days" in the calendar — add it so the engine can block the foreman while he\'s on the road');
   const _blob=(j.customer||'')+' '+(j.jobType||'')+' '+(j.movingType||'')+' '+(j.code||'');
   if(/in.?home.{0,12}estimat|estimat.{0,12}in.?home|\bestimate\b|walk.?through|site (visit|survey)/i.test(_blob))out.push('Looks like an in-home estimate / site visit, not a move — if so, switch it off the board with the On-board toggle (your call, never automatic)');
@@ -3275,7 +3308,7 @@ function renderTable(){
         +'<td class="ajcut" title="'+esc(r.pickupAddr||'')+'">'+esc(r.cityFrom||'')+' <span class="ts">'+(r.pickup?r.pickup.zip:'—')+'</span><div class="ajaddr">'+esc(r.pickupAddr||'')+'</div></td>'
         +'<td class="ajcut" title="'+esc(kind==='carrier'?'carrier delivers — full address lives in the job':(r.deliveryAddr||''))+'">'+esc(r.cityTo||'—')+' <span class="ts">'+(r.delivery?r.delivery.zip:'—')+'</span>'+(kind==='carrier'?'':'<div class="ajaddr">'+esc(r.deliveryAddr||'')+'</div>')+'</td>'
         +'<td>'+esc(nearestBaseName(r))+'</td>'
-        +'<td class="ajcut">'+(rt&&rt.foreman?esc(rt.foreman.name)+' <span class="ts">'+esc(rt.foreman.nick)+'</span>':'<span class="ts">—</span>')+'</td>'
+        +'<td class="ajcut">'+(rt&&canEdit()&&currentDay>=TODAY_ISO?('<select class="cellsel'+(rt.foreman?'':' nofor')+'" data-act="foreman" data-r="'+rt.id+'"><option value="auto"'+(!rt.pinForeman?' selected':'')+'>'+(rt.foreman?'sugg: '+esc(rt.foreman.nick):'⚠ NO FOREMAN')+'</option>'+DATA.foremen.filter(x=>x.status!=='Cancelled').sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(rt.pinForeman===x.name?' selected':'')+'>'+esc(x.nick)+' · '+x.base+(isOff(x.name)?' · off':'')+'</option>').join('')+'</select>'):(rt&&rt.foreman?esc(rt.foreman.name)+' <span class="ts">'+esc(rt.foreman.nick)+'</span>':'<span class="ts nofor">⚠ —</span>'))+'</td>'
         +'<td class="mono">'+(rt?esc(vt(rt))||'—':'—')+'</td>'
         +'<td>'+(r.cf||0).toLocaleString()+'</td>'
         +'<td>'+(r.crew||'—')+'</td>'
@@ -3408,7 +3441,8 @@ function renderTimeline(){
       if(col)continue;
       for(const r of rs){
         const vt=(r.vehicles||[]).map(v=>v.kind==='fleet'?('#'+String(v.t.n).replace('#','')):(v.kind==='rental'?('R·'+String(v.sz||'').replace(' ft','')):'⚠ NO TRUCK')).join(' + ');
-        rows+='<div class="tlrow"><div class="tllabel"><b>'+r.id+(r.legs.length>1?' ⛓':'')+'</b><span>'+esc(r.foreman?r.foreman.nick:'unassigned')+' · '+r.totalCF.toLocaleString()+' CF'+(vt?' · '+esc(vt):'')+(r.legs.length>1?' · '+r.legs.length+' jobs':'')+'</span></div><div class="tltrack">'+trackOf(r,'routes')+'</div></div>';
+        const vtH=(r.vehicles||[]).map(v=>v.kind==='fleet'?esc('#'+String(v.t.n).replace('#','')):(v.kind==='rental'?esc('R·'+String(v.sz||'').replace(' ft','')):'<i class="nofor">⚠ NO TRUCK</i>')).join(' + ');
+        rows+='<div class="tlrow"><div class="tllabel"><b>'+r.id+(r.legs.length>1?' ⛓':'')+' · '+(r.foreman?esc(r.foreman.nick):'<i class="nofor">⚠ NO FOREMAN</i>')+'</b><span>'+r.totalCF.toLocaleString()+' CF'+(vtH?' · '+vtH:'')+(r.legs.length>1?' · '+r.legs.length+' jobs':'')+'</span></div><div class="tltrack">'+trackOf(r,'routes')+'</div></div>';
       }
     }
     if(TLSHOWOFF){
@@ -3421,10 +3455,10 @@ function renderTimeline(){
       }
     }
   } else if(TLMODE==='foremen'){
-    const byF={};RR.forEach(r=>{const k=r.foreman?r.foreman.name:'⚠ Unassigned';(byF[k]=byF[k]||[]).push(r);});
+    const byF={};RR.forEach(r=>{const k=r.foreman?r.foreman.name:'⚠ NO FOREMAN';(byF[k]=byF[k]||[]).push(r);});
     for(const [name,rs] of Object.entries(byF).sort((a,b)=>a[0].localeCompare(b[0]))){
       const f=DATA.foremen.find(x=>x.name===name);
-      rows+='<div class="tlrow"><div class="tllabel"><b>'+esc(f?f.nick:name)+'</b><span>'+esc(f?name:'')+'</span></div><div class="tltrack">'+rs.map(r=>trackOf(r)).join('')+'</div></div>';
+      rows+='<div class="tlrow'+(f?'':' tlshortrow')+'"><div class="tllabel"><b'+(f?'':' class="nofor"')+'>'+esc(f?f.nick:name)+'</b><span>'+esc(f?name:'')+'</span></div><div class="tltrack">'+rs.map(r=>trackOf(r)).join('')+'</div></div>';
     }
   } else {
     const ordered=[...RR].sort((x,y)=>(x.base||'').localeCompare(y.base||'')||(x.t0-y.t0));
@@ -3777,6 +3811,7 @@ window.addEventListener('focus',()=>{
 });
 function setJobEnabled(key,on,meta){
   if(on)EXCL.delete(key);else EXCL.add(key);
+  rcInvalidate((meta&&meta.d)||currentDay);
   persistToggles();
   if(GTOKEN){
     if(!on)shAppendRow('Excluded Events',{'Event Id':key,'Title':(meta&&meta.t)||'','Day':(meta&&meta.d)||currentDay,'Status':'Excluded','Note':SHEET_WRITE_NOTE}).catch(()=>{});
