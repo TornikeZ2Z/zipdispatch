@@ -646,6 +646,12 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 #isbtn.on,#isbtn:not(:empty).act{border-color:#E5A79B}
 .ddwrap #isbtn{white-space:nowrap}
 .nofor{color:#B23A2A!important;font-weight:800;font-style:normal}
+.confchip{background:#EAF3D2!important;border-color:#B7CD7A!important;color:#3F5410!important;font-weight:800}
+.confbox{background:#F4F9E6;border:1.5px solid #B7CD7A;border-radius:11px;padding:12px 15px;font-size:14.5px;color:#3F5410;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.confbox .uncfbtn{margin-left:auto;background:#fff;border:1.5px solid #B7CD7A;border-radius:8px;padding:6px 13px;font-size:13.5px;font-weight:700;color:#3F5410;cursor:pointer}
+.cfbtn{background:#5E7C16;color:#fff;border:none;border-radius:9px;padding:10px 16px;font-weight:800;font-size:14px;cursor:pointer;font-family:'Inter'}
+.cfbtn:disabled{background:#D7D3C8;color:#8C887D;cursor:not-allowed}
+#confall{background:#EAF3D2;border:1.5px solid #B7CD7A;color:#3F5410;border-radius:10px;padding:9px 14px;font-weight:800;font-size:13.5px;cursor:pointer;font-family:'Inter';margin-left:6px}
 .card .cardtop{row-gap:10px;line-height:1.5;align-items:center}
 .card .cardtop b{margin:0 3px}
 .card .cmeta,.card .meta{line-height:1.7;margin-top:7px}
@@ -822,7 +828,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   <div class="stats" id="stats"></div>
   <div id="rfwrap">
     <div class="rfrowbtns">
-      <button id="addjob" title="A sudden new job or an extra A→B trip — add it and get instant placement advice">＋ Add job</button><button id="calpush" title="Write today's assignments back to the Google Calendar events" disabled>🗓 Update calendar</button>
+      <button id="addjob" title="A sudden new job or an extra A→B trip — add it and get instant placement advice">＋ Add job</button><button id="calpush" title="Write today's assignments back to the Google Calendar events" disabled>🗓 Update calendar</button><button id="confall" style="display:none"></button>
       <button id="resetov" style="display:none">Reset changes</button>
       <button id="bellbtn" style="display:none" title="Sync &amp; import notices — nothing here ever changes your board by itself">🔔<span id="bellct"></span></button>
       <button id="refreshbtn" title="One refresh for everything: crew/trucks/day-offs/rentals from the sheet + job changes from the calendar">↻ Refresh</button>
@@ -855,7 +861,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
       <div class="ddwrap" id="chwrap"><button class="ddbtn" id="chbtn">Chains: All ▾</button><div class="ddpanel" id="chpanel"></div></div>
       <div class="ddwrap" id="bwrap"><button class="ddbtn" id="bbtn">All bases ▾</button><div class="ddpanel" id="bpanel"></div></div>
       <div class="ddwrap" id="ffwrap"><button class="ddbtn" id="ffbtn">All foremen ▾</button><div class="ddpanel" id="ffpanel"></div></div>
-      <div class="ddwrap" id="iswrap"><button class="ddbtn" id="isbtn">Issues: All ▾</button><div class="ddpanel" id="ispanel"></div></div>
+      <div class="ddwrap" id="iswrap"><button class="ddbtn" id="isbtn">Status: All ▾</button><div class="ddpanel" id="ispanel"></div></div>
       <button id="clearfl" title="Reset every filter">✕ Clear filters</button>
     </div>
     <div id="ffsummary"></div>
@@ -1041,13 +1047,15 @@ function assignAll(routes,w,baseMode){
     return true;                // overlap
   });
   const book=(map,key,r)=>{(map[key]=map[key]||[]).push({t0:r.t0,t1:r.t1,rid:r.id,startLoc:r._startLoc,endLoc:r._endLoc});};
+  // business rule: one foreman = one route per day. Multi-job days only via chains (one merged route).
+  const freeF=(key,r)=>!(busyF[key]||[]).some(iv=>iv.rid!==r.id);
   const fbest={};
   for(const r of order){
     r._pinBusy=false;r._pinOff=false;
     if(r.pinForeman&&isOff(r.pinForeman)){r.pinForeman=null;r._pinOff=true;}
     if(r.pinForeman){
       const f=DATA.foremen.find(x=>x.name===r.pinForeman);
-      if(f&&free(busyF,f.name,r))book(busyF,f.name,r);
+      if(f&&freeF(f.name,r))book(busyF,f.name,r);
       else r._pinBusy=true;
     }
     r._pinIssues=[];
@@ -1071,7 +1079,7 @@ function assignAll(routes,w,baseMode){
     for(const f of DATA.foremen){
       if(f.status==='Cancelled')continue;
       if(isOff(f.name))continue;
-      const busy=!free(busyF,f.name,r);
+      const busy=!freeF(f.name,r);
       const e=evalForeman(f,r,ctx); e.busy=busy;
       evals.push(e);
     }
@@ -1350,9 +1358,9 @@ function visibleRoutes(){
   if(CHFILTER==='single')shown=shown.filter(r=>r.legs.length===1);
   if(MTFILTER!=='all')shown=shown.filter(r=>routeKind(r)===MTFILTER);
   if(SHIFTFILTER!=='all')shown=shown.filter(r=>routeShift(r)===SHIFTFILTER);
-  if(ISSUEFILTER==='notruck')shown=shown.filter(r=>(r.short||0)>0);
-  else if(ISSUEFILTER==='noforeman')shown=shown.filter(r=>!r.foreman);
-  else if(ISSUEFILTER==='any')shown=shown.filter(r=>(r.short||0)>0||!r.foreman);
+  if(ISSUEFILTER==='confirmed')shown=shown.filter(r=>r.confirmed);
+  else if(ISSUEFILTER==='assigned')shown=shown.filter(r=>!r.confirmed&&r.foreman&&!((r.short||0)>0));
+  else if(ISSUEFILTER==='short')shown=shown.filter(r=>(r.short||0)>0||!r.foreman);
   return shown;
 }
 function filtersActive(){return FFSEL.size>0||BASESEL.size>0||CHFILTER!=='all'||MTFILTER!=='all'||SHIFTFILTER!=='all'||ISSUEFILTER!=='all';}
@@ -1361,12 +1369,12 @@ const PALETTE=['#0F8A66','#B26B0B','#6C5CE0','#C2417A','#2563EB','#D97706','#0E7
 function rebuildRoutes(){
   const _ta=tripAwayMap(currentDay);TRIPAWAY=_ta.f;TRIPAWAY_T=_ta.t;
   const keep={};
-  routes.forEach(r=>{const k=r.legs[0].code;if(r.baseOverride||r.pinForeman||r.trucksOverride!=null||(r.pinTrucks&&r.pinTrucks.some(Boolean)))keep[k]={b:r.baseOverride,p:r.pinForeman,t:r.pinTrucks,tn:r.trucksOverride};});
+  routes.forEach(r=>{const k=r.legs[0].code;if(r.baseOverride||r.pinForeman||r.trucksOverride!=null||r.confirmed||(r.pinTrucks&&r.pinTrucks.some(Boolean)))keep[k]={b:r.baseOverride,p:r.pinForeman,t:r.pinTrucks,tn:r.trucksOverride,c:r.confirmed};});
   AUTOCHAINS=[];
   routes=buildRoutes();
   const det=detectAutoChains(routes);
   if(det.length){AUTOCHAINS=det;routes=buildRoutes();}
-  routes.forEach(r=>{const k=keep[r.legs[0].code];if(k){r.baseOverride=k.b;r.pinForeman=k.p;r.pinTrucks=k.t||[];r.trucksOverride=(k.tn!=null?k.tn:null);}});
+  routes.forEach(r=>{const k=keep[r.legs[0].code];if(k){r.baseOverride=k.b;r.pinForeman=k.p;r.pinTrucks=k.t||[];r.trucksOverride=(k.tn!=null?k.tn:null);r.confirmed=!!k.c;}});
 }
 
 function meterColor(s){return s>=60?'var(--hazard)':s>=30?'var(--rental)':'var(--fleet)';}
@@ -1463,12 +1471,13 @@ function renderFilters(){
     [{v:'all',t:'All types',c:routes.length},{v:'local',t:'Local moving',c:kc.local},{v:'ld',t:'Long distance (straight)',c:kc.ld},{v:'carrier',t:'Regular (carrier)',c:kc.carrier}],
     MTFILTER,v=>{MTFILTER=v;apply();},
     MTFILTER==='all'?'Type: All':(MTFILTER==='local'?'Local':(MTFILTER==='ld'?'Long distance':'Regular (carrier)')),'mt');
-  const ntN=routes.filter(r=>(r.short||0)>0).length;
-  const nfN=routes.filter(r=>!r.foreman).length;
+  const cN=routes.filter(r=>r.confirmed).length;
+  const aN=routes.filter(r=>!r.confirmed&&r.foreman&&!((r.short||0)>0)).length;
+  const sN=routes.filter(r=>(r.short||0)>0||!r.foreman).length;
   singlePanel('ispanel','isbtn',
-    [{v:'all',t:'All routes',c:routes.length},{v:'any',t:'⚠ Any issue',c:routes.filter(r=>(r.short||0)>0||!r.foreman).length},{v:'notruck',t:'🚨 NO TRUCK',c:ntN},{v:'noforeman',t:'⚠ NO FOREMAN',c:nfN}],
+    [{v:'all',t:'All routes',c:routes.length},{v:'confirmed',t:'✔ Confirmed — locked',c:cN},{v:'assigned',t:'◔ Assigned — awaiting confirm',c:aN},{v:'short',t:'🚨 Short on fleet — truck or foreman missing',c:sN}],
     ISSUEFILTER,v=>{ISSUEFILTER=v;apply();},
-    ISSUEFILTER==='all'?'Issues: All':(ISSUEFILTER==='notruck'?'🚨 NO TRUCK':(ISSUEFILTER==='noforeman'?'⚠ NO FOREMAN':'⚠ Any issue')),'is');
+    ISSUEFILTER==='all'?'Status: All':(ISSUEFILTER==='confirmed'?'✔ Confirmed':(ISSUEFILTER==='assigned'?'◔ Assigned':'🚨 Short on fleet')),'is');
   const amN=routes.filter(r=>routeShift(r)==='am').length;
   singlePanel('shpanel','shbtn',
     [{v:'all',t:'Any time',c:routes.length},{v:'am',t:'☀️ Morning jobs',c:amN},{v:'pm',t:'🌆 Afternoon jobs',c:routes.length-amN}],
@@ -1881,7 +1890,7 @@ function miniCardHTML(r,mis){
    +(sl.length>1?'<span class="chip sm" title="'+sl.length+' chained jobs">⛓ '+sl.length+'</span>':'')
    +'<span class="ts">'+tm(sl[0].start)+' – ~'+new Date(endR).toTimeString().slice(0,5)+'</span>'
    +'<span class="ts">'+r.totalCF.toLocaleString()+' CF</span>'
-   +'<span class="mff">👷 '+(r.foreman?esc(r.foreman.nick):'<i class="nofor">⚠ NO FOREMAN</i>')+'</span>'
+   +'<span class="mff">'+(r.confirmed?'✔ ':'')+'👷 '+(r.foreman?esc(r.foreman.nick):'<i class="nofor">⚠ NO FOREMAN</i>')+'</span>'
    +'<span class="ts">🚚 '+esc(routeVehText(r))+'</span>'
    +(r._pmWhy?'<span class="chip sm" title="'+esc(r._pmWhy)+'">🌗</span>':'')
    +(ws?'<span class="chip warnchip sm" title="data warnings — expand for details">⚠ '+ws+'</span>':'')
@@ -1889,16 +1898,21 @@ function miniCardHTML(r,mis){
 }
 function assignCtrlsHTML(r){
   if(currentDay<TODAY_ISO)return '';
+  if(r.confirmed)return '<div class="confbox">✔ <b>CONFIRMED</b> — '+esc(r.foreman?r.foreman.name:'')+' + '+esc(truckRefs(r)||'—')+' locked for this route. Hidden from every other route\'s dropdowns.<button class="uncfbtn" data-r="'+r.id+'">change</button></div>';
   if(!canEdit())return '<div class="ronote">🔒 assignments lock in the day before — open this day again on '+new Date(Date.parse(currentDay+'T12:00')-86400000).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})+' to adjust it</div>';
   const RO=!canEdit();
   const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
   const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
   const baseSel='<select data-act="base"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.baseOverride?' selected':'')+'>suggestion: '+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' miles':'')+'</option>'
     +Object.keys(DATA.bases).sort((x,y)=>(_bmi(x)??9e9)-(_bmi(y)??9e9)).map(b=>'<option value="'+b+'"'+(r.baseOverride===b?' selected':'')+'>'+b+(_bmi(b)!==null?' · ~'+_bmi(b)+' mi to 1st pickup':'')+'</option>').join('')+'</select>';
+  const _confF=new Set(routes.filter(q=>q.confirmed&&q.id!==r.id&&q.pinForeman).map(q=>q.pinForeman));
+  const _confT=new Set(routes.filter(q=>q.confirmed&&q.id!==r.id).flatMap(q=>(q.pinTrucks||[]).filter(Boolean)));
+  const _cfOK=r.foreman&&!((r.short||0)>0);
+  const cfHtml='<div class="ctrlgrp cfwrap"><label>&nbsp;</label><button class="cfbtn" data-r="'+r.id+'"'+(_cfOK?'':' disabled')+' title="'+(_cfOK?'Lock this foreman + truck to this route — reserved, hidden from other routes, required before the calendar can be updated':'Assign a foreman and cover every truck slot first — incomplete routes can\'t be confirmed')+'">✔ Confirm</button></div>';
   const fSel='<select data-act="foreman"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.pinForeman?' selected':'')+'>suggestion'+((!r.pinForeman&&r.foreman)?': '+esc(r.foreman.name):'')+'</option>'
-    +DATA.foremen.filter(x=>x.status!=='Cancelled').sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')</option>').join('')+'</select>';
+    +DATA.foremen.filter(x=>x.status!=='Cancelled'&&!_confF.has(x.name)).sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')</option>').join('')+'</select>';
   const slotsSpec=r._slotsSpec||['Truck'];
-  const truckOpts=DATA.trucks.filter(k=>k.status==='Active').sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true}));
+  const truckOpts=DATA.trucks.filter(k=>k.status==='Active'&&!_confT.has(k.n)).sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true}));
   const tSels=slotsSpec.map((ty,i)=>{
     const pin=(r.pinTrucks||[])[i]||null;
     const cur=r.vehicles&&r.vehicles[i]?(r.vehicles[i].kind==='fleet'?r.vehicles[i].t.n:(r.vehicles[i].kind==='rental'?('rental '+r.vehicles[i].sz):'⚠ none free — add a rental')):'—';
@@ -1914,7 +1928,7 @@ function assignCtrlsHTML(r){
   return (RO?'<div class="ronote">🔒 read-only — assignments are made for today &amp; tomorrow only</div>':'')+'<div class="ctrls"><div class="ctrlrow">'
     +'<div class="ctrlgrp"><label>Base</label>'+baseSel+'</div>'
     +'<div class="ctrlgrp"><label>Foreman</label>'+fSel+'</div>'
-    +tnSel+tSels
+    +tnSel+tSels+cfHtml
   +'</div></div>';
 }
 function cardHTML(r){
@@ -1953,6 +1967,7 @@ function cardHTML(r){
     })(),
     r.legs.some(l=>l._draft)?'<span class="chip draft">📝 draft — board only, push via Update calendar</span><span class="chip draft rm rmdraft" data-codes="'+esc(r.legs.filter(l=>l._draft).map(l=>l.code).join(','))+'">🗑 remove draft</span>':'',
     r._calSynced?chip('calendar updated ✓',''):'',
+    (r.confirmed?'<span class="chip confchip" title="Locked — this foreman & truck are reserved for this route; the engine and other routes\' dropdowns won\'t touch them">✔ CONFIRMED</span>':''),
     (r.trucksNeeded>1||r.trucksOverride!=null)?'<span class="chip" title="Number of Trucks from the calendar — the sales team sold this job with '+r.trucksNeeded+' truck'+(r.trucksNeeded!==1?'s':'')+'. Adjust with the Trucks selector below if the load really needs a different count.">📋 sales: '+r.trucksNeeded+' truck'+(r.trucksNeeded!==1?'s':'')+(r.trucksOverride!=null?' → you: '+r.trucksOverride:'')+'</span>':'',
     r.short?'<span class="chip shortchip" title="'+r.short+' truck slot'+(r.short>1?'s have':' has')+' no real truck for this day — use the add-rental button below">🚨 NO TRUCK'+(r.short>1?' ×'+r.short:'')+'</span>':'',
     r._pmWhy?'<span class="chip" title="'+esc(r._pmWhy)+'">🌗 PM-only · why?</span>':'',
@@ -2637,7 +2652,7 @@ function saveDayState(){
   for(const d of Object.keys(z.days))if(d<TODAY_ISO)delete z.days[d];
   if(canEdit()){
     const ov=[];
-    routes.forEach(r=>{if(r.baseOverride||r.pinForeman||r.trucksOverride!=null||(r.pinTrucks&&r.pinTrucks.some(Boolean)))ov.push({k:r.legs[0].code,b:r.baseOverride||null,p:r.pinForeman||null,t:(r.pinTrucks||[]).slice(),tn:(r.trucksOverride!=null?r.trucksOverride:null)});});
+    routes.forEach(r=>{if(r.baseOverride||r.pinForeman||r.trucksOverride!=null||r.confirmed||(r.pinTrucks&&r.pinTrucks.some(Boolean)))ov.push({k:r.legs[0].code,b:r.baseOverride||null,p:r.pinForeman||null,t:(r.pinTrucks||[]).slice(),tn:(r.trucksOverride!=null?r.trucksOverride:null),c:r.confirmed?1:0});});
     const drafts=(DATA.days[currentDay]||[]).filter(j=>j._draft&&!j.eventId);
     const cdrops={};(DATA.days[currentDay]||[]).forEach(j=>{if(j.carrierDropAddr)cdrops[j.code]=j.carrierDropAddr;});
     const st={ov,chains:manualChains.slice(),det:[...AUTOOFFLIST],off:[...DAYOFF],drafts,cdrops,ts:Date.now()};
@@ -2668,7 +2683,7 @@ function restoreDayState(day,announce){
   (st.ov||[]).forEach(o=>{
     const r=routes.find(x=>x.legs[0]&&x.legs[0].code===o.k)||routes.find(x=>x.legs.some(l=>l.code===o.k));
     if(!r)return;
-    r.baseOverride=o.b;r.pinForeman=o.p;r.pinTrucks=(o.t||[]).slice();r.trucksOverride=(o.tn!=null?o.tn:null);applied++;
+    r.baseOverride=o.b;r.pinForeman=o.p;r.pinTrucks=(o.t||[]).slice();r.trucksOverride=(o.tn!=null?o.tn:null);r.confirmed=!!o.c;applied++;
   });
   const n=(st.ov||[]).length+(st.chains||[]).length+(st.det||[]).length+(st.off||[]).length;
   if(announce&&(n||(st.drafts||[]).length)&&!_restoredShown.has(day)){
@@ -3362,7 +3377,7 @@ function renderTable(){
         +'<td class="ajcut" title="'+esc(r.pickupAddr||'')+'">'+esc(r.cityFrom||'')+' <span class="ts">'+(r.pickup?r.pickup.zip:'—')+'</span><div class="ajaddr">'+esc(r.pickupAddr||'')+'</div></td>'
         +'<td class="ajcut" title="'+esc(kind==='carrier'?'carrier delivers — full address lives in the job':(r.deliveryAddr||''))+'">'+esc(r.cityTo||'—')+' <span class="ts">'+(r.delivery?r.delivery.zip:'—')+'</span>'+(kind==='carrier'?'':'<div class="ajaddr">'+esc(r.deliveryAddr||'')+'</div>')+'</td>'
         +'<td>'+esc(nearestBaseName(r))+'</td>'
-        +'<td class="ajcut">'+(rt&&canEdit()&&currentDay>=TODAY_ISO?('<select class="cellsel'+(rt.foreman?'':' nofor')+'" data-act="foreman" data-r="'+rt.id+'"><option value="auto"'+(!rt.pinForeman?' selected':'')+'>'+(rt.foreman?'sugg: '+esc(rt.foreman.nick):'⚠ NO FOREMAN')+'</option>'+DATA.foremen.filter(x=>x.status!=='Cancelled').sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(rt.pinForeman===x.name?' selected':'')+'>'+esc(x.nick)+' · '+x.base+(isOff(x.name)?' · off':'')+'</option>').join('')+'</select>'):(rt&&rt.foreman?esc(rt.foreman.name)+' <span class="ts">'+esc(rt.foreman.nick)+'</span>':'<span class="ts nofor">⚠ —</span>'))+'</td>'
+        +'<td class="ajcut">'+(rt&&canEdit()&&currentDay>=TODAY_ISO&&!rt.confirmed?('<select class="cellsel'+(rt.foreman?'':' nofor')+'" data-act="foreman" data-r="'+rt.id+'"><option value="auto"'+(!rt.pinForeman?' selected':'')+'>'+(rt.foreman?'sugg: '+esc(rt.foreman.nick):'⚠ NO FOREMAN')+'</option>'+DATA.foremen.filter(x=>x.status!=='Cancelled'&&!routes.some(q=>q.confirmed&&q!==rt&&q.pinForeman===x.name)).sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(rt.pinForeman===x.name?' selected':'')+'>'+esc(x.nick)+' · '+x.base+(isOff(x.name)?' · off':'')+'</option>').join('')+'</select>'):(rt&&rt.foreman?esc(rt.foreman.name)+' <span class="ts">'+esc(rt.foreman.nick)+'</span>':'<span class="ts nofor">⚠ —</span>'))+'</td>'
         +'<td class="mono">'+(rt?esc(vt(rt))||'—':'—')+'</td>'
         +'<td>'+(r.cf||0).toLocaleString()+'</td>'
         +'<td>'+(r.crew||'—')+'</td>'
@@ -3584,6 +3599,30 @@ function pendingCalChanges(){
   }
   return out;
 }
+function confirmRoute(rid){
+  const r=routes.find(x=>x.id===rid);if(!r)return;
+  if(!r.foreman||((r.short||0)>0)){toast('⚠ '+rid+' needs a foreman and a truck in every slot before it can be confirmed');return;}
+  r.pinForeman=r.foreman.name;
+  r.pinTrucks=(r.vehicles||[]).map(v=>v.kind==='fleet'?v.t.n:null);
+  r.confirmed=true;
+  saveDayState();render();updateCalBtn();
+  toastUndo('✔ '+rid+' confirmed — '+esc(r.foreman.nick)+' + '+esc(truckRefs(r)||'truck')+' locked',()=>{const rr=routes.find(x=>x.id===rid);if(rr){rr.confirmed=false;saveDayState();render();updateCalBtn();}});
+}
+function unconfirmRoute(rid){
+  const r=routes.find(x=>x.id===rid);if(!r)return;
+  r.confirmed=false;
+  saveDayState();render();updateCalBtn();
+  toast('↺ '+rid+' unlocked — assignment is editable again');
+}
+document.addEventListener('click',e=>{
+  const cb=e.target.closest('.cfbtn');
+  if(cb&&!cb.disabled){confirmRoute(cb.dataset.r);return;}
+  const ub=e.target.closest('.uncfbtn');
+  if(ub){unconfirmRoute(ub.dataset.r);return;}
+  const ca=e.target.closest('#confall');
+  if(ca){let n=0;routes.forEach(r=>{if(!r.confirmed&&r.foreman&&!((r.short||0)>0)){r.pinForeman=r.foreman.name;r.pinTrucks=(r.vehicles||[]).map(v=>v.kind==='fleet'?v.t.n:null);r.confirmed=true;n++;}});
+    if(n){saveDayState();render();updateCalBtn();toastUndo('✔ '+n+' routes confirmed',()=>{routes.forEach(r=>r.confirmed=false);saveDayState();render();updateCalBtn();});}return;}
+});
 function updateCalBtn(){
   const b=document.getElementById('calpush');
   if(!b)return;
@@ -3600,12 +3639,26 @@ function updateCalBtn(){
     b.title=(currentDay<TODAY_ISO?'Past day — review mode; nothing gets written back to the calendar.':'Calendar write-back works for today & tomorrow only — assignments further out aren\'t final yet, so pushing them would just create churn.');
     return;
   }
+  const _unc=routes.filter(r=>!r.confirmed).length;
+  const _ca=document.getElementById('confall');
+  if(_ca){const _rdy=routes.filter(r=>!r.confirmed&&r.foreman&&!((r.short||0)>0)).length;
+    _ca.style.display=(canEdit()&&_rdy>0)?'':'none';_ca.textContent='✔ Confirm all ('+_rdy+')';
+    _ca.title='One click confirms every complete route on this day — each one locks its foreman + truck';}
+  if(_unc>0){
+    b.disabled=true;b.textContent='🔒 '+_unc+' to confirm';
+    b.title=_unc+' route'+(_unc>1?'s':'')+' on this day '+(_unc>1?'are':'is')+' not confirmed yet. Every route on the board must be confirmed (✔ locks its foreman + truck) before the calendar can be updated — for jobs you can\'t staff, switch them off the board or fix the assignment first.';
+    return;
+  }
   const n=pendingCalChanges().length;
   b.textContent=n?('🗓 Update calendar ('+n+')'):'🗓 Update calendar';
   b.disabled=!n;
   b.title=n?('Push '+n+' changed assignment'+(n>1?'s':'')+' for '+currentDay+' to the Google Calendar — with preview & confirmation'):'Connected ✓ — nothing new to push for this day';
 }
-async function pushCalendarUpdates(){
+async function pushCalendarUpdates(...__a){
+  if(canEdit()&&routes.some(r=>!r.confirmed)){toast('🔒 Confirm every route on the board first — the calendar only takes a fully confirmed day');return;}
+  return _pushCalendarUpdates(...__a);
+}
+async function _pushCalendarUpdates(){
   if(!canEdit())return toast('🗓 calendar write-back is for today & tomorrow only');
   const pend=pendingCalChanges();
   if(!pend.length)return;
