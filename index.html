@@ -643,6 +643,8 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .tlshortrow{background:#FFF6F4;border-radius:8px}
 .offstrip{margin-top:14px;padding:13px 16px;background:#FBF4EC;border:1.5px dashed #D9A06B;border-radius:12px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .offstrip>b{color:#9A3E1D;font-size:14.5px}
+#isbtn.on,#isbtn:not(:empty).act{border-color:#E5A79B}
+.ddwrap #isbtn{white-space:nowrap}
 .nofor{color:#B23A2A!important;font-weight:800;font-style:normal}
 .card .cardtop{row-gap:10px;line-height:1.5;align-items:center}
 .card .cardtop b{margin:0 3px}
@@ -844,6 +846,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
       <div class="ddwrap" id="chwrap"><button class="ddbtn" id="chbtn">Chains: All ▾</button><div class="ddpanel" id="chpanel"></div></div>
       <div class="ddwrap" id="bwrap"><button class="ddbtn" id="bbtn">All bases ▾</button><div class="ddpanel" id="bpanel"></div></div>
       <div class="ddwrap" id="ffwrap"><button class="ddbtn" id="ffbtn">All foremen ▾</button><div class="ddpanel" id="ffpanel"></div></div>
+      <div class="ddwrap" id="iswrap"><button class="ddbtn" id="isbtn">Issues: All ▾</button><div class="ddpanel" id="ispanel"></div></div>
       <button id="clearfl" title="Reset every filter">✕ Clear filters</button>
     </div>
     <div id="ffsummary"></div>
@@ -1324,7 +1327,8 @@ const FFSEL=new Set();
 const BASESEL=new Set();
 let CHFILTER='all';
 let MTFILTER='all';
-const DD={mt:false,sh:false,ch:false,b:false,ff:false};
+const DD={mt:false,sh:false,ch:false,b:false,ff:false,is:false};
+let ISSUEFILTER='all';
 let SHIFTFILTER='all';
 const routeShift=r=>+String([...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start))[0].start).slice(11,13)<12?'am':'pm';
 const routeIsLD=r=>r.isLD||r.legs.some(l=>/long/i.test(l.movingType||''));
@@ -1337,9 +1341,12 @@ function visibleRoutes(){
   if(CHFILTER==='single')shown=shown.filter(r=>r.legs.length===1);
   if(MTFILTER!=='all')shown=shown.filter(r=>routeKind(r)===MTFILTER);
   if(SHIFTFILTER!=='all')shown=shown.filter(r=>routeShift(r)===SHIFTFILTER);
+  if(ISSUEFILTER==='notruck')shown=shown.filter(r=>(r.short||0)>0);
+  else if(ISSUEFILTER==='noforeman')shown=shown.filter(r=>!r.foreman);
+  else if(ISSUEFILTER==='any')shown=shown.filter(r=>(r.short||0)>0||!r.foreman);
   return shown;
 }
-function filtersActive(){return FFSEL.size>0||BASESEL.size>0||CHFILTER!=='all'||MTFILTER!=='all'||SHIFTFILTER!=='all';}
+function filtersActive(){return FFSEL.size>0||BASESEL.size>0||CHFILTER!=='all'||MTFILTER!=='all'||SHIFTFILTER!=='all'||ISSUEFILTER!=='all';}
 const TODAY_ISO=(function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
 const PALETTE=['#0F8A66','#B26B0B','#6C5CE0','#C2417A','#2563EB','#D97706','#0E7490','#7C3AED','#DC2626','#65A30D','#0891B2','#9333EA','#BE185D','#4338CA'];
 function rebuildRoutes(){
@@ -1439,7 +1446,7 @@ function renderFilters(){
     if(VIEWMODE==='timeline')renderTimeline();};
   const cb=document.getElementById('clearfl');
   if(cb){cb.style.display=filtersActive()?'':'none';
-    cb.onclick=()=>{MTFILTER='all';SHIFTFILTER='all';CHFILTER='all';BASESEL.clear();FFSEL.clear();apply();};}
+    cb.onclick=()=>{MTFILTER='all';SHIFTFILTER='all';CHFILTER='all';ISSUEFILTER='all';BASESEL.clear();FFSEL.clear();apply();};}
   // type
   const kc={local:0,ld:0,carrier:0};
   routes.forEach(r=>kc[routeKind(r)]++);
@@ -1447,6 +1454,12 @@ function renderFilters(){
     [{v:'all',t:'All types',c:routes.length},{v:'local',t:'Local moving',c:kc.local},{v:'ld',t:'Long distance (straight)',c:kc.ld},{v:'carrier',t:'Regular (carrier)',c:kc.carrier}],
     MTFILTER,v=>{MTFILTER=v;apply();},
     MTFILTER==='all'?'Type: All':(MTFILTER==='local'?'Local':(MTFILTER==='ld'?'Long distance':'Regular (carrier)')),'mt');
+  const ntN=routes.filter(r=>(r.short||0)>0).length;
+  const nfN=routes.filter(r=>!r.foreman).length;
+  singlePanel('ispanel','isbtn',
+    [{v:'all',t:'All routes',c:routes.length},{v:'any',t:'⚠ Any issue',c:routes.filter(r=>(r.short||0)>0||!r.foreman).length},{v:'notruck',t:'🚨 NO TRUCK',c:ntN},{v:'noforeman',t:'⚠ NO FOREMAN',c:nfN}],
+    ISSUEFILTER,v=>{ISSUEFILTER=v;apply();},
+    ISSUEFILTER==='all'?'Issues: All':(ISSUEFILTER==='notruck'?'🚨 NO TRUCK':(ISSUEFILTER==='noforeman'?'⚠ NO FOREMAN':'⚠ Any issue')),'is');
   const amN=routes.filter(r=>routeShift(r)==='am').length;
   singlePanel('shpanel','shbtn',
     [{v:'all',t:'Any time',c:routes.length},{v:'am',t:'☀️ Morning jobs',c:amN},{v:'pm',t:'🌆 Afternoon jobs',c:routes.length-amN}],
