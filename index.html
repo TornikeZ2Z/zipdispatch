@@ -414,7 +414,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important}html{scroll-behavior:auto}}
 /* ===== all-jobs table v2: fixed cols, frozen trio, zebra, comfortable ===== */
-#tableview .ajtwrap{overflow:auto;max-height:calc(100vh - 250px);border:1px solid var(--line);border-radius:10px}
+#tableview .ajtwrap{overflow-x:auto;overflow-y:visible;max-height:none;border:1px solid var(--line);border-radius:10px}
 .ajtwrap.full{max-height:none}
 #tableview .ajt{table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:13.5px}
 #tableview .ajt th{position:sticky;top:0;background:var(--card);box-shadow:0 2px 0 var(--line2);text-align:left;padding:11px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);border-bottom:1.5px solid var(--line2);z-index:2;white-space:nowrap}
@@ -490,7 +490,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tltgl{display:inline-flex;border:1.5px solid var(--line2);border-radius:9px;overflow:hidden}
 .tltgl button{border:0;background:var(--card);font-family:'Inter';font-weight:600;font-size:13.5px;padding:7px 14px;cursor:pointer;color:var(--dim)}
 .tltgl button.on{background:var(--ink);color:#fff}
-.tlwrap{overflow-x:hidden;overflow-y:auto;max-height:calc(100vh - 250px);position:relative}
+.tlwrap{overflow-x:hidden;overflow-y:visible;max-height:none;position:relative}
 .tlrow{display:flex;align-items:stretch;min-height:46px;border-bottom:1px solid var(--line)}
 .tlrow.scale{min-height:26px;border-bottom:1.5px solid var(--line2);position:sticky;top:0;background:var(--card);z-index:3}
 .tlrow.free{opacity:.55;min-height:34px}
@@ -508,7 +508,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .chip.nd{background:#EFEAFB;border:1px solid #D4C8F0;color:#4F3D8E;font-weight:700}
 .layout.mapon.maponly{display:grid;grid-template-columns:max-content minmax(0,1fr);grid-template-rows:max-content minmax(0,1fr)}
 .layout.maponly #leftbar{grid-column:1;grid-row:1/3}
-.layout.maponly .rail{grid-column:2;grid-row:1;width:auto;max-width:none;min-height:0;padding:20px 24px 10px}
+.layout.maponly .rail{grid-column:2;grid-row:1;width:auto;max-width:none;min-height:0;padding:20px 24px 10px;margin:0}
 .layout.maponly #cards,.layout.maponly #cmpsummary,.layout.maponly #rosterwrap{display:none!important}
 .layout.mapon.maponly #mapwrap{grid-column:2;grid-row:2;position:relative;top:0;width:auto;height:calc(100vh - 300px);min-height:480px;border-left:none;border-top:1px solid var(--line)}
 .chip.calopen,a.calopen{text-decoration:none;background:#EAF3FB;border:1px solid #C8DEF2;color:#1F6FD6;font-weight:700;cursor:pointer}
@@ -607,6 +607,13 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .chip.tchain{background:#EFF6E0;border:1px solid #D3E3A6;color:#4F6B14}
 .mexcls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .mexwrap{display:inline-flex;align-items:center;gap:7px}
+#locknote .tundo{margin-left:10px;border:1.5px solid #fff;background:transparent;color:#fff;border-radius:8px;font-family:'Inter';font-weight:800;font-size:12.5px;padding:3px 12px;cursor:pointer}
+.exprow td{background:var(--bg);padding:14px 16px;border-bottom:2px solid var(--line2)}
+.tloff{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#9A3E1D;margin-right:14px;cursor:pointer}
+.tlrow.offrow{opacity:.85;background:#FBF6F4}
+.offtrack{display:flex;align-items:center;padding-left:10px}
+.warnchip{background:#FBEEE8;border-color:#EBC9B8;color:#9A3E1D}
+.pmwhy{color:#6B5A14;background:#FBF6E2;border:1px solid #EBDFAE;border-radius:9px;padding:7px 10px;font-size:13px}
 .tlsep.tlfold{cursor:pointer;user-select:none}
 .tlsep.tlfold i{display:inline-block;width:18px;font-style:normal;font-weight:800}
 .tlsep.tlfold:hover{filter:brightness(.85)}
@@ -736,6 +743,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
   <div id="rfwrap">
     <div class="rfrowbtns">
       <button id="addjob" title="A sudden new job or an extra A→B trip — add it and get instant placement advice">＋ Add job</button><button id="calpush" title="Write today's assignments back to the Google Calendar events" disabled>🗓 Update calendar</button>
+      <button id="resetov" style="display:none">Reset changes</button>
       <button id="bellbtn" style="display:none" title="Sync &amp; import notices — nothing here ever changes your board by itself">🔔<span id="bellct"></span></button>
       <button id="refreshbtn" title="One refresh for everything: crew/trucks/day-offs/rentals from the sheet + job changes from the calendar">↻ Refresh</button>
     </div>
@@ -757,7 +765,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
       <button id="allmapbtn" class="vbtn" title="Every job leg on one map — fullscreen">🗺 Map</button>
       <button id="boardbtn" class="vbtn" title="The dispatch board — route cards with assignments">🗂 Board</button>
       <button id="alljobsbtn" class="vbtn" title="Every imported job in one table — with data-quality checks">☰ Jobs table</button>
-      <button id="resetov" title="Undo every manual change you made today">Reset changes</button>
+
     </div>
     <div id="filterbar">
       <span class="tblab">Filters</span>
@@ -839,7 +847,7 @@ function makeRoute(legs,idx,orphan=false){
   const isLD=legs.some(l=>/long\s*distance/i.test(l.movingType||''));
   legs.forEach(l=>{
     l._far=!!(l.delivery&&!INREGION(l.delivery));
-    l._carrier=l._far&&!l.straight; // far delivery without "straight" in description = carrier line-haul, crew returns to base
+    l._carrier=!l.straight&&!!l.delivery&&(l._far||/long/i.test(String(l.movingType||''))); // Regular LD = carrier ALWAYS (type-based) — crew loads at pickup, carrier hauls, crew returns to base
   });
   legs.forEach(l=>{
     const st=Date.parse(l.start||0);
@@ -1244,7 +1252,37 @@ function rebuildRoutes(){
 function meterColor(s){return s>=60?'var(--hazard)':s>=30?'var(--rental)':'var(--fleet)';}
 function diffWord(s){return s>=60?'heavy':s>=30?'moderate':'light';}
 
+function annotatePmWhy(){
+  try{
+    for(const r of routes){
+      delete r._pmWhy;
+      const sl=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
+      const f=sl[0];
+      if(!f||!f.start)continue;
+      const sh=+String(f.start).slice(11,13);
+      if(sh<12||r.legs.length>1||f.after)continue;
+      const st=Date.parse(f.start);
+      let bestGap=null,feasible=0;
+      for(const m of routes){
+        if(m===r)continue;
+        const ml=[...m.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
+        if(+String(ml[0].start).slice(11,13)>=12)continue;
+        const last=ml[ml.length-1];
+        const endMs=m.t1!=null?m.t1:Date.parse(last.end||last.start);
+        const from=(last._carrier||!last.delivery)?last.pickup:last.delivery;
+        const trav=(from&&f.pickup)?hav(from,f.pickup)/35*3600000*1.15:0;
+        const gap=Math.round((st-(endMs+trav))/60000);
+        if(gap>=0)feasible++;
+        if(bestGap===null||gap>bestGap)bestGap=gap;
+      }
+      if(bestGap===null)r._pmWhy='PM job kept standalone — there are no morning routes on this day to chain it after';
+      else if(feasible===0)r._pmWhy='PM job kept standalone — every morning route finishes too late to reach '+f.cityFrom+' by '+String(f.start).slice(11,16)+' (closest miss ~'+Math.abs(bestGap)+' min)';
+      else r._pmWhy='PM job kept standalone — '+feasible+' morning route'+(feasible>1?'s':'')+' could arrive in time, but truck size / crew fit / cost made a fresh route the better pick';
+    }
+  }catch(e){}
+}
 function render(){
+  annotatePmWhy();
   assignAll(routes,getW(),'nearest');
   const totCF=routes.reduce((s,r)=>s+r.totalCF,0);
   const fleetUsed=new Set(routes.flatMap(r=>r.vehicles.filter(v=>v.kind==='fleet').map(v=>v.t.n))).size;
@@ -1338,6 +1376,7 @@ function manualChangeCount(){
 function updateResetBtn(){
   const b=document.getElementById('resetov');
   const n=manualChangeCount();
+  if(!b)return;
   b.textContent=n?('Reset changes ('+n+')'):'Reset changes';
   b.disabled=!n;
   b.title=n?('Undo '+n+' manual change'+(n>1?'s':'')+': pinned foremen/trucks, base overrides, manual re-chains, detached auto-chains, manual day-offs'):'Nothing to reset — you have not changed anything manually today';
@@ -1399,7 +1438,7 @@ async function upgradeRoadMiles(){
       groups[k].forEach(el=>{
         if(!document.body.contains(el))return;
         const m=Math.round(rt.mi);
-        el.textContent=(m>=100?m.toLocaleString():m)+' mi';
+        el.textContent=(m>=100?m.toLocaleString():m)+' miles';
         el.classList.remove('est');
       });
     }));
@@ -1483,18 +1522,31 @@ function renderCards(){
   document.addEventListener('click',e=>{const s=e.target.closest('select[data-act]');if(s)e.stopPropagation();},true);
   document.addEventListener('change',e=>{
     const ex=e.target.closest('.mexcl input');
-    if(ex){e.stopPropagation();setJobEnabled(ex.dataset.k,ex.checked,{t:ex.dataset.t,d:ex.dataset.d});return;}
+    if(ex){e.stopPropagation();const _k=ex.dataset.k,_t=ex.dataset.t,_d=ex.dataset.d,_on=ex.checked;
+      setJobEnabled(_k,_on,{t:_t,d:_d});
+      if(!_on)toastUndo('⏻ '+esc(_t)+' switched off the board.',()=>setJobEnabled(_k,true,{t:_t,d:_d}));
+      return;}
     const s=e.target.closest('select[data-act]');
     if(!s)return;
 
       e.stopPropagation();
       const r=routes.find(x=>x.id===s.dataset.r);
       if(!r)return;
+      const _act=s.dataset.act,_slot=+s.dataset.slot||0,_rid=r.id;
+      const _prev=_act==='base'?r.baseOverride:(_act==='truck'?(r.pinTrucks||[])[_slot]:r.pinForeman);
       applyWithDiff(r.id,()=>{
         if(s.dataset.act==='base')r.baseOverride=s.value==='auto'?null:s.value;
         else if(s.dataset.act==='truck'){r.pinTrucks=r.pinTrucks||[];r.pinTrucks[+s.dataset.slot||0]=s.value==='auto'?null:s.value;}
         else r.pinForeman=s.value==='auto'?null:s.value;
       });
+      setTimeout(()=>toastUndo(_rid+' '+_act+' updated.',()=>{
+        const rr=routes.find(x=>x.id===_rid);if(!rr)return;
+        applyWithDiff(_rid,()=>{
+          if(_act==='base')rr.baseOverride=_prev||null;
+          else if(_act==='truck'){rr.pinTrucks=rr.pinTrucks||[];rr.pinTrucks[_slot]=_prev||null;}
+          else rr.pinForeman=_prev||null;
+        });
+      }),50);
     
     if(document.querySelector('.layout').classList.contains('mapon')&&highlighted)setTimeout(()=>{try{refreshMap();}catch(_){}},60);
     if(VIEWMODE==='table')renderTable();
@@ -1569,7 +1621,7 @@ function assignCtrlsHTML(r){
   const RO=!canEdit();
   const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
   const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
-  const baseSel='<select data-act="base"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.baseOverride?' selected':'')+'>suggestion: '+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' mi':'')+'</option>'
+  const baseSel='<select data-act="base"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.baseOverride?' selected':'')+'>suggestion: '+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' miles':'')+'</option>'
     +Object.keys(DATA.bases).sort((x,y)=>(_bmi(x)??9e9)-(_bmi(y)??9e9)).map(b=>'<option value="'+b+'"'+(r.baseOverride===b?' selected':'')+'>'+b+(_bmi(b)!==null?' · ~'+_bmi(b)+' mi to 1st pickup':'')+'</option>').join('')+'</select>';
   const fSel='<select data-act="foreman"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.pinForeman?' selected':'')+'>suggestion'+((!r.pinForeman&&r.foreman)?': '+esc(r.foreman.name):'')+'</option>'
     +DATA.foremen.filter(x=>x.status!=='Cancelled').sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')</option>').join('')+'</select>';
@@ -1626,6 +1678,7 @@ function cardHTML(r){
     })(),
     r.legs.some(l=>l._draft)?'<span class="chip draft">📝 draft — board only, push via Update calendar</span><span class="chip draft rm rmdraft" data-codes="'+esc(r.legs.filter(l=>l._draft).map(l=>l.code).join(','))+'">🗑 remove draft</span>':'',
     r._calSynced?chip('calendar updated ✓',''):'',
+    r._pmWhy?'<span class="chip" title="'+esc(r._pmWhy)+'">🌗 PM-only · why?</span>':'',
     r.legs.filter(l=>l.eventId).map(l=>'<a class="chip calopen" target="_blank" rel="noopener" href="'+calEditUrl(l.eventId)+'" title="Open '+esc(l.code)+' in Google Calendar — edit anything there; the board pulls your edits in automatically when you come back to this tab">✎ '+esc(l.code)+'</a>').join(''),
     r.piano?chip('piano'):'',
     r.baseOverride?chip('base set manually','ov'):'',
@@ -1930,7 +1983,7 @@ function cachedRoadMi(a,b){
   const e=hereCache[[a.lat,a.lon].join()+'|'+[b.lat,b.lon].join()];
   return (e&&typeof e==='object'&&!(e instanceof Promise)&&e.mi!=null)?e.mi:null;
 }
-const fmtRoad=rt=>rt?(rt.mi.toFixed(1)+' mi · '+Math.round(rt.min)+' min'):'';
+const fmtRoad=rt=>rt?(rt.mi.toFixed(1)+' miles · '+Math.round(rt.min)+' min'):'';
 
 function arrowAt(pts,col){
   const i=Math.floor(pts.length/2);
@@ -2060,7 +2113,13 @@ function refreshMap(){
           +' · '+r.totalCF.toLocaleString()+' CF · crew '+r.crew+(acts?' · ACT '+acts+'h':'')
           +(r.packing?' · packing $'+Math.round(r.packing).toLocaleString():'')
           +(bm!=null?(function(){const d=new Date(bm);if(d.getMinutes()||d.getSeconds())d.setHours(d.getHours()+1);d.setMinutes(0,0,0);return ' · <b>back ~'+d.toTimeString().slice(0,5)+'</b>';})():'')+'</div>'
-        +'<div class="mirow">'+typeChip(mt,'tmove',1)+typeChip(jt,'tjob',1)+'</div>'
+        +'<div class="mirow">'+typeChip(mt,'tmove',1)+typeChip(jt,'tjob',1)
+          +'<span class="chip" title="Route difficulty 0–100 — hardest routes pick their foreman and trucks first">⚖ difficulty '+r.score+'</span>'
+          +(sl2.some(l=>l._draft)?'<span class="chip" style="background:#FFF3D6;border-color:#EAD49A">📝 draft</span>':'')
+          +(function(){const ws=sl2.flatMap(l=>jobChecks(l));return ws.length?'<span class="chip warnchip" title="'+esc(ws.join('\n'))+'">⚠ '+ws.length+' data warning'+(ws.length>1?'s':'')+'</span>':'';})()
+          +sl2.filter(l=>l.eventId).map(l=>'<a class="chip calopen" target="_blank" rel="noopener" href="'+calEditUrl(l.eventId)+'" title="Open '+esc(l.code)+' in Google Calendar — edits sync back automatically">✎ '+esc(l.code)+'</a>').join('')
+          +'</div>'
+        +(r._pmWhy?'<div class="mirow pmwhy">🌗 '+esc(r._pmWhy)+'</div>':'')
         +'<div class="mirow">'+(r.foreman?'👷 <b>'+esc(r.foreman.nick)+'</b> ('+esc(r.foreman.name)+') · ':'')+'🚚 '+esc(routeVehText(r))+'</div>'
         +'<div class="mirow mexcls">'+sl2.map(l=>'<span class="mexwrap"><label class="ajsw mexcl" title="Take '+esc(l.code)+' off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" data-k="'+esc(jobKey(l))+'" data-t="'+esc(l.customer||l.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(l))?'':' checked')+'><i></i></label><span class="ts">on board · '+esc(l.code)+'</span></span>').join('')+'</div>'
         +assignCtrlsHTML(r)
@@ -2114,7 +2173,7 @@ function renderItinerary(r,items,seq,resolved){
         const next=items[items.indexOf(it)+1];
         const sched=next&&next.leg?Date.parse(next.leg.start):null;
         const dep=sched?sched-min*60000:null;
-        rows.push({t:dep?fmtMs(dep):'',txt:it.label+' · '+min+' min · '+mi.toFixed(0)+' mi',travel:true});
+        rows.push({t:dep?fmtMs(dep):'',txt:it.label+' · '+min+' min · '+mi.toFixed(0)+' miles',travel:true});
         cursor=sched;
       } else if(it.type==='return'){
         const back=cursor+min*60000;
@@ -2149,22 +2208,22 @@ function renderItinerary(r,items,seq,resolved){
         rows.push({t:'',txt:'Hand off to carrier — goods continue to '+l.cityTo+(l.stateTo?', '+l.stateTo:'')+' by carrier. Crew & truck head back with the load to base storage.',travel:true});
         cursor=done;lastDone=done;
       } else if(it.inreg){
-        rows.push({t:fmtMs(departP),txt:'Drive to delivery · '+min+' min · '+mi.toFixed(0)+' mi',travel:true});
+        rows.push({t:fmtMs(departP),txt:'Drive to delivery · '+min+' min · '+mi.toFixed(0)+' miles',travel:true});
         rows.push({t:fmtMs(etaD),txt:'Deliver '+l.cityTo+' · ETA '+fmtMs(etaD)+' · done ~'+fmtMs(done),travel:false});
         cursor=done;lastDone=done;
       } else {
         const farMi=Math.round(MI(it));
         const farDrv=it.min!=null?(Math.floor(it.min/60)+'h'+String(Math.round(it.min%60)).padStart(2,'0')+' truck drive'):('~'+Math.round(farMi/52)+'h drive est');
-        rows.push({t:fmtMs(departP),txt:'Departs long distance → '+l.cityTo+', '+l.stateTo+' · '+(it.mi!=null?'':'~')+farMi.toLocaleString()+' mi ('+farDrv+')',travel:true});
+        rows.push({t:fmtMs(departP),txt:'Departs long distance → '+l.cityTo+', '+l.stateTo+' · '+(it.mi!=null?'':'~')+farMi.toLocaleString()+' miles ('+farDrv+')',travel:true});
         {const ti=ldTripInfo(r);
-        rows.push({t:'',txt:'No same-day return — long-distance departure. Truck & crew continue'+(ti?' to '+ti.city:'')+'; estimated back at '+r.base+' base ~'+(ti?ti.retLbl:'next days')+' (~'+farMi.toLocaleString()+' mi one-way).',travel:true});}
+        rows.push({t:'',txt:'No same-day return — long-distance departure. Truck & crew continue'+(ti?' to '+ti.city:'')+'; estimated back at '+r.base+' base ~'+(ti?ti.retLbl:'next days')+' (~'+farMi.toLocaleString()+' miles one-way).',travel:true});}
         cursor=null;
       }
     }
   }
   box.innerHTML=rows.map(s=>'<div class="step'+(s.travel?' tv':'')+(s.warn?' late':'')+'"><span class="dot"></span><span class="st">'+(s.t||'')+'</span><span>'+esc(s.txt)+'</span></div>').join('');
-  tot.innerHTML='Day driving ~<b>'+Math.floor(totMin/60)+'h'+String(Math.round(totMin%60)).padStart(2,'0')+' · '+totMi.toFixed(0)+' mi</b>'
-    +' · empty '+Math.round(empMin)+' min / '+empMi.toFixed(0)+' mi'
+  tot.innerHTML='Day driving ~<b>'+Math.floor(totMin/60)+'h'+String(Math.round(totMin%60)).padStart(2,'0')+' · '+totMi.toFixed(0)+' miles</b>'
+    +' · empty '+Math.round(empMin)+' min / '+empMi.toFixed(0)+' miles'
     +' <span class="rsrc">'+(resolved?'HERE truck routes':'straight-line estimate'+(HEREKEY()?' — refining…':''))+'</span>'
     +'<br><span class="rsrc">ACT split evenly between loading & unloading; work starts no earlier than the booked time.</span>';
 }
@@ -2191,7 +2250,7 @@ function drawAllJobs(seq){
           items.push({line:farLine,casing:farCasing,a,b:bFar});
           farLine.bindTooltip('<div class="tt">'+esc(l.customer||l.code)+'</div>'
             +'<div class="ts">'+esc(l.code)+' · '+r.id+' · long distance → '+esc(l.cityTo)+(l.delivery.state?', '+esc(l.delivery.state):'')+'</div>'
-            +'<div class="ts">'+(cachedRoadMi(l.pickup,l.delivery)!=null?Math.round(cachedRoadMi(l.pickup,l.delivery)).toLocaleString():'~'+Math.round(hav(l.pickup,l.delivery)*1.15).toLocaleString())+' mi · '+l.cf.toLocaleString()+' CF · '+(r.foreman?esc(r.foreman.name):'')+'</div>'
+            +'<div class="ts">'+(cachedRoadMi(l.pickup,l.delivery)!=null?Math.round(cachedRoadMi(l.pickup,l.delivery)).toLocaleString():'~'+Math.round(hav(l.pickup,l.delivery)*1.15).toLocaleString())+' miles · '+l.cf.toLocaleString()+' CF · '+(r.foreman?esc(r.foreman.name):'')+'</div>'
             +'<div class="ts" style="color:var(--fleet)">click to open this route</div>',{sticky:true,className:'lpop',opacity:1});
           farLine.on('click',()=>selectRoute(r.id,true));
           farLine.on('mouseover',()=>farLine.setStyle({weight:6}));
@@ -2343,6 +2402,14 @@ function applyWithDiff(editedRid,fn){
   });
   if(msgs.length){renderCards();toast('Ripple effect — your change also affected: '+msgs.join(' · '));}
   saveDayState();
+}
+function toastUndo(msg,fn){
+  let n=document.getElementById('locknote');
+  if(!n){n=document.createElement('div');n.id='locknote';document.body.appendChild(n);}
+  n.innerHTML=msg+' <button class="tundo">Undo</button>';
+  n.querySelector('.tundo').onclick=()=>{n.classList.remove('show');try{fn();}catch(e){}};
+  n.classList.add('show');
+  clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),8000);
 }
 function toast(msg){
   let n=document.getElementById('locknote');
@@ -2925,11 +2992,12 @@ function renderTable(){
   const rows=pool.map(j=>Object.assign({_checks:PAST?[]:jobChecks(j)},j));
   const nSus=rows.filter(r=>r._checks.length).length;
   const COLS=[
+    ['On board',78],
     ['Job Code',116,'fz1'],['Customer',190,'fz2'],
     ['Time',118],['Pickup',215],['Delivery',215],['Base',104],['Foreman',176],['Truck',118],
     ['Total CF',84],['Crew Size',86],['Trucks / Vans',104],['ACT Time',86],['Packing $',96],
     ['Moving Type',172],['Job Type',168],['After Job Code',150],['# Title Tags',124],['Calendar',86]
-  ].concat([['On board',86]]).concat(PAST?[]:[['Data Checks',280]]);
+  ].concat(PAST?[]:[['Data Checks',280]]);
   const kindChip=k=>({carrier:'<span class="chip tjob sm">🚛 carrier</span>','straight LD':'<span class="chip tmove sm">🛣️ straight LD</span>',LD:'<span class="chip tmove sm">🛣️ LD</span>',local:'<span class="chip sm">📦 local</span>'})[k]||esc(k);
   const body=()=>{
     const q=(document.getElementById('ajq')||{}).value||'';
@@ -2947,7 +3015,8 @@ function renderTable(){
         const far=r.delivery&&!INREGION(r.delivery);
         const kind=far?(r.straight?'straight LD':'carrier'):(/long/i.test(r.movingType||'')?'LD':'local');
         const chain=rt&&rt.legs.length>1;
-        return '<tr class="'+(r._checks.length?'sus':'')+(EXCL.has(jobKey(r))?' excl':'')+(chain?' chainrow':'')+(highlighted&&rt&&highlighted===rt.id?' selrow':'')+'"'+(rt?' data-rid="'+rt.id+'" title="Click — map & assignment panel opens on the right"':'')+'>'
+        return '<tr class="'+(r._checks.length?'sus':'')+(EXCL.has(jobKey(r))?' excl':'')+(chain?' chainrow':'')+(highlighted&&rt&&highlighted===rt.id?' selrow':'')+'"'+(rt?' data-rid="'+rt.id+'" title="Click — assignment controls open below + map panel on the right"':'')+'>'
+        +'<td><label class="ajsw" title="Take this job off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" class="ajex" data-k="'+esc(jobKey(r))+'" data-t="'+esc(r.customer||r.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(r))?'':' checked')+'><i></i></label></td>'
         +'<td class="mono fz1">'+esc(r.code)+(isFirst&&rt?' <span class="ts">'+rt.id+'</span>':'')+(chain&&!isFirst?' <span class="ts">⛓</span>':'')+'</td>'
         +'<td class="fz2 ajcut" title="'+esc(r.customer||'')+'">'+esc(r.customer||'—')+'</td>'
         +'<td class="mono">'+String(r.start).slice(11,16)+'–'+String(r.end||'').slice(11,16)+'</td>'
@@ -2966,7 +3035,6 @@ function renderTable(){
         +'<td>'+(afterCode?'<span class="chip sm tchain" title="The engine chained this job after '+esc(afterCode)+' on the same route">⛓ after '+esc(afterCode)+'</span>':(r.after?'<span class="ts" title="After Job Code from the sheet">'+esc(r.after)+'</span>':'—'))+'</td>'
         +'<td class="mono">'+esc([r.mf,r.mt].filter(Boolean).join(' # ')||'—')+'</td>'
         +'<td>'+(r.eventId?'<a class="calopen" target="_blank" rel="noopener" href="'+calEditUrl(r.eventId)+'" title="Open in Google Calendar — edits sync back automatically">✎ open</a>':'—')+'</td>'
-        +'<td><label class="ajsw" title="Take this job off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" class="ajex" data-k="'+esc(jobKey(r))+'" data-t="'+esc(r.customer||r.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(r))?'':' checked')+'><i></i></label></td>'
         +(PAST?'':'<td class="ajchk">'+r._checks.map(esc).join('<br>')+'</td>')+'</tr>';
       };
       const RTS=(filtersActive()?visibleRoutes():routes).slice().sort((a,b)=>(a.base||'').localeCompare(b.base||'')||String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
@@ -2976,6 +3044,7 @@ function renderTable(){
         if(!legs.length)continue;
         h+='<tr class="tgap"><td colspan="'+COLS.length+'"></td></tr>';
         legs.forEach((l,i)=>{emitted.add(l.code);h+=mk(byCode[l.code],rt,i>0?legs[i-1].code:null,i===0);});
+        if(!PAST&&window._expRid===rt.id)h+='<tr class="exprow"><td colspan="'+COLS.length+'">'+assignCtrlsHTML(rt)+'</td></tr>';
       }
       const rest=list.filter(r=>!emitted.has(r.code));
       if(rest.length)h+='<tr class="tgap lbl"><td colspan="'+COLS.length+'">off board / not routed</td></tr>'+rest.map(r=>mk(r,null,null,false)).join('');
@@ -2992,11 +3061,15 @@ function renderTable(){
   const skn=el.querySelector('.skipnote');if(skn)skn.addEventListener('click',skipModal);
   el.querySelector('#ajbody').addEventListener('change',e=>{
     const c=e.target.closest('.ajex');if(!c)return;
-    setJobEnabled(c.dataset.k,c.checked,{t:c.dataset.t,d:c.dataset.d});
+    const _k=c.dataset.k,_t=c.dataset.t,_d=c.dataset.d,_on=c.checked;
+    setJobEnabled(_k,_on,{t:_t,d:_d});
+    if(!_on)toastUndo('⏻ '+esc(_t)+' switched off the board.',()=>setJobEnabled(_k,true,{t:_t,d:_d}));
   });
   el.querySelector('#ajbody').addEventListener('click',e=>{
     if(e.target.closest('.ajsw')||e.target.closest('select'))return;
     const tr=e.target.closest('tr[data-rid]');if(!tr)return;
+    window._expRid=window._expRid===tr.dataset.rid?null:tr.dataset.rid;
+    document.getElementById('ajbody').innerHTML=body();
     highlighted=tr.dataset.rid;mapMode='single';
     document.querySelector('.layout').classList.add('mapon');
     setTimeout(()=>{initMap();LMAP.invalidateSize();refreshMap();},60);
@@ -3006,9 +3079,11 @@ function renderTable(){
   el.querySelector('#ajq').addEventListener('input',re);
   const s=el.querySelector('#ajs');if(s)s.addEventListener('change',re);
 }
-let TLMODE='routes';
+let TLMODE='routes';let TLSHOWOFF=false;
 function setViewMode(mode){
   VIEWMODE=mode;
+  const _lay=document.querySelector('.layout');
+  if(_lay.classList.contains('maponly')){_lay.classList.remove('maponly');_lay.classList.remove('mapon');mapMode='single';highlighted=null;}
   const off=mode!=='board';
   document.querySelector('.layout').classList.toggle('tableon',off);
   updateViewBtns();
@@ -3081,6 +3156,15 @@ function renderTimeline(){
         rows+='<div class="tlrow"><div class="tllabel"><b>'+r.id+(r.legs.length>1?' ⛓':'')+'</b><span>'+esc(r.foreman?r.foreman.nick:'unassigned')+' · '+r.totalCF.toLocaleString()+' CF'+(vt?' · '+esc(vt):'')+(r.legs.length>1?' · '+r.legs.length+' jobs':'')+'</span></div><div class="tltrack">'+trackOf(r,'routes')+'</div></div>';
       }
     }
+    if(TLSHOWOFF){
+      const _off=(DATA.days[currentDay]||[]).filter(j=>EXCL.has(jobKey(j)));
+      if(_off.length){
+        rows+='<div class="tlsep" style="color:#9A3E1D;border-left-color:#9A3E1D">off board · '+_off.length+'</div>';
+        for(const j of _off){
+          rows+='<div class="tlrow offrow"><div class="tllabel"><b>'+esc(j.code)+'</b><span>'+esc(j.customer||'')+' · '+String(j.start).slice(11,16)+'</span></div><div class="tltrack offtrack"><span class="mexwrap"><label class="ajsw mexcl" title="Bring '+esc(j.code)+' back on the board"><input type="checkbox" data-k="'+esc(jobKey(j))+'" data-t="'+esc(j.customer||j.code)+'" data-d="'+esc(currentDay)+'"><i></i></label><span class="ts">switched off — flip the toggle to bring it back</span></span></div></div>';
+        }
+      }
+    }
   } else if(TLMODE==='foremen'){
     const byF={};RR.forEach(r=>{const k=r.foreman?r.foreman.name:'⚠ Unassigned';(byF[k]=byF[k]||[]).push(r);});
     for(const [name,rs] of Object.entries(byF).sort((a,b)=>a[0].localeCompare(b[0]))){
@@ -3107,10 +3191,13 @@ function renderTimeline(){
   el.innerHTML='<div class="tlbar"><b>'+fmtDayLong(currentDay)+'</b>'
     +'<span class="tltgl"><button class="'+(TLMODE==='routes'?'on':'')+'" data-m="routes">🗂 Routes</button><button class="'+(TLMODE==='foremen'?'on':'')+'" data-m="foremen">👷 Foremen</button><button class="'+(TLMODE==='trucks'?'on':'')+'" data-m="trucks">🚚 Trucks</button></span>'
     +(filtersActive()?'<span class="ts">'+RR.length+' of '+routes.length+' routes (filters applied)</span>':'')
+    +(function(){const _off=(DATA.days[currentDay]||[]).filter(j=>EXCL.has(jobKey(j)));return _off.length?'<label class="tloff" title="Jobs switched off the board — show them here to flip them back on"><input type="checkbox" id="tloffcb"'+(TLSHOWOFF?' checked':'')+'> off-board ('+_off.length+')</label>':'';})()
     +'<span class="tlleg"><i style="background:#6E9220"></i>LM · Standard / Flat <i style="background:#5B6770"></i>LM · Labor <i style="background:#6C4FD8"></i>LD · Straight <i style="background:#C98A1B"></i>LD · Regular</span>'
     +'</div>'
     +'<div class="tlwrap">'+scale+rows+'</div>';
   el.querySelectorAll('.tltgl button').forEach(b=>b.addEventListener('click',()=>{TLMODE=b.dataset.m;renderTimeline();}));
+  const _ocb=el.querySelector('#tloffcb');
+  if(_ocb)_ocb.addEventListener('change',()=>{TLSHOWOFF=_ocb.checked;renderTimeline();});
   el.querySelectorAll('.tlsep.tlfold').forEach(s=>s.addEventListener('click',()=>{
     const b=s.dataset.b;
     if(collapsedBases.has(b))collapsedBases.delete(b);else collapsedBases.add(b);
