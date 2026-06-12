@@ -514,7 +514,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .chip.calopen,a.calopen{text-decoration:none;background:#EAF3FB;border:1px solid #C8DEF2;color:#1F6FD6;font-weight:700;cursor:pointer}
 a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .chip.calopen:hover,a.calopen:hover{border-color:#1F6FD6}
-#dquick{display:flex;gap:7px;padding:9px 10px;border-bottom:1px solid var(--line)}
+#dquick{position:sticky;bottom:-6px;z-index:5;display:flex;gap:7px;padding:10px;margin:6px -6px -6px;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -8px 16px rgba(0,0,0,.07)}
 #dquick button{flex:1;border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet);border-radius:9px;font-family:'Inter';font-weight:800;font-size:13.5px;padding:8px;cursor:pointer}
 #dquick button:hover{border-color:var(--fleet)}
 .minfo{line-height:1.55}
@@ -4053,7 +4053,7 @@ function populateDays(){
   (function(){
     const el=document.createElement('div');el.id='dquick';
     el.innerHTML='<button data-q="t">Today</button><button data-q="m">Tomorrow</button>';
-    document.getElementById('dpanel').prepend(el);
+    document.getElementById('dpanel').appendChild(el);
     el.addEventListener('click',e=>{
       const b=e.target.closest('button');if(!b)return;
       switchDay(b.dataset.q==='t'?TODAY_ISO:tomorrowISO());
