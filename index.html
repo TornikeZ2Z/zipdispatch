@@ -1113,13 +1113,19 @@ function assignAll(routes,w,baseMode){
       if(pick){take(pick);if(primary)r._truckChosen=pick.n;}
       else{
         const sz=ty==='Van'?'20 ft van':(r.maxCF>RENTAL20_CF?'26 ft':'20 ft');
-        need.push({kind:'short',ty,sz});
-        if(primary){r._truckChosen='— no truck free';if(r.crew>3)r._crewGap=true;}
+        if(currentDay<TODAY_ISO){
+          // history: the day ran, so a rental truck WAS there — record it, don't alarm
+          need.push({kind:'rental',sz});
+          if(primary){r._truckChosen='Rental '+sz;if(r.crew>3)r._crewGap=true;}
+        } else {
+          need.push({kind:'short',ty,sz});
+          if(primary){r._truckChosen='— no truck free';if(r.crew>3)r._crewGap=true;}
+        }
       }
     });
     r.vehicles=need;
     r.short=need.filter(v=>v.kind==='short').length;
-    r.rentals=need.filter(v=>v.kind==='fleet'&&isRentalTruck(v.t)).length;
+    r.rentals=need.filter(v=>v.kind==='rental'||(v.kind==='fleet'&&isRentalTruck(v.t))).length;
     r.status=r.short>0?'short':(r.rentals>0?'rental':'fleet');
   }  const assignedF=new Set(routes.map(r=>r.foreman&&r.foreman.name).filter(Boolean));
   const pickStates=new Set(routes.map(r=>r.pickupState).filter(Boolean));
@@ -2517,7 +2523,7 @@ function refreshMapIfAll(){
 }
 
 let CHANGED={};
-function vehRefs(r){return r.vehicles.map(v=>v.kind==='fleet'?v.t.n:'SHORT').join('+');}
+function vehRefs(r){return r.vehicles.map(v=>v.kind==='fleet'?v.t.n:(v.kind==='rental'?('R'+((v.sz||'').includes('26')?'26':'20')):'SHORT')).join('+');}
 function takeSnap(){const s={};routes.forEach(r=>{s[r.legs[0].code]={f:r.foreman?r.foreman.name:null,b:r.base,v:vehRefs(r)};});return s;}
 const ZD_KEY='zd_state_v1';
 function tomorrowISO(){return new Date(new Date(TODAY_ISO+'T12:00').getTime()+86400000).toISOString().slice(0,10);}
@@ -2611,7 +2617,7 @@ function toast(msg){
   clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),4500);
 }
 function truckRefs(r){
-  return r.vehicles.map(v=>v.kind==='fleet'?v.t.n.replace('#',''):'TBD').join(',');
+  return r.vehicles.map(v=>v.kind==='fleet'?v.t.n.replace('#',''):(v.kind==='rental'?((v.sz||'').includes('26')?'ENT26':'ENT20'):'TBD')).join(',');
 }
 
 /* ===== Google Calendar — direct connection (read deltas + write assignments) ===== */
@@ -2681,7 +2687,7 @@ function truckToken(r){
 function typeEmojiMT(mt){return /long/i.test(mt||'')?'🛣️':'📦';}
 function typeEmojiJT(jt){jt=String(jt||'');if(/straight/i.test(jt))return '🚚';if(/regular/i.test(jt))return '🚛';if(/labor/i.test(jt))return '💪';if(/estimate/i.test(jt))return '📋';if(/flat/i.test(jt))return '💵';if(/box/i.test(jt))return '📦';return '';}
 function typeChip(v,cls,small){v=String(v||'').trim();if(!v)return '';const e=cls==='tmove'?typeEmojiMT(v):typeEmojiJT(v);return '<span class="chip '+cls+(small?' sm':'')+'">'+(e?e+' ':'')+esc(v)+'</span>';}
-function routeVehText(r){return (r.vehicles||[]).map(v=>v.kind==='fleet'?((v.t.type==='Van'?'Van ':'Truck ')+v.t.n):('⚠ no '+(v.sz||'truck')+' free')).join(' + ')||'—';}
+function routeVehText(r){return (r.vehicles||[]).map(v=>v.kind==='fleet'?((v.t.type==='Van'?'Van ':'Truck ')+v.t.n):(v.kind==='rental'?('Rental '+v.sz):('⚠ no '+(v.sz||'truck')+' free'))).join(' + ')||'—';}
 function nearestBaseName(j){
   if(j.base)return j.base;
   if(!j.pickup||!DATA.bases)return '—';
