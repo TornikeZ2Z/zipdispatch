@@ -28,7 +28,10 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 
 header{display:flex;align-items:center;gap:18px;padding:14px 28px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:nowrap;position:sticky;top:0;z-index:1100}
 .brand{flex-shrink:0;width:360px;min-width:360px}
-#brandlogo{height:44px;display:block}
+#brandlogo{height:44px;width:auto;display:block;align-self:flex-start}
+#dlabel{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+#dlabel .dl1{font-weight:800}
+#dlabel .dl2{font-size:12.5px;color:var(--dim);font-weight:600}
 #hdate{display:none}
 header .date{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:440px;display:block}
 @media (max-width:1480px){header .date{max-width:300px}}
@@ -3690,7 +3693,7 @@ function dayTag(d){
 function populateDays(){
   const days=Object.keys(DATA.days||{}).sort();
   const dt=new Date(currentDay+'T12:00');
-  document.getElementById('dlabel').textContent=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+(DATA.days[currentDay]||[]).length+' jobs';
+  document.getElementById('dlabel').innerHTML='<span class="dl1">'+dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</span><span class="dl2">'+(DATA.days[currentDay]||[]).length+' jobs</span>';
   const tag=dayTag(currentDay);
   const te=document.getElementById('dtag');
   te.textContent=tag?tag[0]:'';te.className=tag?tag[1]:'';
