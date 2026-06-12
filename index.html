@@ -605,6 +605,10 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .ajt tr.tgap.lbl td{height:auto;padding:16px 12px 6px;font-family:'Barlow Condensed';font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
 .ajt tr.chainrow td:first-child{box-shadow:inset 3px 0 0 #8CAF2C}
 .chip.tchain{background:#EFF6E0;border:1px solid #D3E3A6;color:#4F6B14}
+.cdwrap{display:flex;align-items:flex-start;gap:10px}
+.cdcol{flex:1;display:flex;flex-direction:column;gap:2px}
+.cdrop{width:100%;font-family:'Inter';font-size:13.5px;padding:8px 10px;border:1.5px solid var(--line2);border-radius:9px;background:var(--card)}
+.cdrop:focus{outline:none;border-color:var(--fleet)}
 .mexcls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .cdwrap{display:flex;align-items:center;gap:10px}
 .cdwrap input.cdrop{flex:1;font-family:'Inter';font-size:13.5px;padding:8px 11px;border:1.5px solid var(--line2);border-radius:9px}
@@ -1538,6 +1542,17 @@ function renderCards(){
   if(!window._assignDelegated){
   window._assignDelegated=1;
   document.addEventListener('click',e=>{const s=e.target.closest('select[data-act]');if(s)e.stopPropagation();},true);
+  document.addEventListener('input',e=>{
+    const c=e.target.closest('input.cdrop,input.smartloc');
+    if(!c)return;
+    const h=(c.closest('.cdcol,.ajf')||c.parentElement).querySelector('.ajhint');
+    if(!h)return;
+    const v=c.value.trim();
+    if(!v){h.className='ajhint';h.textContent='';return;}
+    const g=zgeoJS(zipFromAddr(v));
+    if(g){h.className='ajhint ok';h.textContent='✓ '+g.city+', '+g.state;}
+    else{h.className='ajhint warn';h.textContent=zipFromAddr(v)?('⚠ zip '+zipFromAddr(v)+' is not in the zip database'):'⚠ add a 5-digit zip so the engine can place it';}
+  });
   document.addEventListener('change',e=>{
     const cdi=e.target.closest('input.cdrop');
     if(cdi){
@@ -2161,7 +2176,7 @@ function refreshMap(){
           +'</div>'
         +(r._pmWhy?'<div class="mirow pmwhy">🌗 '+esc(r._pmWhy)+'</div>':'')
         +'<div class="mirow">'+(r.foreman?'👷 <b>'+esc(r.foreman.nick)+'</b> ('+esc(r.foreman.name)+') · ':'')+'🚚 '+esc(routeVehText(r))+'</div>'
-        +sl2.filter(l=>l._carrier).map(l=>'<div class="mirow cdwrap"><span class="ts" style="flex-shrink:0">🚛 '+esc(l.code)+' carrier drop-off</span><input class="cdrop" data-code="'+esc(l.code)+'" value="'+esc(l.carrierDropAddr||'')+'" placeholder="default: crew returns to base — or type the carrier\'s address / zip"></div>').join('')
+        +sl2.filter(l=>l._carrier).map(l=>'<div class="mirow cdwrap"><span class="ts" style="flex-shrink:0">🚛 '+esc(l.code)+' carrier drop-off</span><span class="cdcol"><input class="cdrop" data-code="'+esc(l.code)+'" value="'+esc(l.carrierDropAddr||'')+'" placeholder="default: crew returns to base — or type the carrier\'s address / zip"><span class="ajhint cdhint">'+(l.carrierDrop?'✓ '+esc(l.carrierDrop.city)+', '+esc(l.carrierDrop.state):'')+'</span></span></div>').join('')
         +'<div class="mirow mexcls">'+sl2.map(l=>'<span class="mexwrap"><label class="ajsw mexcl" title="Take '+esc(l.code)+' off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" data-k="'+esc(jobKey(l))+'" data-t="'+esc(l.customer||l.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(l))?'':' checked')+'><i></i></label><span class="ts">on board · '+esc(l.code)+'</span></span>').join('')+'</div>'
         +assignCtrlsHTML(r)
         +'</div>';
