@@ -1559,17 +1559,20 @@ function renderAlert(){
     if(!DATA.days[iso])continue;
     const {avail,off}=foremenAvailOn(iso);
     let need,un,dbl;
+    let dblTxt='';
     if(iso===currentDay){
       need=routes.length;un=routes.filter(r=>!r.foreman).length;
-      const byF={};routes.forEach(r=>{if(r.foreman)byF[r.foreman.name]=(byF[r.foreman.name]||0)+1;});
-      dbl=Object.values(byF).filter(n=>n>1).length;
+      const byF={};routes.forEach(r=>{if(r.foreman)(byF[r.foreman.name]=byF[r.foreman.name]||[]).push(r.id);});
+      const dd=Object.entries(byF).filter(([,ids])=>ids.length>1);
+      dbl=dd.length;
+      dblTxt=dd.map(([n,ids])=>{const f=DATA.foremen.find(x=>x.name===n);return (f?f.nick:n)+': '+ids.join('+');}).join(' · ');
     } else if((DATA.days[iso]||[]).filter(j=>!j.after&&!EXCL.has(jobKey(j))).length<=avail){
       continue; // can't be short even without reuse — skip the expensive sim
     } else {
-      const p=dayPlanOn(iso);need=p.routes;un=p.unassigned;dbl=p.doubles;
+      const p=dayPlanOn(iso);need=p.routes;un=p.unassigned;dbl=p.doubles;dblTxt=p.dblTxt||'';
     }
-    if(un>0)probs.push({iso,need,avail,off,gap:un,dbl,crit:true});
-    else if(dbl>0&&need>avail)probs.push({iso,need,avail,off,gap:0,dbl,crit:false});
+    if(un>0)probs.push({iso,need,avail,off,gap:un,dbl,dblTxt,crit:true});
+    else if(dbl>0&&need>avail)probs.push({iso,need,avail,off,gap:0,dbl,dblTxt,crit:false});
   }
   if(!probs.length){el.style.display='none';el.innerHTML='';return;}
   const crit=probs.some(p=>p.crit);
@@ -1579,7 +1582,7 @@ function renderAlert(){
   el.innerHTML='<div class="altitle">'+(crit?'⚠ FOREMEN SHORTAGE AHEAD':'△ Tight days — covered only by foremen running two routes')+'</div>'
     +'<div class="alrows">'+probs.slice(0,5).map(p=>
       '<span class="alday'+(p.crit?' c':'')+'" data-d="'+p.iso+'">'+fmt(p.iso)+' — '+p.need+' routes vs '+p.avail+' foremen'
-      +(p.crit?' · <b>'+p.gap+' route'+(p.gap>1?'s':'')+' with NO FOREMAN</b>':' · covered via '+p.dbl+' double-run'+(p.dbl>1?'s':''))+(p.off?' ('+p.off+' on day-off)':'')+'</span>').join('')
+      +(p.crit?' · <b>'+p.gap+' route'+(p.gap>1?'s':'')+' with NO FOREMAN</b>':' · covered, zero spare — <b>'+esc(p.dblTxt||p.dbl+' double-runs')+'</b> each run two routes')+(p.off?' ('+p.off+' on day-off)':'')+'</span>').join('')
     +(probs.length>5?'<span class="almore">+'+(probs.length-5)+' more days in the next 30</span>':'')+'</div>'
     +'<div class="ts" style="margin-top:7px">live — engine-true counts that recalculate with your on/off-board switches and chains · click a day to open it</div>';
   el.querySelectorAll('.alday').forEach(s=>s.addEventListener('click',()=>switchDay(s.dataset.d)));
