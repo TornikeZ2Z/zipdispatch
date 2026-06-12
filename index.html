@@ -506,11 +506,11 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .tlblock.sel{outline:3px solid var(--ink);z-index:2}
 .tlblock.nd{background-image:linear-gradient(90deg,transparent 78%,rgba(0,0,0,.28) 100%)}
 .chip.nd{background:#EFEAFB;border:1px solid #D4C8F0;color:#4F3D8E;font-weight:700}
-.layout.mapon.maponly{flex-direction:column}
-.layout.maponly #leftbar{display:none}
-.layout.maponly .rail{width:100%;max-width:none;min-height:0;padding:20px 24px 10px}
+.layout.mapon.maponly{display:grid;grid-template-columns:max-content minmax(0,1fr);grid-template-rows:max-content minmax(0,1fr)}
+.layout.maponly #leftbar{grid-column:1;grid-row:1/3}
+.layout.maponly .rail{grid-column:2;grid-row:1;width:auto;max-width:none;min-height:0;padding:20px 24px 10px}
 .layout.maponly #cards,.layout.maponly #cmpsummary,.layout.maponly #rosterwrap{display:none!important}
-.layout.mapon.maponly #mapwrap{position:relative;top:0;width:100%;flex:1 1 auto;height:calc(100vh - 300px);min-height:480px;border-left:none;border-top:1px solid var(--line)}
+.layout.mapon.maponly #mapwrap{grid-column:2;grid-row:2;position:relative;top:0;width:auto;height:calc(100vh - 300px);min-height:480px;border-left:none;border-top:1px solid var(--line)}
 .chip.calopen,a.calopen{text-decoration:none;background:#EAF3FB;border:1px solid #C8DEF2;color:#1F6FD6;font-weight:700;cursor:pointer}
 a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
 .chip.calopen:hover,a.calopen:hover{border-color:#1F6FD6}
@@ -736,6 +736,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:12.5px}
   <div id="rfwrap">
     <div class="rfrowbtns">
       <button id="addjob" title="A sudden new job or an extra A→B trip — add it and get instant placement advice">＋ Add job</button><button id="calpush" title="Write today's assignments back to the Google Calendar events" disabled>🗓 Update calendar</button>
+      <button id="bellbtn" style="display:none" title="Sync &amp; import notices — nothing here ever changes your board by itself">🔔<span id="bellct"></span></button>
       <button id="refreshbtn" title="One refresh for everything: crew/trucks/day-offs/rentals from the sheet + job changes from the calendar">↻ Refresh</button>
     </div>
     <span id="rfstamp"></span>
@@ -2357,6 +2358,7 @@ function truckRefs(r){
 const GCAL_ID='contact@ziptozipmoving.com';
 const GCAL_CLIENT_ID='712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com';
 let GTOKEN=null,GTOKEXP=0,_tokenClient=null;
+try{const _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.exp>Date.now()+60000){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
 function gcalReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
 function updateGcalUI(){updateCalBtn();}
 function updateViewBtns(){
@@ -2374,10 +2376,14 @@ function ensureGToken(cb){
   if(!GCAL_CLIENT_ID)return gModal('One-time setup needed','To connect the calendar, an OAuth Client ID must be created (takes ~5 min):<ol style="margin:10px 0 0 18px;line-height:1.7"><li>console.cloud.google.com → create/select a project</li><li>APIs &amp; Services → <b>Enable APIs</b> → enable <b>Google Calendar API</b></li><li>OAuth consent screen → External → add yourself (and the contact@ account) as test users</li><li>Credentials → Create credentials → <b>OAuth client ID</b> → Web application</li><li>Authorized JavaScript origins → add your hosted URL (e.g. <span class="mono">https://USERNAME.github.io</span>)</li><li>Copy the Client ID and send it to Claude — it gets baked into the next build</li></ol>');
   _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:()=>{}});
   _tokenClient.callback=resp=>{
-    if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);updateGcalUI();cb();}
+    if(resp&&resp.access_token){
+      GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);
+      try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP}));localStorage.setItem('zd_gconn','1');}catch(e){}
+      updateGcalUI();cb();
+    } else if(window._silentTok){window._silentTok=0;}
     else gModal('Sign-in failed',esc((resp&&resp.error)||'no token returned'));
   };
-  _tokenClient.requestAccessToken({prompt:GTOKEN?'':'consent'});
+  _tokenClient.requestAccessToken({prompt:(GTOKEN||localStorage.getItem('zd_gconn'))?'':'consent'});
 }
 async function gapiFetch(path,opts){
   const r=await fetch('https://www.googleapis.com/calendar/v3/'+path,Object.assign({},opts,{headers:Object.assign({Authorization:'Bearer '+GTOKEN,'Content-Type':'application/json'},(opts&&opts.headers)||{})}));
@@ -2884,7 +2890,10 @@ function backAtBaseMs(r){
 }
 function jobChecks(j){
   const out=[];
-  if(j.actH&&j.actH>=14)out.push('ACT Time '+j.actH+'h — runs past midnight; check the calendar (typo? 4.5 vs 45)');
+  const _isLD=/long/i.test(String(j.movingType||''));
+  if(j.actH&&j.actH>=14&&!_isLD)out.push('ACT Time '+j.actH+'h — runs past midnight; check the calendar (typo? 4.5 vs 45)');
+  const _blob=(j.customer||'')+' '+(j.jobType||'')+' '+(j.movingType||'')+' '+(j.code||'');
+  if(/in.?home.{0,12}estimat|estimat.{0,12}in.?home|\bestimate\b|walk.?through|site (visit|survey)/i.test(_blob))out.push('Looks like an in-home estimate / site visit, not a move — if so, switch it off the board with the On-board toggle (your call, never automatic)');
   if(/local/i.test(String(j.movingType||''))&&j.actH&&j.actH>=12&&j.actH<14)out.push('Local Moving with ACT '+j.actH+'h — local jobs finish within a day; double-check the calendar');
   const h=+String(j.start).slice(11,13);
   const svc=/labor|estimate/i.test(j.jobType||'');
@@ -3512,12 +3521,30 @@ async function fetchTab(name){
   return rows.slice(1).map(rw=>{const o={};head.forEach((h,i)=>o[h]=rw[i]!==undefined?rw[i]:'');return o;});
 }
 let RF_ISSUES=[];
+let SYS_NOTICES=[];
+function bellUpdate(){
+  const b=document.getElementById('bellbtn');if(!b)return;
+  b.style.display=SYS_NOTICES.length?'':'none';
+  document.getElementById('bellct').textContent=SYS_NOTICES.length;
+}
+function bellAdd(key,info){SYS_NOTICES.unshift({key,info,when:new Date().toTimeString().slice(0,5)});if(SYS_NOTICES.length>40)SYS_NOTICES.length=40;bellUpdate();}
+function bellModal(){
+  gModal('Notices — sync &amp; import',(SYS_NOTICES.length?SYS_NOTICES.map(x=>'<div class="skrow"><b>'+esc(x.when)+' · '+esc(x.key)+'</b><span>'+esc(x.info)+'</span></div>').join(''):'<div class="gsub">Nothing here — all clear.</div>')
+    +'<div style="margin-top:12px"><button class="gapply" id="bellclear">Clear all</button></div>');
+  const c=document.getElementById('bellclear');if(c)c.onclick=()=>{SYS_NOTICES=[];bellUpdate();document.getElementById('gmodal').classList.remove('show');};
+}
 function rfStep(key,state,info){
   if(state==='fail')RF_ISSUES.push({key,info:info||'failed'});
 }
 function rfFinish(){
   if(RF_ISSUES.length){
-    gModal('Refresh finished — with '+RF_ISSUES.length+' issue'+(RF_ISSUES.length>1?'s':''),
+    RF_ISSUES.forEach(x=>bellAdd(x.key,x.info));
+    toast('↻ done — '+RF_ISSUES.length+' notice'+(RF_ISSUES.length>1?'s':'')+' in the 🔔');
+    RF_ISSUES=[];
+    return;
+  }
+  if(false){
+    gModal('never',
       '<div class="gsub">Everything else was updated. These need attention:</div>'
       +RF_ISSUES.map(x=>'<div class="skrow"><b>'+esc(x.key)+'</b><span>'+esc(x.info)+'</span></div>').join(''));
   } else {
@@ -3853,6 +3880,29 @@ document.getElementById('allmapbtn').addEventListener('click',()=>{
 window.addEventListener('resize',()=>{if(LMAP)LMAP.invalidateSize();});
 render();
 setViewMode('timeline');updateViewBtns();
+// silent re-connect: if the calendar was connected before, renew the token in the background — no popups, no consent screens
+if(!window._gsiFail&&localStorage.getItem('zd_gconn')&&(!GTOKEN||Date.now()>GTOKEXP-300000)){
+  setTimeout(()=>{try{
+    if(!gcalReady())return;
+    window._silentTok=1;
+    _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:()=>{}});
+    _tokenClient.callback=resp=>{
+      if(resp&&resp.access_token){
+        GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);
+        try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP}));}catch(e){}
+        updateGcalUI();
+      }
+      window._silentTok=0;
+    };
+    _tokenClient.requestAccessToken({prompt:''});
+  }catch(e){}},900);
+}
+// keep it fresh while the tab lives
+setInterval(()=>{
+  if(!GTOKEN||window._gsiFail||!localStorage.getItem('zd_gconn'))return;
+  if(Date.now()<GTOKEXP-420000)return;
+  try{window._silentTok=1;_tokenClient.requestAccessToken({prompt:''});}catch(e){}
+},300000);
 </script>
 </body>
 </html>
