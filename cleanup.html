@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Calendar Cleanup · Zip To Zip</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -20,8 +22,6 @@
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px 80px}
-
-/* header */
 header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:14px 0 12px;margin-bottom:20px}
 .hbar{max-width:1180px;margin:0 auto;padding:0 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:11px;min-width:0}
@@ -32,12 +32,8 @@ header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop
 .hctrls label{font-size:12.5px;color:var(--dim);font-weight:600;display:flex;align-items:center;gap:6px}
 .hctrls input[type=date],.hctrls select{font-family:'Inter';font-size:14px;border:1.5px solid var(--line2);border-radius:9px;padding:7px 10px;background:var(--card);color:var(--ink);font-weight:600}
 .stamp{font-size:11.5px;color:var(--faint);width:100%;max-width:1180px;margin:8px auto 0;padding:0 20px}
-
-/* intro */
 .intro{background:var(--violet-bg);border:1px solid var(--violet-bd);border-radius:14px;padding:14px 18px;margin-bottom:18px;font-size:14px;color:var(--dim)}
 .intro b{color:var(--violet)}
-
-/* horizon strip */
 .sec-h{font-family:'Barlow Condensed';font-weight:700;font-size:15px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin:0 0 10px}
 #horizon{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:26px}
 .dpill{background:var(--card);border:1.5px solid var(--line);border-radius:13px;padding:12px 13px;cursor:pointer;transition:.15s;position:relative;box-shadow:var(--shadow)}
@@ -52,8 +48,6 @@ header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop
 .b-ok{background:var(--green-bg);color:var(--green)}
 .b-tight{background:var(--amber-bg);color:var(--amber)}
 .b-short{background:var(--red-bg);color:var(--red)}
-
-/* day detail */
 #daydetail{min-height:60px}
 .daycard{background:var(--card);border:1.5px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:22px}
 .dchead{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
@@ -61,8 +55,6 @@ header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop
 .dcsum{font-size:14px;color:var(--dim);margin-top:2px}
 .statuschip{margin-left:auto;font-size:12.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:6px 13px;border-radius:999px;align-self:center}
 .dcbody{padding:6px 20px 18px}
-
-/* per-base diagnostic */
 .bases{display:flex;flex-wrap:wrap;gap:8px;padding:14px 0 6px;border-bottom:1px dashed var(--line)}
 .bch{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 11px;font-size:13px}
 .bch b{font-family:'Barlow Condensed';font-size:15px;letter-spacing:.04em}
@@ -70,12 +62,10 @@ header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop
 .bch.hot{background:var(--red-bg);border-color:var(--red-bd)}
 .bch.hot .pr{color:var(--red)}
 .bch.warm{background:var(--amber-bg);border-color:var(--amber-bd)}
-
-/* ladder sections */
 .ladder{margin-top:4px}
 .lstep{padding:15px 0;border-bottom:1px solid var(--line)}
 .lstep:last-child{border-bottom:none}
-.lhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.lhead{display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap}
 .lnum{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
 .lnum.free{background:var(--green-bg);color:var(--green)}
 .lnum.call{background:var(--violet-bg);color:var(--violet)}
@@ -92,25 +82,39 @@ header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop
 .iwhere{font-size:12.5px;color:var(--faint)}
 .iaction{font-size:13.5px;color:var(--dim);margin-top:5px}
 .iaction b{color:var(--ink)}
+.win{font-family:'IBM Plex Mono';font-weight:600;background:var(--violet-bg);color:var(--violet);border-radius:6px;padding:1px 7px;border:1px solid var(--violet-bd);font-size:13px;white-space:nowrap}
 .script{font-size:13px;color:var(--violet);background:var(--violet-bg);border-radius:8px;padding:8px 11px;margin-top:8px;border:1px solid var(--violet-bd)}
-.ibtns{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+.ibtns{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .ib{font-family:'Inter';font-weight:700;font-size:12.5px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:8px;padding:6px 12px;cursor:pointer;transition:.12s}
 .ib:hover{border-color:var(--ink);color:var(--ink)}
 .ib.on-done{background:var(--green);border-color:var(--green);color:#fff}
 .ib.on-decl{background:var(--red);border-color:var(--red);color:#fff}
 .ib.on-todo{background:var(--violet);border-color:var(--violet);color:#fff}
+.ibmap{margin-left:auto;border-color:var(--violet-bd);color:var(--violet)}
+.ibmap:hover{background:var(--violet);border-color:var(--violet);color:#fff}
 .tag{font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;margin-left:6px}
 .tag.big{background:var(--red-bg);color:var(--red)}
 .tag.med{background:var(--amber-bg);color:var(--amber)}
 .tag.sm{background:var(--green-bg);color:var(--green)}
-
 .result{margin-top:14px;padding:13px 16px;border-radius:12px;font-size:14.5px;font-weight:600}
 .result.ok{background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green)}
 .result.no{background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber)}
 .empty{color:var(--faint);font-size:14px;padding:14px 0}
 .muted{color:var(--faint)}
 .pickprompt{text-align:center;color:var(--faint);font-size:15px;padding:40px 20px;background:var(--card);border:1.5px dashed var(--line2);border-radius:16px}
-
+/* map modal */
+#cmapmodal{position:fixed;inset:0;z-index:3000;background:rgba(20,18,40,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px}
+#cmapmodal.show{display:flex}
+.cmapbox{background:var(--card);border-radius:18px;width:min(900px,96vw);max-height:92vh;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.4);display:flex;flex-direction:column}
+.cmaphead{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.cmaphead .t{font-weight:700;font-size:15.5px}
+.cmaphead .x{margin-left:auto;border:1.5px solid var(--line2);background:var(--card);border-radius:9px;font-weight:700;font-size:14px;padding:6px 13px;cursor:pointer;color:var(--dim)}
+.cmaphead .x:hover{border-color:var(--ink);color:var(--ink)}
+#cmap{height:min(560px,70vh);width:100%}
+.cmaplegend{padding:9px 18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--faint);display:flex;gap:16px;flex-wrap:wrap}
+.cmaplegend i{font-style:normal;display:inline-flex;align-items:center;gap:6px}
+.dotc{width:11px;height:11px;border-radius:50%;display:inline-block}
+.leaflet-container{font-family:'Inter',sans-serif}
 @media (max-width:720px){
   .wrap{padding:0 12px 90px}
   .hbar{padding:0 12px;gap:10px}
@@ -118,7 +122,7 @@ header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop
   #horizon{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
   .dchead h2{font-size:21px}
   .items,.lnote{margin-left:0}
-  .lnum{margin-right:2px}
+  .ibmap{margin-left:0}
 }
 </style>
 </head>
@@ -126,8 +130,8 @@ header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop
 <header>
   <div class="hbar">
     <div class="brand">
-      <div class="blogo">🗓</div>
-      <div class="btxt"><b>Calendar Cleanup</b><span>plan crews ahead · Zip To Zip support</span></div>
+      <div class="blogo">&#128197;</div>
+      <div class="btxt"><b>Calendar Cleanup</b><span>plan crews ahead &middot; Zip To Zip support</span></div>
     </div>
     <div class="hctrls">
       <label>From <input type="date" id="fromDate"></label>
@@ -143,19 +147,30 @@ header{position:sticky;top:0;z-index:40;background:rgba(247,246,251,.9);backdrop
   </div>
   <div class="stamp" id="stamp"></div>
 </header>
-
 <div class="wrap">
   <div class="intro">
-    Find the days where your <b>core crews</b> can't cover every route — before they become a day-of scramble.
-    Work each one down the ladder: <b>re-chain</b> (free) → <b>call the customer</b> to arrive later for a discount → <b>move the job</b> to a lighter day.
-    Every route you clear frees a crew and opens real availability for sales.
+    Find the days where your <b>core crews</b> can't cover every route &mdash; before they become a day-of scramble.
+    Work each one down the ladder: <b>re-chain</b> (free) &rarr; <b>call the customer</b> to arrive later for a discount &rarr; <b>move the job</b> to a lighter day.
+    Each suggestion tells you <b>which job to attach it to</b> and the <b>arrival window</b>, and you can see the route on the map.
   </div>
-
-  <div class="sec-h">Next days — crew load</div>
+  <div class="sec-h">Next days &mdash; crew load</div>
   <div id="horizon"></div>
-
   <div class="sec-h">Cleanup plan</div>
   <div id="daydetail"></div>
+</div>
+
+<div id="cmapmodal">
+  <div class="cmapbox">
+    <div class="cmaphead"><span class="t" id="cmaptitle">Route</span><button class="x" id="cmapx">Close</button></div>
+    <div id="cmap"></div>
+    <div class="cmaplegend">
+      <i><span class="dotc" style="background:#8983A0"></span> crew finishes here</i>
+      <i><span class="dotc" style="background:#1F2329"></span> pickup</i>
+      <i><span class="dotc" style="background:#5B4BD6"></span> delivery</i>
+      <i><span style="display:inline-block;width:18px;border-top:3px dashed #B26B0B"></span> drive to next job</i>
+      <i><span style="display:inline-block;width:18px;border-top:3px solid #5B4BD6"></span> the job</i>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -758,13 +773,26 @@ function estRoutesOn(dayIso){
 /* exports for node */
 </script>
 <script>
-// ============ CALENDAR CLEANUP ENGINE (layer on top of engine_core) ============
-// Appended into the same scope as engine_core so it can read DATA, buildRoutes,
-// detectAutoChains, assignAll, CHAIN_RULES, hav, schedH, INREGION, foremenAvailOn, etc.
+// ============ CALENDAR CLEANUP ENGINE v2 (layer on top of engine_core) ============
+const CLEAN = { maxArrivalHr: 16, windowDays: 7, openHr: 8 };
 
-const CLEAN = { maxArrivalHr: 16, windowDays: 7 };
+function jobByCode(code){
+  for(const iso in DATA.days){ const arr=DATA.days[iso]||[]; for(const j of arr){ if(j.code===code) return j; } }
+  return null;
+}
+function shortName(c){ return c? String(c).trim().split(/\s+/)[0] : ''; }
+function ptOf(p){ return (p && p.lat!=null && p.lon!=null)? {lat:p.lat, lon:p.lon} : null; }
 
-// Active (core) crews available on a day — the capacity we measure against
+function cleanWindow(arriveMs, dayIso){
+  const ceil = Date.parse(dayIso+'T'+String(CLEAN.maxArrivalHr).padStart(2,'0')+':00');
+  let s = new Date(arriveMs); s.setMinutes(0,0,0);
+  let sMs = s.getTime();
+  let eMs = Math.min(ceil, sMs + 2*3600000);
+  if (eMs - sMs < 3600000) sMs = eMs - 2*3600000;
+  const f = ms => { const d=new Date(ms); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+  return { start:f(sMs), end:f(eMs), text:f(sMs)+'\u2013'+f(eMs) };
+}
+
 function coreAvailOn(iso){
   const a = DATA.foremen.filter(f=>f.status==='Active');
   const off = new Set();
@@ -774,195 +802,234 @@ function coreAvailOn(iso){
   return { avail: a.length-off.size, off:[...off], total:a.length };
 }
 
-// Build the day's routes (with normal auto-chains applied), return rich info.
-// Mutates module globals temporarily; restores after.
+function _buildDayRoutes(iso){
+  DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=[];
+  let rts=buildRoutes();
+  const normalChains=[];
+  for(let g=0;g<2;g++){ const det=detectAutoChains(rts); if(!det.length)break; det.forEach(c=>normalChains.push(c)); AUTOCHAINS=AUTOCHAINS.concat(det); rts=buildRoutes(); }
+  return {routes:rts, normalChains};
+}
+
 function dayRoutes(iso){
   const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay;
   try{
-    DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=[];
-    let rts=buildRoutes();
-    const normalChains=[];
-    for(let g=0;g<2;g++){ const det=detectAutoChains(rts); if(!det.length)break; det.forEach(c=>normalChains.push(c)); AUTOCHAINS=AUTOCHAINS.concat(det); rts=buildRoutes(); }
-    assignAll(rts,getW(),'nearest');
-    // snapshot the bits we need (deep enough to survive restore)
-    const snap = rts.map(r=>({
-      id:r.id, base:r.base, crew:r.crew, totalCF:r.totalCF, legs:r.legs.length,
-      isLD:r.isLD, hasCarrier:r.hasCarrier, ldDeparture:r.ldDeparture,
+    const {routes,normalChains}=_buildDayRoutes(iso);
+    assignAll(routes,getW(),'nearest');
+    const snap=routes.map(r=>({id:r.id,base:r.base,crew:r.crew,totalCF:r.totalCF,legs:r.legs.length,
       foreman:r.foreman?{name:r.foreman.name,nick:r.foreman.nick,status:r.foreman.status}:null,
-      codes:r.legs.map(l=>l.code),
-      headCode:r.legs[0].code, headStart:r.legs[0].start, headCity:r.legs[0].cityFrom
-    }));
-    return { routes:snap, normalChains:normalChains.slice() };
+      codes:r.legs.map(l=>l.code), headCode:r.legs[0].code}));
+    return {routes:snap, normalChains:normalChains.slice()};
   } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; }
 }
 
-// ---- EXTRA-CHAIN detection (relaxed lateness, capped at maxArrivalHr) ----
-// Mirrors detectAutoChains but: accept links that ONLY fail the +30min lateness rule,
-// as long as the crew can arrive by maxArrivalHr (we then ask that customer to start later).
-// `extra` chains are returned separately from normal ones.
+function _linkFeasible(A, jt){
+  if(A.ldDeparture) return {ok:false};
+  if(A.legs.length>=CHAIN_RULES.maxJobs) return {ok:false};
+  if(A.legs.some(x=>(x.cf||0)>CHAIN_RULES.maxCF)) return {ok:false};
+  if((jt.cf||0)>CHAIN_RULES.maxCF) return {ok:false};
+  if(!jt.pickup||!jt.delivery||!INREGION(jt.delivery)) return {ok:false};
+  const la=[...A.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).slice(-1)[0];
+  if(!la.delivery||!INREGION(la.delivery)) return {ok:false};
+  const at1=Math.max(...A.legs.map(l=>l._endMs||Date.parse(l.end||l.start||0)));
+  const rm=cachedRoadMi(la.delivery, jt.pickup);
+  const linkMi=(rm!=null?rm:hav(la.delivery, jt.pickup)*1.15);
+  const driveMs=linkMi/35*3600000;
+  if(driveMs>CHAIN_RULES.maxDriveMin*60000) return {ok:false};
+  const bt0=Date.parse(jt.start);
+  const eta=at1+driveMs;
+  const dayIso=String(jt.start).slice(0,10);
+  const ceil=Date.parse(dayIso+'T'+String(CLEAN.maxArrivalHr).padStart(2,'0')+':00');
+  const normal = eta <= bt0 + CHAIN_RULES.lateMin*60000;
+  const arriveMs = normal ? Math.max(eta, bt0) : eta;
+  if(!normal && eta>ceil) return {ok:false};
+  const ws=arriveMs;
+  const p2d=hav(jt.pickup, jt.delivery)/35*3600000*1.15;
+  const done=ws+((jt.actH||schedH(jt))*3600000)+p2d;
+  if(done>Date.parse(dayIso+'T23:59')) return {ok:false};
+  if(Math.max(A.crew, jt.crew||2)>6) return {ok:false};
+  return {ok:true, arriveMs, linkMi:Math.round(linkMi), normal, anchorLeg:la};
+}
+
+function bestAnchorFor(jobObj, routes){
+  let best=null;
+  for(const A of routes){ const f=_linkFeasible(A, jobObj); if(f.ok && (!best || f.linkMi<best.linkMi)) best={A, ...f}; }
+  return best;
+}
+
+function recGeo(anchorLeg, jobObj){
+  const stops=[];
+  if(anchorLeg){ const d=ptOf(anchorLeg.delivery)||ptOf(anchorLeg.pickup); if(d) stops.push({lat:d.lat,lon:d.lon, kind:'A', label:'crew finishes \u00b7 '+(anchorLeg.cityTo||anchorLeg.cityFrom||''), customer:anchorLeg.customer||''}); }
+  const p=ptOf(jobObj.pickup); if(p) stops.push({lat:p.lat,lon:p.lon, kind:'P', label:'pickup \u00b7 '+(jobObj.cityFrom||''), customer:jobObj.customer||''});
+  const d=ptOf(jobObj.delivery); if(d) stops.push({lat:d.lat,lon:d.lon, kind:'D', label:'delivery \u00b7 '+(jobObj.cityTo||''), customer:jobObj.customer||''});
+  return stops;
+}
+
 function detectExtraChains(rts){
   const out=[]; const tailsTaken=new Set();
-  const dayCeil = (iso)=>Date.parse(String(iso).slice(0,10)+'T'+String(CLEAN.maxArrivalHr).padStart(2,'0')+':00');
   const singles = rts.filter(r=>r.legs.length===1 && !r.legs[0].after
         && (r.legs[0].cf||0)<=CHAIN_RULES.maxCF && !AUTOOFFLIST.has(r.legs[0].code))
       .sort((a,b)=>Date.parse(a.legs[0].start)-Date.parse(b.legs[0].start));
   for(const B of singles){
-    if(B.ldDeparture)continue;
     const lb=B.legs[0];
-    if(!lb.pickup||!lb.delivery||!INREGION(lb.delivery))continue;
-    const bt0=Date.parse(lb.start);
-    const ceil=dayCeil(lb.start);
     let best=null;
     for(const A of rts){
-      if(A===B||A.ldDeparture)continue;
-      if(A.legs.length>=CHAIN_RULES.maxJobs)continue;
-      if(A.legs.some(x=>(x.cf||0)>CHAIN_RULES.maxCF))continue;
-      if(tailsTaken.has(A.id))continue;
-      const la=[...A.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).slice(-1)[0];
-      if(!la.delivery||!INREGION(la.delivery))continue;
-      const at1=Math.max(...A.legs.map(l=>l._endMs||Date.parse(l.end||l.start||0)));
-      const rm=cachedRoadMi(la.delivery,lb.pickup);
-      const linkMi=(rm!=null?rm:hav(la.delivery,lb.pickup)*1.15);
-      const driveMs=linkMi/35*3600000;
-      if(driveMs>CHAIN_RULES.maxDriveMin*60000)continue;     // link drive cap (same)
-      const eta=at1+driveMs;
-      // RELAXED: normal chain already covers eta <= bt0+30min. We want the ones that MISS that
-      // but still land by the ceiling — i.e. we must phone the customer to push them later.
-      if(eta <= bt0+CHAIN_RULES.lateMin*60000) continue;     // that's a normal chain, not an extra
-      if(eta > ceil) continue;                                // beyond what we'd ever ask (14:00-16:00)
-      // same-day completion at the (later) asked start
-      const ws=eta;
-      const p2d=(lb.pickup&&lb.delivery)?hav(lb.pickup,lb.delivery)/35*3600000*1.15:0;
-      const done=ws+((lb.actH||schedH(lb))*3600000)+p2d;
-      if(done>Date.parse(String(lb.start).slice(0,10)+'T23:59'))continue;
-      if(Math.max(A.crew,B.crew)>6)continue;
-      if(!best||linkMi<best.linkMi)best={A,linkMi,la,eta};
+      if(A===B||tailsTaken.has(A.id))continue;
+      const f=_linkFeasible(A, lb);
+      if(!f.ok || f.normal) continue;
+      if(!best || f.linkMi<best.linkMi) best={A, ...f};
     }
     if(best){
       tailsTaken.add(best.A.id);
-      out.push({ tail:lb.code, after:best.la.code, extra:true, linkMi:Math.round(best.linkMi),
-                 askArriveMs:best.eta, origStartMs:bt0,
-                 customer:lb.customer||'', city:lb.cityFrom||'', cf:lb.cf||0 });
+      out.push({ tail:lb.code, after:best.anchorLeg.code, extra:true, linkMi:best.linkMi,
+                 askArriveMs:best.arriveMs, origStartMs:Date.parse(lb.start),
+                 customer:lb.customer||'', city:lb.cityFrom||'', cf:lb.cf||0,
+                 anchorCustomer:best.anchorLeg.customer||'', anchorCity:best.anchorLeg.cityTo||best.anchorLeg.cityFrom||'',
+                 geo:recGeo(best.anchorLeg, lb) });
     }
   }
   return out;
 }
 
-// Simulate: how many routes after applying a given set of chain pairs?
 function routeCountWith(iso, chainPairs){
   const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay;
+  try{ DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=chainPairs.slice(); return buildRoutes().length; }
+  finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; }
+}
+
+function slotOnTarget(jobObj, targetIso){
+  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay;
   try{
-    DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=chainPairs.slice();
-    let rts=buildRoutes();
-    return rts.length;
+    const {routes}=_buildDayRoutes(targetIso);
+    const probe=Object.assign({}, jobObj, {start: targetIso+' '+String(jobObj.start).slice(11)});
+    const anchor=bestAnchorFor(probe, routes);
+    if(anchor){
+      return { fresh:false, anchorCode:anchor.anchorLeg.code, anchorCustomer:anchor.anchorLeg.customer||'',
+               anchorCity:anchor.anchorLeg.cityTo||anchor.anchorLeg.cityFrom||'', arriveMs:anchor.arriveMs,
+               window:cleanWindow(anchor.arriveMs, targetIso), linkMi:anchor.linkMi, geo:recGeo(anchor.anchorLeg, probe) };
+    }
+    const ms=Date.parse(probe.start);
+    return { fresh:true, origStartMs:ms, geo:recGeo(null, probe) };
   } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; }
 }
 
-// ---- The full per-day cleanup plan ----
 function cleanupPlan(iso, horizonSlack){
   const core = coreAvailOn(iso);
   const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay;
-  let normalChains=[], baseRouteCount=0, extraCands=[];
+  let normalChainsRaw=[], baseRouteCount=0, extraCands=[];
   try{
-    DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=[];
-    let rts=buildRoutes();
-    for(let g=0;g<2;g++){ const det=detectAutoChains(rts); if(!det.length)break; det.forEach(c=>normalChains.push(c)); AUTOCHAINS=AUTOCHAINS.concat(det); rts=buildRoutes(); }
-    baseRouteCount=rts.length;
-    // extra-chain candidates on the post-normal-chain route set
-    extraCands=detectExtraChains(rts);
+    const built=_buildDayRoutes(iso);
+    normalChainsRaw=built.normalChains; baseRouteCount=built.routes.length;
+    extraCands=detectExtraChains(built.routes);
   } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; }
 
-  const spare0 = core.avail - baseRouteCount;        // negative => over capacity
-  let need = Math.max(0, -spare0);                    // routes we must shed to fit core crews
+  const normalChains = normalChainsRaw.map(c=>{
+    const jt=jobByCode(c.tail), ja=jobByCode(c.after);
+    return { tail:c.tail, after:c.after, linkMi:c.linkMi,
+             customer:jt?jt.customer:'', city:jt?jt.cityFrom:'',
+             anchorCustomer:ja?ja.customer:'', anchorCity:ja?(ja.cityTo||ja.cityFrom):'',
+             startMs: jt?Date.parse(jt.start):null,
+             geo: (jt&&ja)?recGeo(ja, jt):(jt?recGeo(null,jt):[]) };
+  });
 
-  // Greedily apply extra-chains that actually reduce the route count
-  const applied = normalChains.slice();
-  const extraUsed=[];
-  let routesNow = baseRouteCount;
+  const spare0 = core.avail - baseRouteCount;
+  let need = Math.max(0, -spare0);
+
+  const applied = normalChainsRaw.map(c=>({tail:c.tail, after:c.after}));
+  const extraUsed=[]; let routesNow=baseRouteCount;
   for(const ec of extraCands){
-    if(need<=0) break;
-    const trial = applied.concat([{tail:ec.tail, after:ec.after}]);
-    const rc = routeCountWith(iso, trial);
-    if(rc < routesNow){ applied.push({tail:ec.tail, after:ec.after}); extraUsed.push(ec); routesNow=rc; need--; }
+    if(need<=0)break;
+    const rc=routeCountWith(iso, applied.concat([{tail:ec.tail, after:ec.after}]));
+    if(rc<routesNow){ applied.push({tail:ec.tail, after:ec.after}); ec.window=cleanWindow(ec.askArriveMs, iso); extraUsed.push(ec); routesNow=rc; need--; }
   }
 
-  // Date-moves for whatever is still short: find movable jobs + a lighter target day
   const moves=[];
   if(need>0){
-    // candidate movable jobs on this day: single-leg, in-region, not LD/carrier, smallest first
     const jobs=(DATA.days[iso]||[]).filter(j=>j.first && !j.after && !EXCL.has(jobKey(j)));
     const movable = jobs.filter(j=>{
-      if(/long/i.test(j.movingType||''))return false;       // LD immovable
+      if(/long/i.test(j.movingType||''))return false;
       if(j._confirmed)return false;
       if(j.delivery && !INREGION(j.delivery))return false;
       return true;
     }).sort((a,b)=>(a.cf||0)-(b.cf||0));
-    const usedCodes=new Set([...extraUsed.map(e=>e.tail)]);
+    const usedCodes=new Set(extraUsed.map(e=>e.tail));
+    const base=Date.parse(iso+'T12:00');
     for(const j of movable){
       if(need<=0)break;
       if(usedCodes.has(j.code))continue;
-      // find the CLOSEST day (by date distance) with real slack (>=1 spare after taking this job)
-      let target=null, tObj=null;
-      const base=Date.parse(iso+'T12:00');
       const cands=horizonSlack.filter(t=>t.iso!==iso && t.spareNow>=1)
         .sort((x,y)=>Math.abs(Date.parse(x.iso+'T12:00')-base)-Math.abs(Date.parse(y.iso+'T12:00')-base));
-      if(cands.length){ tObj=cands[0]; target=tObj.iso; tObj.spareNow--; }
-      if(target){ moves.push({code:j.code, customer:j.customer||'', city:j.cityFrom||'', cf:j.cf||0, from:iso, to:target}); usedCodes.add(j.code); need--; }
+      if(!cands.length)break;
+      const target=cands[0]; target.spareNow--;
+      const slot=slotOnTarget(j, target.iso);
+      moves.push({ code:j.code, customer:j.customer||'', city:j.cityFrom||'', cf:j.cf||0, from:iso, to:target.iso, slot });
+      usedCodes.add(j.code); need--;
     }
   }
 
   const finalRoutes = baseRouteCount - extraUsed.length - moves.length;
   const finalSpare = core.avail - finalRoutes;
-  return {
-    iso, coreAvail:core.avail, coreOff:core.off,
-    routes:baseRouteCount, spare:spare0,
-    status: spare0<0?'short':(spare0===0?'tight':'ok'),
-    normalChains, extraChains:extraUsed, moves,
-    residual: Math.max(0, -finalSpare),
-    finalRoutes, finalSpare,
-    cleared: finalSpare>=0
-  };
+  return { iso, coreAvail:core.avail, coreOff:core.off, routes:baseRouteCount, spare:spare0,
+           status: spare0<0?'short':(spare0===0?'tight':'ok'),
+           normalChains, extraChains:extraUsed, moves,
+           residual:Math.max(0,-finalSpare), finalRoutes, finalSpare, cleared:finalSpare>=0 };
 }
 
-// Horizon scan: returns per-day summary + the slack map used for move targeting
 function scanHorizon(fromIso, nDays){
-  const days=[];
-  const start=Date.parse(fromIso+'T12:00');
+  const days=[]; const start=Date.parse(fromIso+'T12:00');
   for(let i=0;i<nDays;i++){
     const d=new Date(start+i*86400000);
     const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     if(!DATA.days[iso])continue;
     const core=coreAvailOn(iso);
-    const dr=dayRoutes(iso);
-    const routes=dr.routes.length;
+    const routes=dayRoutes(iso).routes.length;
     const spare=core.avail-routes;
-    days.push({iso, routes, coreAvail:core.avail, spare, spareNow:spare,
-               status: spare<0?'short':(spare===0?'tight':'ok')});
+    days.push({iso, routes, coreAvail:core.avail, spare, spareNow:spare, status: spare<0?'short':(spare===0?'tight':'ok')});
   }
   return days;
 }
 </script>
 <script>
+/* ===== HERE truck routing (reused from dispatcher) ===== */
+const hereCacheUI={};
+const HERE_KEY='0IGXB_hGz84InzFmhfCygxp27_54NI-LkjL6N5RSYT8';
+function decodeFlexPoly(encoded){
+  const DEC='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const idx={};[...DEC].forEach((c,i)=>idx[c]=i);
+  let i=0;
+  function varint(){let r=0,s=0,b;do{b=idx[encoded[i++]];r|=(b&31)<<s;s+=5;}while(b>=32);return r;}
+  function svarint(){const r=varint();return (r&1)?~(r>>>1):(r>>>1);}
+  varint();const meta=varint();const precision=meta&15,thirdDim=(meta>>4)&7;
+  const factor=Math.pow(10,precision);let lat=0,lng=0;const pts=[];
+  while(i<encoded.length){lat+=svarint();lng+=svarint();if(thirdDim)svarint();pts.push([lat/factor,lng/factor]);}
+  return pts;
+}
+async function truckRoute(a,b){
+  const ck=a.join()+'|'+b.join();
+  if(hereCacheUI[ck]!==undefined)return hereCacheUI[ck];
+  const p=(async()=>{try{
+    const u='https://router.hereapi.com/v8/routes?transportMode=truck&routingMode=fast&origin='+a[0]+','+a[1]+'&destination='+b[0]+','+b[1]+'&return=polyline,summary&apikey='+encodeURIComponent(HERE_KEY);
+    const res=await fetch(u);if(!res.ok)throw 0;const j=await res.json();
+    const sec=(j.routes&&j.routes[0]&&j.routes[0].sections)||[];if(!sec.length)throw 0;
+    let pts=[],len=0,dur=0;for(const s of sec){pts=pts.concat(decodeFlexPoly(s.polyline));len+=s.summary.length;dur+=s.summary.duration;}
+    const out={pts,mi:len/1609.34,min:dur/60};hereCacheUI[ck]=out;return out;
+  }catch(e){hereCacheUI[ck]=null;return null;}})();
+  hereCacheUI[ck]=p;return p;
+}
+
 /* ============ SUPPORT COCKPIT UI ============ */
 const $=id=>document.getElementById(id);
 const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function fmtDay(iso){const d=new Date(Date.parse(iso+'T12:00'));return {dow:DOW[d.getDay()],dn:d.getDate(),mon:MON[d.getMonth()]};}
-function hm(ms){return new Date(ms).toTimeString().slice(0,5);}
 function hmPretty(ms){let h=new Date(ms).getHours(),m=new Date(ms).getMinutes();const ap=h<12?'am':'pm';let h12=h%12;if(h12===0)h12=12;return h12+(m?':'+String(m).padStart(2,'0'):'')+ap;}
-
-// status persistence
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function loadStatus(){try{return JSON.parse(localStorage.getItem('zc_status')||'{}');}catch(e){return {};}}
 function saveStatus(s){try{localStorage.setItem('zc_status',JSON.stringify(s));}catch(e){}}
 let STATUS=loadStatus();
 function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STATUS);}
+let WINDOW=[]; let SELECTED=null; let GEOS={};
 
-let WINDOW=[]; let SELECTED=null;
-
-function windowStart(){
-  const v=$('fromDate').value;
-  return v||TODAY_ISO;
-}
+function windowStart(){return $('fromDate').value||TODAY_ISO;}
 
 function renderHorizon(){
   const from=windowStart(), len=+$('winLen').value;
@@ -979,13 +1046,11 @@ function renderHorizon(){
       +'<span class="badge '+cls+'">'+label+'</span>'
       +'<div class="dd">'+f.dow+'</div><div class="dn">'+f.mon+' '+f.dn+'</div>'
       +'<div class="meta"><span>'+d.routes+' routes</span><span class="muted">'+d.coreAvail+' crews</span></div>'
-      +'<div class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></div>'
-      +'</div>';
+      +'<div class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></div></div>';
   }).join('');
   el.querySelectorAll('.dpill').forEach(p=>p.addEventListener('click',()=>{SELECTED=p.dataset.iso;renderHorizon();renderDay(SELECTED);$('daydetail').scrollIntoView({behavior:'smooth',block:'start'});}));
 }
 
-// per-base pressure for a day
 function basePressure(iso){
   const dr=dayRoutes(iso);
   const byBase={}; dr.routes.forEach(r=>{byBase[r.base]=(byBase[r.base]||0)+1;});
@@ -994,125 +1059,137 @@ function basePressure(iso){
   return bases.map(b=>({base:b,routes:byBase[b]||0,home:home[b]||0}));
 }
 
-function discountTag(){return '<span class="muted" style="font-size:12.5px">· discount at your discretion</span>';}
+function mapBtn(id){return '<button class="ib ibmap" data-map="'+id+'">&#128506; show route</button>';}
 
 function renderDay(iso){
   const plan=cleanupPlan(iso, scanHorizon(windowStart(), +$('winLen').value));
+  GEOS={};
   const f=fmtDay(iso);
-  const sc=plan.status==='short'?{t:'short '+Math.abs(plan.spare),c:'b-short'}:plan.status==='tight'?{t:'tight · no buffer',c:'b-tight'}:{t:'ok',c:'b-ok'};
+  const sc=plan.status==='short'?{t:'short '+Math.abs(plan.spare),c:'b-short'}:plan.status==='tight'?{t:'tight \u00b7 no buffer',c:'b-tight'}:{t:'ok',c:'b-ok'};
   let html='<div class="daycard"><div class="dchead">'
     +'<div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2>'
-    +'<div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.coreAvail+'</b> core crews → '
+    +'<div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.coreAvail+'</b> core crews &rarr; '
     +(plan.spare<0?('<b style="color:var(--red)">short '+Math.abs(plan.spare)+' crew'+(Math.abs(plan.spare)>1?'s':'')+'</b>'):plan.spare===0?'<b style="color:var(--amber)">exactly at capacity, zero spare</b>':('<b style="color:var(--green)">'+plan.spare+' spare</b>'))
-    +(plan.coreOff.length?' · '+plan.coreOff.length+' off today':'')+'</div></div>'
+    +(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off today':'')+'</div></div>'
     +'<span class="statuschip '+sc.c+'">'+sc.t+'</span></div><div class="dcbody">';
-
-  // per-base diagnostic
   const bp=basePressure(iso);
   html+='<div class="bases">';
-  bp.forEach(b=>{
-    const hot=b.routes>b.home, warm=b.routes===b.home&&b.home>0;
-    html+='<div class="bch'+(hot?' hot':warm?' warm':'')+'"><b>'+b.base+'</b><span class="pr">'+b.routes+'</span><span class="muted">routes /</span><span>'+b.home+' home</span></div>';
-  });
+  bp.forEach(b=>{const hot=b.routes>b.home,warm=b.routes===b.home&&b.home>0;html+='<div class="bch'+(hot?' hot':warm?' warm':'')+'"><b>'+b.base+'</b><span class="pr">'+b.routes+'</span><span class="muted">routes /</span><span>'+b.home+' home</span></div>';});
   html+='</div>';
-
-  if(plan.status==='ok'){
-    html+='<div class="result ok">✓ This day is already covered by your core crews with '+plan.spare+' to spare. Nothing to clean up.</div>';
-    // still show the normal chains as info if any
-  }
-
+  if(plan.status==='ok') html+='<div class="result ok">&#10003; Covered by core crews with '+plan.spare+' to spare. Nothing to clean up &mdash; below is anything optional.</div>';
   html+='<div class="ladder">';
 
-  // STEP 1 — normal chains (free)
-  html+='<div class="lstep"><div class="lhead"><span class="lnum free">1</span><span class="ltitle">Re-chain (free)</span><span class="lsub">same crew, same day — confirm in the calendar</span></div>';
+  // STEP 1 - normal chains
+  html+='<div class="lstep"><div class="lhead"><span class="lnum free">1</span><span class="ltitle">Re-chain (free)</span><span class="lsub">same crew, same day</span></div>';
   if(plan.normalChains.length){
-    html+='<div class="lnote">These jobs already fit back-to-back on one crew. Lock them in upfront so the calendar reflects it.</div><div class="items">';
-    plan.normalChains.forEach(c=>{
-      const id=iso+'|chain|'+c.tail;
-      const st=STATUS[id];
-      html+='<div class="item'+(st==='done'?' done':'')+'"><div class="itop"><span class="icust">Chain '+c.tail+'</span><span class="iwhere">→ after '+c.after+(c.linkMi!=null?' · ~'+c.linkMi+' mi apart':'')+'</span></div>'
-        +'<div class="iaction">One crew runs both jobs. No customer call needed.</div>'
-        +'<div class="ibtns"><button class="ib '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'✓ confirmed':'mark confirmed')+'</button></div></div>';
+    html+='<div class="lnote">These jobs already fit back-to-back on one crew. Confirm them in the calendar.</div><div class="items">';
+    plan.normalChains.forEach((c,i)=>{
+      const id=iso+'|chain|'+c.tail; const st=STATUS[id]; const gid='g_chain_'+i; GEOS[gid]=c.geo;
+      html+='<div class="item'+(st==='done'?' done':'')+'"><div class="itop"><span class="icust">'+esc(c.customer||c.tail)+'</span><span class="iwhere">'+esc(c.city)+'</span></div>'
+        +'<div class="iaction">Run right after <b>'+esc(c.anchorCustomer||c.after)+'</b>'+(c.linkMi!=null?' (~'+c.linkMi+' mi away)':'')+' on one crew. No call needed.</div>'
+        +'<div class="ibtns"><button class="ib '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'\u2713 confirmed':'mark confirmed')+'</button>'+mapBtn(gid)+'</div></div>';
     });
     html+='</div>';
-  } else { html+='<div class="empty">No new back-to-back chains available for this day.</div>'; }
+  } else html+='<div class="empty">No new back-to-back chains for this day.</div>';
   html+='</div>';
 
-  // STEP 2 — extra-chain calls
-  html+='<div class="lstep"><div class="lhead"><span class="lnum call">2</span><span class="ltitle">Call the customer — arrive later</span><span class="lsub">frees a crew if they say yes</span></div>';
+  // STEP 2 - extra-chain calls
+  html+='<div class="lstep"><div class="lhead"><span class="lnum call">2</span><span class="ltitle">Call the customer &mdash; arrive later</span><span class="lsub">frees a crew if they say yes</span></div>';
   if(plan.extraChains.length){
-    html+='<div class="lnote">Each of these would chain onto another crew <b>if</b> the customer lets us arrive in the early-afternoon window. Offer a discount for the flexibility.</div><div class="items">';
-    plan.extraChains.forEach(e=>{
-      const id=iso+'|call|'+e.tail;
-      const st=STATUS[id];
-      const push=(e.askArriveMs-e.origStartMs)/3600000;
-      const tag=push>=5?'big':push>=3?'med':'sm';
-      const tagtxt=push>=5?'big ask':push>=3?'moderate':'small shift';
+    html+='<div class="lnote">Each chains onto another crew <b>if</b> the customer accepts an early-afternoon arrival. Offer a discount for the flexibility.</div><div class="items">';
+    plan.extraChains.forEach((e,i)=>{
+      const id=iso+'|call|'+e.tail; const st=STATUS[id]; const gid='g_call_'+i; GEOS[gid]=e.geo;
+      const push=(e.askArriveMs-e.origStartMs)/3600000; const tag=push>=5?'big':push>=3?'med':'sm'; const tagtxt=push>=5?'big ask':push>=3?'moderate':'small shift';
+      const win=e.window?e.window.text:hmPretty(e.askArriveMs);
       html+='<div class="item'+(st==='done'?' done':st==='declined'?' declined':'')+'">'
-        +'<div class="itop"><span class="icust">'+(e.customer||e.tail)+'</span><span class="iwhere">'+(e.city||'')+' · '+e.cf+' cf</span><span class="tag '+tag+'">'+tagtxt+'</span></div>'
-        +'<div class="iaction">Ask to move start from <b>'+hmPretty(e.origStartMs)+'</b> to <b>~'+hmPretty(e.askArriveMs)+'</b>. Then it chains after <b>'+e.after+'</b> and frees one crew. '+discountTag()+'</div>'
-        +'<div class="script">📞 "Hi '+(e.customer? e.customer.split(' ')[0]:'there')+' — we\'re arranging crews for '+f.mon+' '+f.dn+'. Could we arrive around <b>'+hmPretty(e.askArriveMs)+'</b> instead of the morning? We\'d apply a discount for the flexibility."</div>'
+        +'<div class="itop"><span class="icust">'+esc(e.customer||e.tail)+'</span><span class="iwhere">'+esc(e.city)+' \u00b7 '+e.cf+' cf</span><span class="tag '+tag+'">'+tagtxt+'</span></div>'
+        +'<div class="iaction">Chain after <b>'+esc(e.anchorCustomer||e.after)+'</b>. Ask to move start from <b>'+hmPretty(e.origStartMs)+'</b> to an arrival window of <span class="win">'+win+'</span>. Frees one crew. <span class="muted">discount at your discretion</span></div>'
+        +'<div class="script">&#128222; "Hi '+esc(e.customer?e.customer.split(/\s+/)[0]:'there')+' &mdash; we\u2019re arranging crews for '+f.mon+' '+f.dn+'. Could we arrive between <b>'+win+'</b> instead of the morning? We\u2019ll apply a discount for the flexibility."</div>'
         +'<div class="ibtns">'
-        +'<button class="ib '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'✓ agreed':'agreed')+'</button>'
-        +'<button class="ib '+(st==='declined'?'on-decl':'')+'" data-id="'+id+'" data-v="declined">'+(st==='declined'?'✕ declined':'declined')+'</button>'
+        +'<button class="ib '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'\u2713 agreed':'agreed')+'</button>'
+        +'<button class="ib '+(st==='declined'?'on-decl':'')+'" data-id="'+id+'" data-v="declined">'+(st==='declined'?'\u2715 declined':'declined')+'</button>'
         +'<button class="ib '+(st==='todo'?'on-todo':'')+'" data-id="'+id+'" data-v="todo">to call</button>'
-        +'</div></div>';
+        +mapBtn(gid)+'</div></div>';
     });
     html+='</div>';
-  } else { html+='<div class="empty">No "arrive later" chains possible for this day (timing or distance don\'t line up).</div>'; }
+  } else html+='<div class="empty">No "arrive later" chains possible for this day.</div>';
   html+='</div>';
 
-  // STEP 3 — date moves
-  html+='<div class="lstep"><div class="lhead"><span class="lnum move">3</span><span class="ltitle">Move to a lighter day</span><span class="lsub">last resort — biggest customer ask</span></div>';
+  // STEP 3 - moves
+  html+='<div class="lstep"><div class="lhead"><span class="lnum move">3</span><span class="ltitle">Move to a lighter day</span><span class="lsub">last resort</span></div>';
   if(plan.moves.length){
-    html+='<div class="lnote">Couldn\'t clear the day with chaining alone. These jobs could move to a nearby day that has spare crews.</div><div class="items">';
-    plan.moves.forEach(m=>{
-      const id=iso+'|move|'+m.code;
-      const st=STATUS[id];
-      const tf=fmtDay(m.to);
+    html+='<div class="lnote">Couldn\u2019t clear the day with chaining alone. Move these to a nearby day with spare crews &mdash; the slot on that day is shown.</div><div class="items">';
+    plan.moves.forEach((m,i)=>{
+      const id=iso+'|move|'+m.code; const st=STATUS[id]; const gid='g_move_'+i; GEOS[gid]=m.slot.geo;
+      const tf=fmtDay(m.to); const s=m.slot;
+      const slotTxt = s.fresh ? ('as its own crew, keep <b>~'+hmPretty(s.origStartMs)+'</b>') : ('after <b>'+esc(s.anchorCustomer||s.anchorCode)+'</b>, arrival <span class="win">'+s.window.text+'</span>');
       html+='<div class="item'+(st==='done'?' done':st==='declined'?' declined':'')+'">'
-        +'<div class="itop"><span class="icust">'+(m.customer||m.code)+'</span><span class="iwhere">'+(m.city||'')+' · '+m.cf+' cf</span></div>'
-        +'<div class="iaction">Move from <b>'+f.mon+' '+f.dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> (has spare crews). '+discountTag()+'</div>'
-        +'<div class="script">📞 "Would <b>'+tf.dow+', '+tf.mon+' '+tf.dn+'</b> work instead? We can offer a small discount for moving the date."</div>'
+        +'<div class="itop"><span class="icust">'+esc(m.customer||m.code)+'</span><span class="iwhere">'+esc(m.city)+' \u00b7 '+m.cf+' cf</span></div>'
+        +'<div class="iaction">Move from <b>'+f.mon+' '+f.dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> &mdash; '+slotTxt+'. <span class="muted">discount at your discretion</span></div>'
+        +'<div class="script">&#128222; "Would <b>'+tf.dow+', '+tf.mon+' '+tf.dn+'</b> work instead? '+(s.fresh?'':'We\u2019d arrive around <b>'+s.window.text+'</b>. ')+'We can offer a discount for moving the date."</div>'
         +'<div class="ibtns">'
-        +'<button class="ib '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'✓ moved':'moved')+'</button>'
-        +'<button class="ib '+(st==='declined'?'on-decl':'')+'" data-id="'+id+'" data-v="declined">'+(st==='declined'?'✕ declined':'declined')+'</button>'
+        +'<button class="ib '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'\u2713 moved':'moved')+'</button>'
+        +'<button class="ib '+(st==='declined'?'on-decl':'')+'" data-id="'+id+'" data-v="declined">'+(st==='declined'?'\u2715 declined':'declined')+'</button>'
         +'<button class="ib '+(st==='todo'?'on-todo':'')+'" data-id="'+id+'" data-v="todo">to do</button>'
-        +'</div></div>';
+        +mapBtn(gid)+'</div></div>';
     });
     html+='</div>';
-  } else if(plan.status!=='ok'){ html+='<div class="empty">No date-move needed — chaining handles it.</div>'; }
-  else { html+='<div class="empty muted">—</div>'; }
-  html+='</div>';
+  } else if(plan.status!=='ok') html+='<div class="empty">No date-move needed.</div>';
+  else html+='<div class="empty muted">&mdash;</div>';
+  html+='</div></div>';
 
-  html+='</div>'; // ladder
-
-  // result
   if(plan.status!=='ok'){
-    if(plan.cleared) html+='<div class="result ok">✅ After these actions: <b>'+plan.finalRoutes+' routes</b> on '+plan.coreAvail+' core crews — <b>'+plan.finalSpare+' spare</b>. Day cleared without backups.</div>';
-    else html+='<div class="result no">⚠ Even after every suggestion above, this day is still short <b>'+plan.residual+'</b>. You\'ll need a rental crew/backup, or move more jobs out manually.</div>';
+    if(plan.cleared) html+='<div class="result ok">&#9989; After these actions: <b>'+plan.finalRoutes+' routes</b> on '+plan.coreAvail+' core crews &mdash; <b>'+plan.finalSpare+' spare</b>. Cleared without backups.</div>';
+    else html+='<div class="result no">&#9888; Even after every suggestion, still short <b>'+plan.residual+'</b>. You\u2019ll need a backup/rental crew or to move more jobs manually.</div>';
   }
-
   html+='</div></div>';
   $('daydetail').innerHTML=html;
-
-  // wire status buttons
-  $('daydetail').querySelectorAll('.ib[data-id]').forEach(b=>b.addEventListener('click',()=>{
-    const id=b.dataset.id, v=b.dataset.v;
-    setStatus(id, STATUS[id]===v?null:v);
-    renderDay(iso);
-  }));
+  $('daydetail').querySelectorAll('.ib[data-id]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.id,v=b.dataset.v;setStatus(id,STATUS[id]===v?null:v);renderDay(iso);}));
+  $('daydetail').querySelectorAll('.ib[data-map]').forEach(b=>b.addEventListener('click',()=>{const gid=b.dataset.map;openRouteMap(GEOS[gid], b.closest('.item').querySelector('.icust').textContent);}));
 }
 
+/* ===== map ===== */
+let CMAP=null, CLAYER=null;
+function ensureMap(){
+  if(CMAP)return;
+  CMAP=L.map('cmap',{zoomControl:true}).setView([40.7,-74],8);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(CMAP);
+  CLAYER=L.layerGroup().addTo(CMAP);
+}
+async function openRouteMap(geo,title){
+  $('cmaptitle').textContent='Route \u2014 '+(title||'');
+  $('cmapmodal').classList.add('show');
+  ensureMap();
+  setTimeout(()=>CMAP.invalidateSize(),60);
+  CLAYER.clearLayers();
+  if(!geo||!geo.length){ $('cmaptitle').textContent='Route \u2014 (no map points for this job)'; return; }
+  const pts=geo.map(s=>[s.lat,s.lon]);
+  geo.forEach(s=>{
+    const col=s.kind==='A'?'#8983A0':s.kind==='P'?'#1F2329':'#5B4BD6';
+    const txt=s.kind==='A'?'\u25cf':s.kind;
+    L.marker([s.lat,s.lon],{icon:L.divIcon({className:'',iconSize:[28,28],iconAnchor:[14,14],html:'<div style="background:'+col+';color:#fff;border:3px solid #fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,.3)">'+txt+'</div>'})}).addTo(CLAYER).bindTooltip((s.customer?esc(s.customer)+' &mdash; ':'')+esc(s.label),{direction:'top',offset:[0,-12]});
+  });
+  CMAP.fitBounds(L.latLngBounds(pts).pad(0.3));
+  for(let i=0;i<geo.length-1;i++){
+    const a=[geo[i].lat,geo[i].lon], b=[geo[i+1].lat,geo[i+1].lon];
+    const reposition=geo[i].kind==='A';
+    let line=[a,b];
+    try{const rt=await truckRoute(a,b); if(rt&&rt.pts&&rt.pts.length)line=rt.pts;}catch(e){}
+    L.polyline(line,{color:'#fff',weight:7,opacity:.9,lineCap:'round'}).addTo(CLAYER);
+    L.polyline(line,{color:reposition?'#B26B0B':'#5B4BD6',weight:3.5,opacity:.95,dashArray:reposition?'8 7':null,lineCap:'round'}).addTo(CLAYER);
+  }
+  setTimeout(()=>{CMAP.invalidateSize();CMAP.fitBounds(L.latLngBounds(pts).pad(0.3));},150);
+}
+$('cmapx').addEventListener('click',()=>$('cmapmodal').classList.remove('show'));
+$('cmapmodal').addEventListener('click',e=>{if(e.target===$('cmapmodal'))$('cmapmodal').classList.remove('show');});
+
 function boot(){
-  // default From = today
   $('fromDate').value=TODAY_ISO;
-  $('stamp').textContent='Roster: '+DATA.foremen.filter(f=>f.status==='Active').length+' core crews + '+DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length+' backup · jobs through '+Object.keys(DATA.days).sort().slice(-1)[0]+(DATA.pulled?' · pulled '+DATA.pulled:'');
+  $('stamp').textContent='Roster: '+DATA.foremen.filter(f=>f.status==='Active').length+' core crews + '+DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length+' backup \u00b7 jobs through '+Object.keys(DATA.days).sort().slice(-1)[0]+(DATA.pulled?' \u00b7 pulled '+DATA.pulled:'');
   renderHorizon();
-  // auto-select first short, else first tight, else first day
   const firstShort=WINDOW.find(d=>d.status==='short')||WINDOW.find(d=>d.status==='tight');
   if(firstShort){SELECTED=firstShort.iso;renderHorizon();renderDay(SELECTED);}
-  else { $('daydetail').innerHTML='<div class="pickprompt">All days in this window are comfortably covered by your core crews. 🎉<br>Pick any day above to see its detail, or extend the window.</div>'; }
+  else $('daydetail').innerHTML='<div class="pickprompt">All days in this window are comfortably covered by your core crews. &#127881;<br>Pick any day above to see its detail, or extend the window.</div>';
 }
 $('fromDate').addEventListener('change',()=>{SELECTED=null;boot();});
 $('winLen').addEventListener('change',()=>{renderHorizon(); if(SELECTED)renderDay(SELECTED);});
