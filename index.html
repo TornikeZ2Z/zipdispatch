@@ -830,7 +830,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   #mobmenu{display:inline-flex;align-items:center;justify-content:center;order:1;width:42px;height:42px;font-size:21px;border:1.5px solid var(--line2);border-radius:10px;background:var(--card);cursor:pointer}
   #stats{order:4;width:100%;display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
   #stats>*{flex:0 0 auto;padding:5px 10px}
-  #stats>*:nth-child(2),#stats>*:nth-child(3),#stats>*:nth-child(4),#stats>*:nth-child(5){display:none}
+  #stats>*:not(.smob){display:none}
   .layout{display:block}
   /* leftbar → drawer */
   #leftbar{position:fixed;left:0;top:0;bottom:0;width:min(86vw,340px);z-index:1500;transform:translateX(-105%);transition:transform .25s ease;overflow-y:auto;background:var(--bg);box-shadow:8px 0 30px rgba(0,0,0,.25);padding:14px 14px calc(20px + env(safe-area-inset-bottom));margin:0;max-height:none}
@@ -1524,8 +1524,8 @@ function render(){
   const rentals=routes.reduce((s,r)=>s+r.rentals,0);
   const shorts=currentDay>=TODAY_ISO?routes.reduce((s,r)=>s+(r.short||0),0):0;
   document.getElementById('stats').innerHTML=
-    stat(routes.length,'routes','','cards')+stat(DATA.jobs.filter(j=>!EXCL.has(jobKey(j))).length,'jobs','','cards')+stat(totCF.toLocaleString(),'total CF','','cards')+
-    stat(fleetUsed,'fleet trucks','teal','roster')+stat(rentals,'rentals',rentals>0?'amber':'','roster')+(shorts>0?stat(shorts,'trucks short','red','roster'):'')+stat(BENCH.foremen.length,'free foremen',BENCH.foremen.length>0?'green':'red','roster');
+    stat(routes.length,'routes','','cards',true)+stat(DATA.jobs.filter(j=>!EXCL.has(jobKey(j))).length,'jobs','','cards')+stat(totCF.toLocaleString(),'total CF','','cards')+
+    stat(fleetUsed,'fleet trucks','teal','roster',shorts===0)+stat(rentals,'rentals',rentals>0?'amber':'','roster')+(shorts>0?stat(shorts,'trucks short','red','roster',true):'')+stat(BENCH.foremen.length,'free foremen',BENCH.foremen.length>0?'green':'red','roster',true);
   renderFleetStrip();
   (function(){
     let sn=document.getElementById('skipnotebar');
@@ -1538,7 +1538,7 @@ function render(){
   document.getElementById('warnstrip').style.display='none';
   renderCards(); renderRoster(); renderOpti(); renderMap();
 }
-function stat(v,l,c,k){return '<div class="stat kpi" data-k="'+(k||'')+'" role="button" tabindex="0"><div class="v '+(c||'')+'">'+v+'</div><div class="l">'+l+'</div></div>';}
+function stat(v,l,c,k,mob){return '<div class="stat kpi'+(mob?' smob':'')+'" data-k="'+(k||'')+'" role="button" tabindex="0"><div class="v '+(c||'')+'">'+v+'</div><div class="l">'+l+'</div></div>';}
 
 function singlePanel(panelId,btnId,items,value,onPick,btnLabel,openKey){
   const btn=document.getElementById(btnId);
@@ -2736,14 +2736,18 @@ function selectRoute(id,scrollCard){
   highlighted=(highlighted===id)?null:id;
   const lay=document.querySelector('.layout');
   renderCards();
+  const _mob=document.documentElement.classList.contains('mob');
   if(highlighted){
     const wasOn=lay.classList.contains('mapon');
     lay.classList.add('mapon');
-    setTimeout(()=>{openMap();},wasOn?60:480);
+    setTimeout(()=>{openMap();
+      // on phones the map sits below the cards in the column layout — bring it into view so the drawn route is actually visible
+      if(_mob){const mw=document.getElementById('mapwrap');if(mw)mw.scrollIntoView({behavior:'smooth',block:'start'});}
+    },wasOn?60:480);
   } else {
     lay.classList.remove('mapon');
   }
-  if(scrollCard&&highlighted){
+  if(scrollCard&&highlighted&&!_mob){
     const c=document.querySelector('.card[data-r="'+highlighted+'"]');
     if(c)c.scrollIntoView({behavior:'smooth',block:'center'});
   }
