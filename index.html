@@ -1002,6 +1002,7 @@ function buildRoutes(){
 }
 
 function makeRoute(legs,idx,orphan=false){
+  legs=legs.slice().sort((a,b)=>(Date.parse(a.start||0)||0)-(Date.parse(b.start||0)||0)); // legs[0] = the crew's first job of the day (base, leave-time, ETAs all key off this)
   const totalCF=legs.reduce((s,l)=>s+l.cf,0);
   const maxCF=Math.max(...legs.map(l=>l.cf));
   const crew=Math.max(...legs.map(l=>l.crew||0),2);
