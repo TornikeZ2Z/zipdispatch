@@ -953,6 +953,12 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 #hwin label{font-size:13px;color:var(--dim);font-weight:600;display:flex;align-items:center;gap:6px}
 #hwin input[type=date],#hwin select{font-family:'Inter';font-size:15px;border:1.5px solid var(--line2);border-radius:9px;padding:7px 10px;background:var(--card);color:var(--ink);font-weight:600}
 .connpill{font-size:13px;color:var(--fleet);font-weight:600;display:inline-flex;align-items:center;gap:5px}
+/* header stat blocks + ladder wrapper (added v3) */
+.stats{display:flex;gap:9px;align-items:stretch}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 14px;text-align:center;min-width:64px}
+.stat .v{font-family:'Barlow Condensed';font-weight:600;font-size:25px;line-height:1;color:var(--ink)}
+.stat .l{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-top:2px;white-space:nowrap}
+.ladder{margin-top:6px}
 
 </style>
 </head>
@@ -1593,21 +1599,22 @@ function estRoutesOn(dayIso){
 /* exports for node */
 </script>
 <script>
-// ============ CALENDAR CLEANUP ENGINE v2 (layer on top of engine_core) ============
-const CLEAN = { maxArrivalHr: 16, windowDays: 7, openHr: 8 };
+// ============ CALENDAR CLEANUP ENGINE v3 (layer on engine_core) ============
+// Objective: keep a 2-route buffer when load allows. Tiered ladder:
+//   1) standard chaining  (PM jobs, free, route optimization — always)
+//   2) extra chaining     (AM jobs, customer call, $100 tight / $50 looser)
+//   3) day switch         (move date, chain-first, last resort for shortage)
+const CLEAN = { maxArrivalHr: 16, pmCutoffHr: 12, windowDays: 7, buffer: 2,
+                tightLinkMin: 15, tightLinkMi: 15, discountTight: 100, discountLoose: 50 };
 
-function jobByCode(code){
-  for(const iso in DATA.days){ const arr=DATA.days[iso]||[]; for(const j of arr){ if(j.code===code) return j; } }
-  return null;
-}
+function jobByCode(code){ for(const iso in DATA.days){const arr=DATA.days[iso]||[];for(const j of arr){if(j.code===code)return j;}} return null; }
 function shortName(c){ return c? String(c).trim().split(/\s+/)[0] : ''; }
 function ptOf(p){ return (p && p.lat!=null && p.lon!=null)? {lat:p.lat, lon:p.lon} : null; }
 
 function cleanWindow(arriveMs, dayIso){
   const ceil = Date.parse(dayIso+'T'+String(CLEAN.maxArrivalHr).padStart(2,'0')+':00');
   let s = new Date(arriveMs); s.setMinutes(0,0,0);
-  let sMs = s.getTime();
-  let eMs = Math.min(ceil, sMs + 2*3600000);
+  let sMs = s.getTime(); let eMs = Math.min(ceil, sMs + 2*3600000);
   if (eMs - sMs < 3600000) sMs = eMs - 2*3600000;
   const f = ms => { const d=new Date(ms); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
   return { start:f(sMs), end:f(eMs), text:f(sMs)+'\u2013'+f(eMs) };
@@ -1620,26 +1627,6 @@ function coreAvailOn(iso){
   for(const [nk,s,e] of src){ if(iso>=s&&iso<=e){const f=matchForeman(nk);if(f&&f.status==='Active')off.add(f.name);} }
   const ta = tripAwayMap(iso).f; Object.keys(ta).forEach(n=>{const f=DATA.foremen.find(x=>x.name===n);if(f&&f.status==='Active')off.add(n);});
   return { avail: a.length-off.size, off:[...off], total:a.length };
-}
-
-function _buildDayRoutes(iso){
-  DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=[];
-  let rts=buildRoutes();
-  const normalChains=[];
-  for(let g=0;g<2;g++){ const det=detectAutoChains(rts); if(!det.length)break; det.forEach(c=>normalChains.push(c)); AUTOCHAINS=AUTOCHAINS.concat(det); rts=buildRoutes(); }
-  return {routes:rts, normalChains};
-}
-
-function dayRoutes(iso){
-  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay;
-  try{
-    const {routes,normalChains}=_buildDayRoutes(iso);
-    assignAll(routes,getW(),'nearest');
-    const snap=routes.map(r=>({id:r.id,base:r.base,crew:r.crew,totalCF:r.totalCF,legs:r.legs.length,
-      foreman:r.foreman?{name:r.foreman.name,nick:r.foreman.nick,status:r.foreman.status}:null,
-      codes:r.legs.map(l=>l.code), headCode:r.legs[0].code}));
-    return {routes:snap, normalChains:normalChains.slice()};
-  } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; }
 }
 
 function _linkFeasible(A, jt){
@@ -1655,146 +1642,145 @@ function _linkFeasible(A, jt){
   const linkMi=(rm!=null?rm:hav(la.delivery, jt.pickup)*1.15);
   const driveMs=linkMi/35*3600000;
   if(driveMs>CHAIN_RULES.maxDriveMin*60000) return {ok:false};
-  const bt0=Date.parse(jt.start);
-  const eta=at1+driveMs;
+  const bt0=Date.parse(jt.start); const eta=at1+driveMs;
   const dayIso=String(jt.start).slice(0,10);
   const ceil=Date.parse(dayIso+'T'+String(CLEAN.maxArrivalHr).padStart(2,'0')+':00');
   const normal = eta <= bt0 + CHAIN_RULES.lateMin*60000;
   const arriveMs = normal ? Math.max(eta, bt0) : eta;
-  if(!normal && eta>ceil) return {ok:false};
-  const ws=arriveMs;
-  const p2d=hav(jt.pickup, jt.delivery)/35*3600000*1.15;
+  if(eta>ceil) return {ok:false};
+  const ws=arriveMs; const p2d=hav(jt.pickup, jt.delivery)/35*3600000*1.15;
   const done=ws+((jt.actH||schedH(jt))*3600000)+p2d;
   if(done>Date.parse(dayIso+'T23:59')) return {ok:false};
   if(Math.max(A.crew, jt.crew||2)>6) return {ok:false};
   return {ok:true, arriveMs, linkMi:Math.round(linkMi), linkMin:Math.round(driveMs/60000), anchorEndMs:at1, normal, anchorLeg:la};
 }
-
-function bestAnchorFor(jobObj, routes){
-  let best=null;
-  for(const A of routes){ const f=_linkFeasible(A, jobObj); if(f.ok && (!best || f.linkMi<best.linkMi)) best={A, ...f}; }
-  return best;
-}
+function bestAnchorFor(jobObj, routes){ let best=null; for(const A of routes){const f=_linkFeasible(A, jobObj);if(f.ok&&(!best||f.linkMin<best.linkMin))best={A,...f};} return best; }
 
 function recGeo(anchorLeg, jobObj){
   const stops=[];
-  if(anchorLeg){ const d=ptOf(anchorLeg.delivery)||ptOf(anchorLeg.pickup); if(d) stops.push({lat:d.lat,lon:d.lon, kind:'A', label:'crew finishes \u00b7 '+(anchorLeg.cityTo||anchorLeg.cityFrom||''), customer:anchorLeg.customer||''}); }
-  const p=ptOf(jobObj.pickup); if(p) stops.push({lat:p.lat,lon:p.lon, kind:'P', label:'pickup \u00b7 '+(jobObj.cityFrom||''), customer:jobObj.customer||''});
-  const d=ptOf(jobObj.delivery); if(d) stops.push({lat:d.lat,lon:d.lon, kind:'D', label:'delivery \u00b7 '+(jobObj.cityTo||''), customer:jobObj.customer||''});
+  if(anchorLeg){const d=ptOf(anchorLeg.delivery)||ptOf(anchorLeg.pickup);if(d)stops.push({lat:d.lat,lon:d.lon,kind:'A',label:'crew finishes \u00b7 '+(anchorLeg.cityTo||anchorLeg.cityFrom||''),customer:anchorLeg.customer||''});}
+  const p=ptOf(jobObj.pickup); if(p)stops.push({lat:p.lat,lon:p.lon,kind:'P',label:'pickup \u00b7 '+(jobObj.cityFrom||''),customer:jobObj.customer||''});
+  const d=ptOf(jobObj.delivery); if(d)stops.push({lat:d.lat,lon:d.lon,kind:'D',label:'delivery \u00b7 '+(jobObj.cityTo||''),customer:jobObj.customer||''});
   return stops;
 }
 
-function detectExtraChains(rts){
-  const out=[]; const tailsTaken=new Set();
-  const singles = rts.filter(r=>r.legs.length===1 && !r.legs[0].after
-        && (r.legs[0].cf||0)<=CHAIN_RULES.maxCF && !AUTOOFFLIST.has(r.legs[0].code))
-      .sort((a,b)=>Date.parse(a.legs[0].start)-Date.parse(b.legs[0].start));
+// classify all single-route chains into standard (PM, free) and calls (AM, paid)
+function detectChains(rts, iso){
+  const standard=[], calls=[]; const seen=new Set();
+  const singles = rts.filter(r=>r.legs.length===1 && !r.legs[0].after && !r.ldDeparture
+        && (r.legs[0].cf||0)<=CHAIN_RULES.maxCF && !AUTOOFFLIST.has(r.legs[0].code));
   for(const B of singles){
-    const lb=B.legs[0];
-    let best=null;
-    for(const A of rts){
-      if(A===B||tailsTaken.has(A.id))continue;
-      const f=_linkFeasible(A, lb);
-      if(!f.ok || f.normal) continue;
-      if(!best || f.linkMi<best.linkMi) best={A, ...f};
-    }
-    if(best){
-      tailsTaken.add(best.A.id);
-      out.push({ tail:lb.code, after:best.anchorLeg.code, extra:true, linkMi:best.linkMi, linkMin:best.linkMin,
-                 askArriveMs:best.arriveMs, origStartMs:Date.parse(lb.start), anchorEndMs:best.anchorEndMs,
-                 customer:lb.customer||'', city:lb.cityFrom||'', deliveryCity:lb.cityTo||'', cf:lb.cf||0, actH:(lb.actH||schedH(lb)),
-                 anchorCustomer:best.anchorLeg.customer||'', anchorCity:best.anchorLeg.cityTo||best.anchorLeg.cityFrom||'',
-                 geo:recGeo(best.anchorLeg, lb) });
-    }
+    const lb=B.legs[0]; let best=null;
+    for(const A of rts){ if(A===B)continue; const f=_linkFeasible(A, lb); if(!f.ok)continue; if(!best||f.linkMin<best.linkMin)best={A,...f}; }
+    if(!best)continue;
+    const base={ tail:lb.code, after:best.anchorLeg.code, anchorRouteId:best.A.id,
+      linkMi:best.linkMi, linkMin:best.linkMin, anchorEndMs:best.anchorEndMs, arriveMs:best.arriveMs, normal:best.normal,
+      customer:lb.customer||'', city:lb.cityFrom||'', deliveryCity:lb.cityTo||'', cf:lb.cf||0, actH:(lb.actH||schedH(lb)),
+      origStartMs:Date.parse(lb.start), anchorCustomer:best.anchorLeg.customer||'',
+      anchorCity:best.anchorLeg.cityTo||best.anchorLeg.cityFrom||'', geo:recGeo(best.anchorLeg, lb) };
+    const isPM = new Date(lb.start).getHours() >= CLEAN.pmCutoffHr;
+    if(isPM){ standard.push(base); }
+    else { base.discount=(best.linkMin<=CLEAN.tightLinkMin||best.linkMi<=CLEAN.tightLinkMi)?CLEAN.discountTight:CLEAN.discountLoose;
+           base.window=cleanWindow(best.arriveMs, iso); calls.push(base); }
   }
-  return out;
+  standard.sort((a,b)=>a.linkMin-b.linkMin);
+  calls.sort((a,b)=>a.linkMin-b.linkMin);
+  return {standard, calls};
 }
 
-function routeCountWith(iso, chainPairs){
-  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay;
-  try{ DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=chainPairs.slice(); return buildRoutes().length; }
-  finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; }
+// Apply engine auto-chains + all free PM standard chains greedily. Returns final routes + the standard list.
+function optimizeStandard(iso){
+  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay,kOff=new Set(AUTOOFFLIST);
+  try{
+    DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=[];
+    try{computeAutoOff();}catch(e){}
+    let rts=buildRoutes();
+    for(let g=0;g<2;g++){const det=detectAutoChains(rts);if(!det.length)break;AUTOCHAINS=AUTOCHAINS.concat(det);rts=buildRoutes();}
+    const baseCount=rts.length;
+    const standardChains=[];
+    for(let k=0;k<14;k++){
+      const {standard}=detectChains(rts, iso);
+      if(!standard.length)break;
+      const pick=standard[0];
+      AUTOCHAINS.push({tail:pick.tail, after:pick.after});
+      const nr=buildRoutes();
+      if(nr.length>=rts.length){ AUTOCHAINS.pop(); break; } // safety: must reduce
+      rts=nr; standardChains.push(pick);
+    }
+    const finalCount=rts.length;
+    // snapshot routes (plain) for downstream pools, and detect remaining calls
+    const {calls}=detectChains(rts, iso);
+    const snap=rts.map(r=>({id:r.id,base:r.base,crew:r.crew,legs:r.legs.length,codes:r.legs.map(l=>l.code),
+      single:r.legs.length===1&&!r.ldDeparture, code:r.legs[0].code,
+      first:r.legs[0], pickup:r.legs[0].pickup, delivery:r.legs[0].delivery}));
+    return {routesSnap:snap, standardChains, calls, baseCount, finalCount};
+  } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; AUTOOFFLIST.clear(); kOff.forEach(x=>AUTOOFFLIST.add(x)); }
+}
+
+function dayLoad(iso){
+  const opt=optimizeStandard(iso); const core=coreAvailOn(iso);
+  const target=core.avail-CLEAN.buffer; const routes=opt.finalCount;
+  const status = routes<=target?'ok':(routes<=core.avail?'tight':'short');
+  return {iso, routes, base:opt.baseCount, availableCore:core.avail, coreOff:core.off, target,
+          spare:core.avail-routes, status, standardCount:opt.standardChains.length, _opt:opt};
 }
 
 function slotOnTarget(jobObj, targetIso){
-  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay;
+  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay,kOff=new Set(AUTOOFFLIST);
   try{
-    const {routes}=_buildDayRoutes(targetIso);
+    DATA.jobs=DATA.days[targetIso]||[]; currentDay=targetIso; AUTOCHAINS=[];
+    try{computeAutoOff();}catch(e){}
+    let rts=buildRoutes();
+    for(let g=0;g<2;g++){const det=detectAutoChains(rts);if(!det.length)break;AUTOCHAINS=AUTOCHAINS.concat(det);rts=buildRoutes();}
     const probe=Object.assign({}, jobObj, {start: targetIso+' '+String(jobObj.start).slice(11)});
-    const anchor=bestAnchorFor(probe, routes);
+    const anchor=bestAnchorFor(probe, rts);
     if(anchor){
       return { fresh:false, anchorCode:anchor.anchorLeg.code, anchorCustomer:anchor.anchorLeg.customer||'',
                anchorCity:anchor.anchorLeg.cityTo||anchor.anchorLeg.cityFrom||'', arriveMs:anchor.arriveMs,
                anchorEndMs:anchor.anchorEndMs, linkMin:anchor.linkMin, linkMi:anchor.linkMi,
-               jobCity:probe.cityFrom||'', deliveryCity:probe.cityTo||'', actH:(probe.actH||schedH(probe)),
-               window:cleanWindow(anchor.arriveMs, targetIso), geo:recGeo(anchor.anchorLeg, probe) };
+               city:probe.cityFrom||'', deliveryCity:probe.cityTo||'', actH:(probe.actH||schedH(probe)),
+               customer:probe.customer||'', window:cleanWindow(anchor.arriveMs, targetIso), geo:recGeo(anchor.anchorLeg, probe) };
     }
     const ms=Date.parse(probe.start);
-    return { fresh:true, origStartMs:ms, geo:recGeo(null, probe) };
-  } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; }
+    return { fresh:true, origStartMs:ms, customer:probe.customer||'', city:probe.cityFrom||'', deliveryCity:probe.cityTo||'', geo:recGeo(null, probe) };
+  } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; AUTOOFFLIST.clear(); kOff.forEach(x=>AUTOOFFLIST.add(x)); }
 }
 
-function cleanupPlan(iso, horizonSlack){
-  const core = coreAvailOn(iso);
-  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay;
-  let normalChainsRaw=[], baseRouteCount=0, extraCands=[];
-  try{
-    const built=_buildDayRoutes(iso);
-    normalChainsRaw=built.normalChains; baseRouteCount=built.routes.length;
-    extraCands=detectExtraChains(built.routes);
-  } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; }
-
-  const normalChains = normalChainsRaw.map(c=>{
-    const jt=jobByCode(c.tail), ja=jobByCode(c.after);
-    return { tail:c.tail, after:c.after, linkMi:c.linkMi,
-             customer:jt?jt.customer:'', city:jt?jt.cityFrom:'', deliveryCity:jt?jt.cityTo:'', actH:jt?(jt.actH||schedH(jt)):0,
-             anchorCustomer:ja?ja.customer:'', anchorCity:ja?(ja.cityTo||ja.cityFrom):'',
-             startMs: jt?Date.parse(jt.start):null,
-             anchorEndMs: ja?(ja._endMs||Date.parse(ja.end||ja.start)):null,
-             geo: (jt&&ja)?recGeo(ja, jt):(jt?recGeo(null,jt):[]) };
-  });
-
-  const spare0 = core.avail - baseRouteCount;
-  let need = Math.max(0, -spare0);
-
-  const applied = normalChainsRaw.map(c=>({tail:c.tail, after:c.after}));
-  const extraUsed=[]; let routesNow=baseRouteCount;
-  for(const ec of extraCands){
-    if(need<=0)break;
-    const rc=routeCountWith(iso, applied.concat([{tail:ec.tail, after:ec.after}]));
-    if(rc<routesNow){ applied.push({tail:ec.tail, after:ec.after}); ec.window=cleanWindow(ec.askArriveMs, iso); extraUsed.push(ec); routesNow=rc; need--; }
+// ranked move candidates for singles that remain after standard (AM or unchainable PM)
+function buildMovePool(iso, opt, horizon, callTails){
+  const day=DATA.days[iso]||[];
+  const singleCodes=new Set(opt.routesSnap.filter(r=>r.single).map(r=>r.code));
+  const movable=day.filter(j=>{
+    if(!singleCodes.has(j.code))return false;
+    if(/long/i.test(j.movingType||''))return false;
+    if(j._confirmed)return false;
+    if(j.delivery && !INREGION(j.delivery))return false;
+    return true;
+  }).sort((a,b)=>(a.cf||0)-(b.cf||0));
+  const base=Date.parse(iso+'T12:00');
+  const targets=horizon.filter(t=>t.iso!==iso && t.iso>=TODAY_ISO && t.spare>=1)
+    .sort((x,y)=>(y.spare-x.spare)||(Math.abs(Date.parse(x.iso+'T12:00')-base)-Math.abs(Date.parse(y.iso+'T12:00')-base)));
+  const out=[];
+  for(const j of movable){
+    if(!targets.length)break;
+    const t=targets[0];
+    const slot=slotOnTarget(j, t.iso);
+    out.push({ code:j.code, customer:j.customer||'', city:j.cityFrom||'', cf:j.cf||0, from:iso, to:t.iso,
+               targetSpare:t.spare, slot, isAM:new Date(j.start).getHours()<CLEAN.pmCutoffHr });
   }
+  return out;
+}
 
-  const moves=[];
-  if(need>0){
-    const jobs=(DATA.days[iso]||[]).filter(j=>j.first && !j.after && !EXCL.has(jobKey(j)));
-    const movable = jobs.filter(j=>{
-      if(/long/i.test(j.movingType||''))return false;
-      if(j._confirmed)return false;
-      if(j.delivery && !INREGION(j.delivery))return false;
-      return true;
-    }).sort((a,b)=>(a.cf||0)-(b.cf||0));
-    const usedCodes=new Set(extraUsed.map(e=>e.tail));
-    const base=Date.parse(iso+'T12:00');
-    for(const j of movable){
-      if(need<=0)break;
-      if(usedCodes.has(j.code))continue;
-      const cands=horizonSlack.filter(t=>t.iso!==iso && t.spareNow>=1)
-        .sort((x,y)=>Math.abs(Date.parse(x.iso+'T12:00')-base)-Math.abs(Date.parse(y.iso+'T12:00')-base));
-      if(!cands.length)break;
-      const target=cands[0]; target.spareNow--;
-      const slot=slotOnTarget(j, target.iso);
-      moves.push({ code:j.code, customer:j.customer||'', city:j.cityFrom||'', cf:j.cf||0, from:iso, to:target.iso, slot });
-      usedCodes.add(j.code); need--;
-    }
-  }
-
-  const finalRoutes = baseRouteCount - extraUsed.length - moves.length;
-  const finalSpare = core.avail - finalRoutes;
-  return { iso, coreAvail:core.avail, coreOff:core.off, routes:baseRouteCount, spare:spare0,
-           status: spare0<0?'short':(spare0===0?'tight':'ok'),
-           normalChains, extraChains:extraUsed, moves,
-           residual:Math.max(0,-finalSpare), finalRoutes, finalSpare, cleared:finalSpare>=0 };
+function cleanupPlan(iso, horizon){
+  const load=dayLoad(iso); const opt=load._opt;
+  const callPool=opt.calls.map(c=>Object.assign({}, c, {window:c.window||cleanWindow(c.arriveMs, iso),
+      discount:c.discount||((c.linkMin<=CLEAN.tightLinkMin||c.linkMi<=CLEAN.tightLinkMi)?CLEAN.discountTight:CLEAN.discountLoose)}));
+  const movePool=buildMovePool(iso, opt, horizon||[], new Set(callPool.map(c=>c.tail)));
+  const gapToBuffer=Math.max(0, load.routes-load.target);
+  const gapToCover =Math.max(0, load.routes-load.availableCore);
+  return { iso, availableCore:load.availableCore, coreOff:load.coreOff, target:load.target,
+           baseRoutes:load.base, routes:load.routes, routesSnap:load._opt.routesSnap, status:load.status, spare:load.spare,
+           standardChains:opt.standardChains, callPool, movePool, gapToBuffer, gapToCover };
 }
 
 function scanHorizon(fromIso, nDays){
@@ -1803,12 +1789,48 @@ function scanHorizon(fromIso, nDays){
     const d=new Date(start+i*86400000);
     const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     if(!DATA.days[iso])continue;
-    const core=coreAvailOn(iso);
-    const routes=dayRoutes(iso).routes.length;
-    const spare=core.avail-routes;
-    days.push({iso, routes, coreAvail:core.avail, spare, spareNow:spare, status: spare<0?'short':(spare===0?'tight':'ok')});
+    const l=dayLoad(iso);
+    days.push({iso, routes:l.routes, base:l.base, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status, standardCount:l.standardCount});
   }
   return days;
+}
+
+
+// Given a plan + a set of declined ids, return the recommended non-conflicting active set.
+// Strategy: free crews with calls first (cheaper than moving a customer's date), up to the
+// buffer gap; if calls can't even clear the shortage, add date-moves until the shortage clears.
+function solvePlan(plan, declined){
+  declined = declined || new Set();
+  const used = new Set();        // job codes consumed as tail or anchor
+  const activeCalls=[], activeMoves=[];
+  const needCover=plan.gapToCover, needBuffer=plan.gapToBuffer;
+  let freed=0;
+  for(const c of plan.callPool){
+    if(freed>=needBuffer)break;
+    if(declined.has('call|'+c.tail))continue;
+    if(used.has(c.tail)||used.has(c.after))continue;
+    const purpose = freed<needCover ? 'cover' : 'buffer';
+    activeCalls.push(Object.assign({purpose}, c)); used.add(c.tail); used.add(c.after); freed++;
+  }
+  if(freed<needCover){
+    const spareLeft={};
+    for(const m of plan.movePool){
+      if(freed>=needCover)break;
+      if(declined.has('move|'+m.code))continue;
+      if(used.has(m.code))continue;
+      const k=m.to; const cap=(spareLeft[k]!=null?spareLeft[k]:m.targetSpare);
+      if(cap<1)continue;
+      activeMoves.push(Object.assign({purpose:'cover'}, m)); used.add(m.code); spareLeft[k]=cap-1; freed++;
+    }
+  }
+  const projectedRoutes=plan.routes-freed;
+  return { activeCalls, activeMoves, freed,
+           clearedShortage: freed>=needCover,
+           reachedBuffer: projectedRoutes<=plan.target,
+           projectedRoutes,
+           // remaining bench alternatives (for the cascade UI to know more exist)
+           moreCalls: plan.callPool.filter(c=>!activeCalls.find(a=>a.tail===c.tail) && !declined.has('call|'+c.tail)).length,
+           moreMoves: plan.movePool.filter(m=>!activeMoves.find(a=>a.code===m.code) && !declined.has('move|'+m.code)).length };
 }
 </script>
 <script>
@@ -1961,111 +1983,148 @@ function journeySteps(rec,kind){
 }
 
 /* ===== render ===== */
+function declinedSetFor(iso){
+  const s=new Set();
+  Object.keys(STATUS).forEach(k=>{ if(STATUS[k]==='declined'){ const p=k.split('|'); if(p[0]===iso) s.add(p[1]+'|'+p[2]); }});
+  return s;
+}
 function renderHorizon(){
   WINDOW=scanHorizon(windowStart(), +$('winLen').value);
   const el=$('horizon');
   if(!WINDOW.length){el.innerHTML='<div class="cempty">No calendar days in this window.</div>';return;}
   el.innerHTML=WINDOW.map(d=>{
-    const f=fmtDay(d.iso);const cls=d.status;
-    const label=d.status==='short'?('short '+Math.abs(d.spare)):d.status;
-    const pct=Math.min(100,Math.round(d.routes/Math.max(d.coreAvail,1)*100));
+    const f=fmtDay(d.iso); const cls=d.status;
+    const label=d.status==='short'?('over '+Math.abs(d.spare)):d.status==='tight'?'full':(d.spare+' free');
+    const pct=Math.min(100,Math.round(d.routes/Math.max(d.availableCore,1)*100));
     const col=d.status==='short'?'var(--hazard)':d.status==='tight'?'var(--rental)':'var(--fleet)';
     return '<div class="dpill'+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="bdg '+cls+'">'+label+'</span>'
       +'<div class="dd">'+f.dow+'</div><div class="dn">'+f.mon+' '+f.dn+'</div>'
-      +'<div class="meta"><span>'+d.routes+' routes</span><span class="cmuted">'+d.coreAvail+' crews</span></div>'
+      +'<div class="meta"><span>'+d.routes+' routes</span><span class="cmuted">\u2264'+d.target+'</span></div>'
       +'<div class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></div></div>';
   }).join('');
   el.querySelectorAll('.dpill').forEach(p=>p.addEventListener('click',()=>{SELECTED=p.dataset.iso;renderHorizon();renderDay(SELECTED);}));
   renderStats();
 }
 function renderStats(){
-  const sh=WINDOW.filter(d=>d.status==='short').length, ti=WINDOW.filter(d=>d.status==='tight').length;
+  const att=WINDOW.filter(d=>d.status!=='ok').length, buf=WINDOW.filter(d=>d.status==='ok').length;
   const core=DATA.foremen.filter(f=>f.status==='Active').length;
   $('stats').innerHTML=
     '<div class="stat"><div class="v">'+core+'</div><div class="l">core crews</div></div>'
-    +'<div class="stat"><div class="v '+(sh?'amber':'')+'" style="'+(sh?'color:var(--hazard)':'')+'">'+sh+'</div><div class="l">short days</div></div>'
-    +'<div class="stat"><div class="v '+(ti?'amber':'')+'">'+ti+'</div><div class="l">tight days</div></div>';
+    +'<div class="stat"><div class="v" style="'+(att?'color:var(--rental)':'')+'">'+att+'</div><div class="l">need attention</div></div>'
+    +'<div class="stat"><div class="v" style="color:var(--fleet)">'+buf+'</div><div class="l">have buffer</div></div>';
 }
-function basePressure(iso){
-  const dr=dayRoutes(iso);const byBase={};dr.routes.forEach(r=>{byBase[r.base]=(byBase[r.base]||0)+1;});
-  const home={};DATA.foremen.filter(f=>f.status==='Active').forEach(f=>{home[f.base]=(home[f.base]||0)+1;});
+function basePressure(snap){
+  const byBase={}; (snap||[]).forEach(r=>{byBase[r.base]=(byBase[r.base]||0)+1;});
+  const home={}; DATA.foremen.filter(f=>f.status==='Active').forEach(f=>{home[f.base]=(home[f.base]||0)+1;});
   const bases=[...new Set([...Object.keys(byBase),...Object.keys(home)])].sort();
   return bases.map(b=>({base:b,routes:byBase[b]||0,home:home[b]||0}));
 }
-function rbtn(id){return '<button class="cb route" data-route="'+id+'">🗺 show route</button>';}
-function statusBtns(id,a,b){const st=STATUS[id];let h='';
-  h+='<button class="cb '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'✓ '+a:a)+'</button>';
-  h+='<button class="cb '+(st==='declined'?'on-decl':'')+'" data-id="'+id+'" data-v="declined">'+(st==='declined'?'✕ declined':'declined')+'</button>';
-  h+='<button class="cb '+(st==='todo'?'on-todo':'')+'" data-id="'+id+'" data-v="todo">'+b+'</button>';
+function rbtn(id){return '<button class="cb route" data-route="'+id+'">\ud83d\uddfa show route</button>';}
+function adBtns(id,agreeLabel){const st=STATUS[id];let h='';
+  h+='<button class="cb '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'\u2713 '+agreeLabel:agreeLabel)+'</button>';
+  h+='<button class="cb '+(st==='declined'?'on-decl':'')+'" data-id="'+id+'" data-v="declined">'+(st==='declined'?'\u2715 declined':'declined')+'</button>';
+  h+='<button class="cb '+(st==='todo'?'on-todo':'')+'" data-id="'+id+'" data-v="todo">to&nbsp;do</button>';
   return h;}
+
 function renderDay(iso){
-  const plan=cleanupPlan(iso, scanHorizon(windowStart(),+$('winLen').value));
+  const horizon=scanHorizon(windowStart(), +$('winLen').value);
+  const plan=cleanupPlan(iso, horizon);
+  const declined=declinedSetFor(iso);
+  const sol=solvePlan(plan, declined);
   CURPLAN=plan; RECS={}; ACTIVE_ROUTE=null;
-  const f=fmtDay(iso);
-  const sc=plan.status;
+  const f=fmtDay(iso); const st=plan.status;
+  const chip = st==='short'?{c:'short',t:'over by '+Math.abs(plan.spare)}:st==='tight'?{c:'tight',t:'full \u00b7 no buffer'}:{c:'ok',t:plan.spare+' crews free'};
   let html='<div class="daycard"><div class="dchead"><div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2>'
-    +'<div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.coreAvail+'</b> core crews — '
-    +(plan.spare<0?('<b style="color:var(--hazard)">short '+Math.abs(plan.spare)+' crew'+(Math.abs(plan.spare)>1?'s':'')+'</b>'):plan.spare===0?'<b style="color:var(--rental)">at capacity, zero spare</b>':('<b style="color:var(--fleet)">'+plan.spare+' spare</b>'))
-    +(plan.coreOff.length?' · '+plan.coreOff.length+' off':'')+'</div></div>'
-    +'<span class="schip '+sc+'">'+(sc==='short'?'short '+Math.abs(plan.spare):sc==='tight'?'tight':'ok')+'</span></div><div class="dcbody">';
-  const bp=basePressure(iso);
-  html+='<div class="bases">'+bp.map(b=>{const hot=b.routes>b.home,warm=b.routes===b.home&&b.home>0;return '<div class="bch'+(hot?' hot':warm?' warm':'')+'"><b>'+b.base+'</b><span class="pr">'+b.routes+'</span><span class="cmuted">routes /</span><span>'+b.home+' home</span></div>';}).join('')+'</div>';
-  if(plan.status==='ok')html+='<div class="cres ok">✓ Covered by core crews with '+plan.spare+' to spare. Anything below is optional.</div>';
+    +'<div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.availableCore+'</b> core crews \u00b7 aim \u2264'+plan.target
+    +(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off':'')+'</div></div>'
+    +'<span class="schip '+chip.c+'">'+chip.t+'</span></div><div class="dcbody">';
+  const bp=basePressure(plan.routesSnap);
+  html+='<div class="bases">'+bp.map(b=>{const hot=b.routes>b.home,warm=b.routes===b.home&&b.home>0;return '<div class="bch'+(hot?' hot':warm?' warm':'')+'"><b>'+b.base+'</b><span class="pr">'+b.routes+'</span><span class="cmuted">rt /</span><span>'+b.home+'</span></div>';}).join('')+'</div>';
+
+  // goal line
+  if(st==='ok') html+='<div class="cres ok">\u2713 This day already holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Standard re-chains below are optional optimizations.</div>';
+  else if(st==='tight') html+='<div class="cres no">No buffer right now. You can free up to '+plan.gapToBuffer+' crew'+(plan.gapToBuffer>1?'s':'')+' below to rebuild it \u2014 optional, costs a discount.</div>';
+  else html+='<div class="cres no">Short '+Math.abs(plan.spare)+' \u2014 you must free '+plan.gapToCover+' crew'+(plan.gapToCover>1?'s':'')+' to avoid leaning on backups. Work the ladder below.</div>';
+
   html+='<div class="ladder">';
-  // step 1
-  html+='<div class="lstep"><div class="lhead"><span class="lnum free">1</span><span class="ltitle">Re-chain (free)</span><span class="lsub">same crew</span></div>';
-  if(plan.normalChains.length){html+='<div class="lnote">Already fit back-to-back on one crew — confirm in the calendar.</div><div class="items">';
-    plan.normalChains.forEach((c,i)=>{const id=iso+'|chain|'+c.tail;RECS[id]=c;const st=STATUS[id];
-      html+='<div class="item'+(st==='done'?' done':'')+'"><div class="itop"><span class="icust">'+esc(c.customer||c.tail)+'</span><span class="iwhere">'+esc(c.city)+'</span></div>'
-        +'<div class="iaction">Run right after <b>'+esc(c.anchorCustomer||c.after)+'</b>'+(c.linkMi!=null?' (~'+c.linkMi+' mi)':'')+' on one crew.</div>'
-        +'<div class="ibtns"><button class="cb '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'✓ confirmed':'mark confirmed')+'</button>'+rbtn(id)+'</div></div>';});
-    html+='</div>';}
-  else html+='<div class="cempty">No new back-to-back chains.</div>';
+
+  // TIER 1 — standard (free)
+  html+='<div class="lstep"><div class="lhead"><span class="lnum free">1</span><span class="ltitle">Re-chain (free)</span><span class="lsub">route optimization, no call</span></div>';
+  if(plan.standardChains.length){
+    html+='<div class="lnote">An afternoon job can move onto an existing crew at no cost \u2014 it was sold as afternoon, so just confirm internally.</div><div class="items">';
+    plan.standardChains.forEach((c,i)=>{const id=iso+'|chain|'+c.tail;RECS[id]=c;const st2=STATUS[id];
+      html+='<div class="item'+(st2==='done'?' done':'')+'"><div class="itop"><span class="icust">'+esc(c.customer||c.tail)+'</span><span class="iwhere">'+esc(c.city)+' \u00b7 afternoon</span></div>'
+        +'<div class="iaction">Run after <b>'+esc(c.anchorCustomer||c.after)+'</b> instead of its own crew'+(c.linkMi!=null?' (~'+c.linkMi+' mi)':'')+'. Frees a crew, no customer call.</div>'
+        +'<div class="ibtns"><button class="cb '+(st2==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st2==='done'?'\u2713 confirmed':'confirm re-chain')+'</button>'+rbtn(id)+'</div></div>';});
+    html+='</div>';
+  } else html+='<div class="cempty">\u2713 Routes already optimized \u2014 the engine has chained every afternoon job it can. No free re-chains left.</div>';
   html+='</div>';
-  // step 2
-  html+='<div class="lstep"><div class="lhead"><span class="lnum call">2</span><span class="ltitle">Call the customer — arrive later</span><span class="lsub">frees a crew</span></div>';
-  if(plan.extraChains.length){html+='<div class="lnote">Chains onto another crew <b>if</b> the customer accepts an early-afternoon arrival. Discount at your discretion.</div><div class="items">';
-    plan.extraChains.forEach((e,i)=>{const id=iso+'|call|'+e.tail;RECS[id]=e;const st=STATUS[id];
-      const push=(e.askArriveMs-e.origStartMs)/3600000;const tg=push>=5?'big':push>=3?'med':'sm';const tgt=push>=5?'big ask':push>=3?'moderate':'small shift';
-      const win=e.window?e.window.text:fmtMs(e.askArriveMs);
-      html+='<div class="item'+(st==='done'?' done':st==='declined'?' declined':'')+'"><div class="itop"><span class="icust">'+esc(e.customer||e.tail)+'</span><span class="iwhere">'+esc(e.city)+' · '+e.cf+' cf</span><span class="tg '+tg+'">'+tgt+'</span></div>'
-        +'<div class="iaction">Chain after <b>'+esc(e.anchorCustomer||e.after)+'</b>. Move start from <b>'+hmPretty(e.origStartMs)+'</b> to arrival <span class="win">'+win+'</span>.</div>'
-        +'<div class="iscript">📞 "Hi '+esc(e.customer?e.customer.split(/\s+/)[0]:'there')+' — could we arrive between '+win+' on '+f.mon+' '+f.dn+' instead of the morning? We\u2019ll apply a discount."</div>'
-        +'<div class="ibtns">'+statusBtns(id,'agreed','to call')+rbtn(id)+'</div></div>';});
-    html+='</div>';}
-  else html+='<div class="cempty">No "arrive later" chains possible.</div>';
+
+  // TIER 2 — calls
+  html+='<div class="lstep"><div class="lhead"><span class="lnum call">2</span><span class="ltitle">Call the customer \u2014 arrive later</span><span class="lsub">$100 tight \u00b7 $50 looser</span></div>';
+  if(sol.activeCalls.length){
+    html+='<div class="lnote">Ask a morning customer to flip to the afternoon so they chain onto another crew. Offer the discount for the flexibility.</div><div class="items">';
+    sol.activeCalls.forEach((e)=>{const id=iso+'|call|'+e.tail;RECS[id]=e;const st2=STATUS[id];
+      const tg=e.discount>=100?'sm':'med'; const tgt=e.discount>=100?'tight chain':'valid chain';
+      const pur=e.purpose==='cover'?'<span class="tg med">clears shortage</span>':'<span class="tg sm">buffer</span>';
+      html+='<div class="item'+(st2==='done'?' done':st2==='declined'?' declined':'')+'"><div class="itop"><span class="icust">'+esc(e.customer||e.tail)+'</span><span class="iwhere">'+esc(e.city)+' \u00b7 '+e.cf+' cf</span><span class="tg '+tg+'">$'+e.discount+' \u00b7 '+tgt+'</span>'+pur+'</div>'
+        +'<div class="iaction">Chain after <b>'+esc(e.anchorCustomer||e.after)+'</b>. Move start from <b>'+hmPretty(e.origStartMs)+'</b> to arrival <span class="win">'+e.window.text+'</span>. Frees one crew.</div>'
+        +'<div class="iscript">\ud83d\udcde "Hi '+esc(shortName(e.customer)||'there')+' \u2014 could we arrive between '+e.window.text+' on '+f.mon+' '+f.dn+' instead of the morning? We\u2019ll take $'+e.discount+' off for the flexibility."</div>'
+        +'<div class="ibtns">'+adBtns(id,'agreed')+rbtn(id)+'</div></div>';});
+    html+='</div>';
+    if(sol.moreCalls>0) html+='<div class="lnote cmuted" style="margin-top:8px">If declined, '+sol.moreCalls+' other customer'+(sol.moreCalls>1?'s':'')+' can be asked instead \u2014 mark one declined to see the next.</div>';
+  } else if(plan.callPool.length && declined.size){
+    html+='<div class="cempty">All call options here have been declined. See moves below.</div>';
+  } else if(st==='ok'){
+    html+='<div class="cempty cmuted">Not needed \u2014 buffer already met.</div>';
+  } else {
+    html+='<div class="cempty">No morning job here can flip to the afternoon (none chain within the rules).</div>';
+  }
   html+='</div>';
-  // step 3
-  html+='<div class="lstep"><div class="lhead"><span class="lnum move">3</span><span class="ltitle">Move to a lighter day</span><span class="lsub">last resort</span></div>';
-  if(plan.moves.length){html+='<div class="lnote">Move to a nearby day with spare crews — the slot on that day is shown.</div><div class="items">';
-    plan.moves.forEach((m,i)=>{const id=iso+'|move|'+m.code;RECS[id]=m.slot;const st=STATUS[id];const tf=fmtDay(m.to);const s=m.slot;
+
+  // TIER 3 — moves
+  html+='<div class="lstep"><div class="lhead"><span class="lnum move">3</span><span class="ltitle">Move to a lighter day</span><span class="lsub">last resort for shortage</span></div>';
+  if(sol.activeMoves.length){
+    html+='<div class="lnote">Chaining can\u2019t clear the day \u2014 move to a nearby lighter day. The slot on that day is shown (chained where possible).</div><div class="items">';
+    sol.activeMoves.forEach((m)=>{const id=iso+'|move|'+m.code;RECS[id]=m.slot;const st2=STATUS[id];const tf=fmtDay(m.to);const s=m.slot;
       const slotTxt=s.fresh?('as its own crew, keep <b>~'+hmPretty(s.origStartMs)+'</b>'):('after <b>'+esc(s.anchorCustomer||s.anchorCode)+'</b>, arrival <span class="win">'+s.window.text+'</span>');
-      html+='<div class="item'+(st==='done'?' done':st==='declined'?' declined':'')+'"><div class="itop"><span class="icust">'+esc(m.customer||m.code)+'</span><span class="iwhere">'+esc(m.city)+' · '+m.cf+' cf</span></div>'
-        +'<div class="iaction">Move from <b>'+f.mon+' '+f.dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> — '+slotTxt+'.</div>'
-        +'<div class="iscript">📞 "Would '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(s.fresh?'':' We\u2019d arrive around '+s.window.text+'.')+' We can offer a discount for moving."</div>'
-        +'<div class="ibtns">'+statusBtns(id,'moved','to do')+rbtn(id)+'</div></div>';});
-    html+='</div>';}
-  else if(plan.status!=='ok')html+='<div class="cempty">No date-move needed.</div>';
-  else html+='<div class="cempty cmuted">—</div>';
+      html+='<div class="item'+(st2==='done'?' done':st2==='declined'?' declined':'')+'"><div class="itop"><span class="icust">'+esc(m.customer||m.code)+'</span><span class="iwhere">'+esc(m.city)+' \u00b7 '+m.cf+' cf</span><span class="tg sm">'+tf.dow+' has '+m.targetSpare+' free</span></div>'
+        +'<div class="iaction">Move from <b>'+f.mon+' '+f.dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> \u2014 '+slotTxt+'.</div>'
+        +'<div class="iscript">\ud83d\udcde "Would '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(s.fresh?'':' We\u2019d arrive around '+s.window.text+'.')+' We can offer a discount for moving the date."</div>'
+        +'<div class="ibtns">'+adBtns(id,'moved')+rbtn(id)+'</div></div>';});
+    html+='</div>';
+    if(sol.moreMoves>0) html+='<div class="lnote cmuted" style="margin-top:8px">If declined, '+sol.moreMoves+' other job'+(sol.moreMoves>1?'s':'')+' could move instead.</div>';
+  } else if(sol.clearedShortage && st!=='ok'){
+    html+='<div class="cempty cmuted">Not needed \u2014 calls above clear the shortage.</div>';
+  } else if(st==='ok'){
+    html+='<div class="cempty cmuted">\u2014</div>';
+  } else {
+    html+='<div class="cempty">No nearby lighter day with a free crew to move to.</div>';
+  }
   html+='</div></div>';
-  if(plan.status!=='ok'){
-    if(plan.cleared)html+='<div class="cres ok">✅ After these: <b>'+plan.finalRoutes+' routes</b> on '+plan.coreAvail+' crews — <b>'+plan.finalSpare+' spare</b>. Cleared without backups.</div>';
-    else html+='<div class="cres no">⚠ Still short <b>'+plan.residual+'</b> after every suggestion — needs a backup/rental crew or more manual moves.</div>';}
+
+  // projected result
+  if(st!=='ok'){
+    if(sol.clearedShortage && sol.reachedBuffer) html+='<div class="cres ok">\u2705 After these \u2192 <b>'+sol.projectedRoutes+' routes</b>, buffer restored ('+(plan.availableCore-sol.projectedRoutes)+' free).</div>';
+    else if(sol.clearedShortage) html+='<div class="cres ok">\u2705 After these \u2192 <b>'+sol.projectedRoutes+' routes</b>, shortage cleared (no buffer \u2014 acceptable when there\u2019s no clean way to \u2264'+plan.target+').</div>';
+    else html+='<div class="cres no">\u26a0 Best case still <b>'+sol.projectedRoutes+' routes</b> ('+(sol.projectedRoutes-plan.availableCore)+' over). Needs a backup crew or a manual move.</div>';
+  }
   html+='</div></div>';
   $('daydetail').innerHTML=html;
-  $('daydetail').querySelectorAll('.cb[data-id]').forEach(b=>b.addEventListener('click',()=>{setStatus(b.dataset.id,STATUS[b.dataset.id]===b.dataset.v?null:b.dataset.v);renderDay(iso);}));
+  $('daydetail').querySelectorAll('.cb[data-id]').forEach(b=>b.addEventListener('click',()=>{setStatus(b.dataset.id,STATUS[b.dataset.id]===b.dataset.v?null:b.dataset.v);renderDay(iso);renderHorizon();}));
   $('daydetail').querySelectorAll('.cb[data-route]').forEach(b=>b.addEventListener('click',()=>{
-    const id=b.dataset.route;const rec=RECS[id];const kind=id.split('|')[1];
+    const id=b.dataset.route; const rec=RECS[id]; const kind=id.split('|')[1];
     document.querySelectorAll('.cb.route.active').forEach(x=>x.classList.remove('active'));
     if(ACTIVE_ROUTE===id){exitMap();return;}
-    b.classList.add('active');ACTIVE_ROUTE=id;
+    b.classList.add('active'); ACTIVE_ROUTE=id;
     let title='',sub='';
-    if(kind==='chain'){title=rec.customer||rec.tail;sub='Re-chain after <b>'+esc(rec.anchorCustomer||rec.after)+'</b> — same crew, no call.';}
-    else if(kind==='call'){title=rec.customer||rec.tail;sub='Chain after <b>'+esc(rec.anchorCustomer||'')+'</b> if they accept arrival '+(rec.window?rec.window.text:'')+'. Frees one crew.';}
-    else {title=rec.fresh?'Moved job':( (RECS[id].anchorCustomer||'')+' chain');sub=rec.fresh?'Runs as its own crew on the new day.':'On the new day, runs after <b>'+esc(rec.anchorCustomer||'')+'</b>, arrival '+rec.window.text+'.';}
+    if(kind==='chain'){title=rec.customer||rec.tail;sub='Re-chain after <b>'+esc(rec.anchorCustomer||rec.after)+'</b> \u2014 same crew, no call.';}
+    else if(kind==='call'){title=rec.customer||rec.tail;sub='Chain after <b>'+esc(rec.anchorCustomer||'')+'</b> if they accept '+(rec.window?rec.window.text:'')+'. Frees one crew \u00b7 $'+rec.discount+'.';}
+    else {title=rec.customer||'Moved job';sub=rec.fresh?'Runs as its own crew on the new day.':'On the new day, after <b>'+esc(rec.anchorCustomer||'')+'</b>, arrival '+rec.window.text+'.';}
     showRoute(rec,kind,title,sub);
   }));
 }
+function plan_buffer(){return (typeof CLEAN!=='undefined'&&CLEAN.buffer)||2;}
 
 /* ===== Update Calendar: write agreed actions ===== */
 function agreedActions(){
