@@ -2274,16 +2274,14 @@ function renderOpti(){
   box.innerHTML=html;
   box.querySelectorAll('.optibtn').forEach(b=>b.addEventListener('click',()=>{
     highlighted=null;document.querySelector('.layout').classList.remove('mapon');
-    applyWithDiff(null,()=>{manualChains.push({tail:b.dataset.b,after:b.dataset.a});rebuildRoutes();});
+    chainApply(()=>{manualChains.push({tail:b.dataset.b,after:b.dataset.a});rebuildRoutes();});
   }));
   box.querySelectorAll('.chx[data-auto]').forEach(a=>a.addEventListener('click',()=>{
     AUTOOFFLIST.add(a.dataset.auto);
-    highlighted=null;document.querySelector('.layout').classList.remove('mapon');
-    applyWithDiff(null,()=>{rebuildRoutes();});
+    chainApply(()=>{rebuildRoutes();});
   }));
   box.querySelectorAll('.chx[data-i]').forEach(a=>a.addEventListener('click',()=>{
-    highlighted=null;document.querySelector('.layout').classList.remove('mapon');
-    applyWithDiff(null,()=>{manualChains.splice(+a.dataset.i,1);rebuildRoutes();});
+    chainApply(()=>{manualChains.splice(+a.dataset.i,1);rebuildRoutes();});
   }));
 }
 
@@ -2750,8 +2748,29 @@ function takeSnap(){const s={};routes.forEach(r=>{s[r.legs[0].code]={f:r.foreman
 const ZD_KEY='zd_state_v1';
 function tomorrowISO(){return new Date(new Date(TODAY_ISO+'T12:00').getTime()+86400000).toISOString().slice(0,10);}
 function canEdit(d){d=d||currentDay;return d>=TODAY_ISO&&d<=tomorrowISO();}
+function canChain(d){d=d||currentDay;return d>=TODAY_ISO;} // chain / detach allowed on any non-past day; only calendar push is limited to today+tomorrow
+function chainApply(fn){
+  if(!canChain()){toast('🔒 Past day — review mode; chaining is disabled.');return;}
+  highlighted=null;document.querySelector('.layout').classList.remove('mapon');
+  if(canEdit()){applyWithDiff(null,fn);return;}
+  // future day: apply + render + persist chain-state, without the today-only assignment diff
+  fn();render();saveChainState();
+}
 function loadZD(){try{return JSON.parse(localStorage.getItem(ZD_KEY)||'{}');}catch(e){return {};}}
 function saveZD(z){try{localStorage.setItem(ZD_KEY,JSON.stringify(z));}catch(e){}}
+function saveChainState(){
+  // persist only chain-related edits (manual re-chains + detached auto-chains) for the current day,
+  // for days beyond the editable window where full assignment-state isn't saved
+  const z=loadZD();z.days=z.days||{};
+  for(const d of Object.keys(z.days))if(d<TODAY_ISO)delete z.days[d];
+  if(canChain()&&!canEdit()){
+    const prev=z.days[currentDay]||{};
+    const st=Object.assign({},prev,{chains:manualChains.slice(),det:[...AUTOOFFLIST],ts:Date.now()});
+    if(st.chains.length||st.det.length||(st.ov&&st.ov.length)||(st.off&&st.off.length)||(st.drafts&&st.drafts.length)||(st.cdrops&&Object.keys(st.cdrops).length))z.days[currentDay]=st;
+    else delete z.days[currentDay];
+    saveZD(z);
+  }
+}
 function saveDayState(){
   const z=loadZD();z.days=z.days||{};
   for(const d of Object.keys(z.days))if(d<TODAY_ISO)delete z.days[d];
@@ -2777,10 +2796,14 @@ function restoreDayState(day,announce){
     if(z.holders&&Object.keys(z.holders).length)DATA.holders=Object.assign({},z.holders,DATA.holders||{});
   }
   const st=(z.days||{})[day];
-  if(!st||!canEdit(day))return false;
-  DAYOFF.clear();(st.off||[]).forEach(n=>DAYOFF.add(n));
+  if(!st||!canChain(day))return false;
   manualChains=(st.chains||[]).slice();
   AUTOOFFLIST.clear();(st.det||[]).forEach(x=>AUTOOFFLIST.add(x));
+  if(!canEdit(day)){ // future day: chains/detaches only, no pinned assignments
+    computeAutoOff();rebuildRoutes();
+    return true;
+  }
+  DAYOFF.clear();(st.off||[]).forEach(n=>DAYOFF.add(n));
   (st.drafts||[]).forEach(j=>{const arr=DATA.days[day]=DATA.days[day]||[];if(!arr.some(x=>x.code===j.code)){j.idx=arr.length;arr.push(j);}});
   if(day===currentDay)DATA.jobs=DATA.days[day]||[];
   computeAutoOff();rebuildRoutes();
