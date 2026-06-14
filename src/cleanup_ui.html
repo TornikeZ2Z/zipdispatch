@@ -249,7 +249,7 @@ function tlChunk(td){
   for(const b of Object.keys(byB)){
     const rs=byB[b];
     rows+='<div class="tlsep" data-b="'+esc(b)+'"><h4>'+esc(b)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+'</span></div>';
-    for(const r of rs){const cf=(r.legs.reduce((s,l)=>s+(l.cf||0),0)).toLocaleString();const isShort=shortIds.has(r.id);const r1=r.id+(r.legs.length>1?' \u26d3':'')+' \u00b7 '+cf+' CF';const r2=(r.legs.length>1?r.legs.length+' jobs':'1 job')+(isShort?' \u00b7 \u26a0 no spare crew':'');rows+='<div class="tlrow'+(isShort?' tlshortrow':'')+'"><div class="tllabel"><b>'+esc(r1)+'</b><span>'+esc(r2)+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';}
+    for(const r of rs){const cf=(r.totalCF||r.legs.reduce((s,l)=>s+(l.cf||0),0)).toLocaleString();const isShort=shortIds.has(r.id);const fn=r.foreman?esc(r.foreman.nick):'\u26a0 open';const r1=fn+' \u00b7 '+r.id+(r.legs.length>1?' \u26d3':'');const r2=cf+' CF \u00b7 '+(r.legs.length>1?r.legs.length+' jobs':'1 job')+(isShort?' \u00b7 \u26a0 overflow':'');rows+='<div class="tlrow'+(isShort?' tlshortrow':'')+'"><div class="tllabel"><b>'+r1+'</b><span>'+esc(r2)+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';}
   }
   let scale='<div class="tlrow scale"><div class="tllabel"></div><div class="tltrack">';
   for(let h=A;h<=B;h++){const p=(h-A)*60/SPAN*100;scale+='<div class="tlgrid" style="left:'+p+'%"></div>'+(h<B?'<div class="tlhr" style="left:'+p+'%">'+(h%24)+':00</div>':'');}
