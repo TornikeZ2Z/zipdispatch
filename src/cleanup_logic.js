@@ -232,4 +232,48 @@ function solvePlan(plan, declined){
            moreMoves: plan.movePool.filter(m=>!activeMoves.find(a=>a.code===m.code) && !declined.has('move|'+m.code)).length };
 }
 
-if(typeof module!=='undefined'){ Object.assign(module.exports, {CLEAN, coreAvailOn, dayLoad, detectChains, optimizeStandard, cleanupPlan, scanHorizon, cleanWindow, jobByCode, slotOnTarget, buildMovePool, solvePlan}); }
+
+// Full route objects for the day's timeline (build + chains + assignAll so rows show foreman/truck like the dispatcher).
+function timelineData(iso){
+  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay,kOff=new Set(AUTOOFFLIST);
+  try{
+    DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=[];
+    try{computeAutoOff();}catch(e){}
+    let rts=buildRoutes();
+    for(let g=0;g<2;g++){const det=detectAutoChains(rts);if(!det.length)break;AUTOCHAINS=AUTOCHAINS.concat(det);rts=buildRoutes();}
+    for(let k=0;k<14;k++){const r=detectChains(rts,iso).standard;if(!r.length)break;const p=r[0];AUTOCHAINS.push({tail:p.tail,after:p.after});const nr=buildRoutes();if(nr.length>=rts.length){AUTOCHAINS.pop();break;}rts=nr;}
+    try{assignAll(rts);}catch(e){}
+    const core=coreAvailOn(iso);
+    // shortage rows = the routes beyond core capacity (the last (routes-core) by latest start get flagged)
+    const over=Math.max(0, rts.length-core.avail);
+    const shortIds=new Set([...rts].sort((a,b)=>(b.t0||0)-(a.t0||0)).slice(0,over).map(r=>r.id));
+    return {routes:rts, availableCore:core.avail, off:core.off, shortIds:[...shortIds]};
+  } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; AUTOOFFLIST.clear(); kOff.forEach(x=>AUTOOFFLIST.add(x)); }
+}
+
+// Per-crew-slot ordered options for the resolve flow + decline cascade.
+// declined = Set of keys 'slot<i>|call|<tail>' / 'slot<i>|move|<code>'. Recompute on every action.
+function resolveSlots(plan, declined){
+  declined = declined || new Set();
+  const cover=plan.gapToCover, gap=Math.max(plan.gapToBuffer, plan.gapToCover);
+  const used=new Set(); const slots=[];
+  for(let i=0;i<gap;i++){
+    const cand=[];
+    for(const c of plan.callPool){
+      if(used.has(c.tail)||used.has(c.after))continue;
+      if(declined.has('slot'+i+'|call|'+c.tail))continue;
+      cand.push({kind:'call', key:'call|'+c.tail, rec:c});
+    }
+    for(const m of plan.movePool){
+      if(used.has(m.code))continue;
+      if(declined.has('slot'+i+'|move|'+m.code))continue;
+      cand.push({kind:'move', key:'move|'+m.code, rec:m});
+    }
+    const cur=cand[0]||null;
+    if(cur){ if(cur.kind==='call'){used.add(cur.rec.tail);used.add(cur.rec.after);} else used.add(cur.rec.code); }
+    slots.push({index:i, must:i<cover, current:cur, altCount:Math.max(0,cand.length-1), exhausted:!cur});
+  }
+  return {slots, cover, gap};
+}
+
+if(typeof module!=='undefined'){ Object.assign(module.exports, {CLEAN, coreAvailOn, dayLoad, detectChains, optimizeStandard, cleanupPlan, scanHorizon, cleanWindow, jobByCode, slotOnTarget, buildMovePool, solvePlan, timelineData, resolveSlots}); }
