@@ -170,11 +170,35 @@ function buildMovePool(iso, opt, horizon, callTails){
   return out;
 }
 
+
+// days within +/- n of iso (never before today) that actually have jobs — for date moves (max +/-2)
+function nearbyDays(iso, n){
+  const out=[]; const base=Date.parse(iso+'T12:00');
+  for(let d=-n; d<=n; d++){ if(d===0)continue;
+    const dt=new Date(base+d*86400000);
+    const i=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    if(i<TODAY_ISO || !DATA.days[i])continue;
+    const l=dayLoad(i);
+    out.push({iso:i, routes:l.routes, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status});
+  }
+  return out;
+}
+// every future day (today onward) that is amber/red — for the "problems only" filter (not limited to a window)
+function allProblemDays(){
+  const out=[];
+  for(const iso of Object.keys(DATA.days).sort()){
+    if(iso<TODAY_ISO)continue;
+    const l=dayLoad(iso);
+    if(l.status!=='ok') out.push({iso, routes:l.routes, base:l.base, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status, standardCount:l.standardCount});
+  }
+  return out;
+}
+
 function cleanupPlan(iso, horizon){
   const load=dayLoad(iso); const opt=load._opt;
   const callPool=opt.calls.map(c=>Object.assign({}, c, {window:c.window||cleanWindow(c.arriveMs, iso),
       discount:c.discount||((c.linkMin<=CLEAN.tightLinkMin||c.linkMi<=CLEAN.tightLinkMi)?CLEAN.discountTight:CLEAN.discountLoose)}));
-  const movePool=buildMovePool(iso, opt, horizon||[], new Set(callPool.map(c=>c.tail)));
+  const movePool=buildMovePool(iso, opt, nearbyDays(iso, 2), new Set(callPool.map(c=>c.tail))); // max +/-2 day move
   const gapToBuffer=Math.max(0, load.routes-load.target);
   const gapToCover =Math.max(0, load.routes-load.availableCore);
   return { iso, availableCore:load.availableCore, coreOff:load.coreOff, target:load.target,
@@ -234,22 +258,30 @@ function solvePlan(plan, declined){
 
 
 // Full route objects for the day's timeline (build + chains + assignAll so rows show foreman/truck like the dispatcher).
-function timelineData(iso){
-  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay,kOff=new Set(AUTOOFFLIST);
+function timelineData(iso, changes){
+  changes=changes||{};
+  const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay,kOff=new Set(AUTOOFFLIST),kDay=DATA.days[iso];
   try{
-    DATA.jobs=DATA.days[iso]||[]; currentDay=iso; AUTOCHAINS=[];
+    // apply confirmed MOVES: drop the moved-away jobs from this day so the board re-routes
+    const movedOut=[];
+    let dayJobs=(DATA.days[iso]||[]).slice();
+    dayJobs=dayJobs.filter(j=>{const c=changes[j.code]; if(c&&c.kind==='move'){movedOut.push({code:j.code,customer:j.customer||j.code,to:c.to});return false;} return true;});
+    // re-chained calls flip to the afternoon: clone the job with its new chained start so the chip moves
+    dayJobs=dayJobs.map(j=>{const c=changes[j.code]; if(c&&c.kind==='call'&&c.arriveMs){const cur=Date.parse(j.start);const dur=(Date.parse(j.end||j.start)-cur)||((j.actH||schedH(j)||3)*3600000);const pad=n=>String(n).padStart(2,'0');const f=ms=>{const d=new Date(ms);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());};return Object.assign({},j,{start:f(c.arriveMs),end:f(c.arriveMs+dur),_rechained:true});} return j;});
+    DATA.days[iso]=dayJobs; DATA.jobs=dayJobs; currentDay=iso; AUTOCHAINS=[];
     try{computeAutoOff();}catch(e){}
     let rts=buildRoutes();
     for(let g=0;g<2;g++){const det=detectAutoChains(rts);if(!det.length)break;AUTOCHAINS=AUTOCHAINS.concat(det);rts=buildRoutes();}
+    // apply confirmed RE-CHAINS (user-picked lead) so the morning job moves to the afternoon after its lead
+    Object.keys(changes).forEach(code=>{const c=changes[code];if(c&&c.kind==='call'&&c.after){AUTOCHAINS.push({tail:code,after:c.after});}});
+    rts=buildRoutes();
     for(let k=0;k<14;k++){const r=detectChains(rts,iso).standard;if(!r.length)break;const p=r[0];AUTOCHAINS.push({tail:p.tail,after:p.after});const nr=buildRoutes();if(nr.length>=rts.length){AUTOCHAINS.pop();break;}rts=nr;}
-    try{assignAll(rts, getW(), 'nearest');}catch(e){console.error('assignAll',e);}
-    rts.forEach(r=>{ if(!r.base) r.base=r.baseOverride||r.nearestBase||'NJ'; });
+    rts.forEach(r=>{ r.base=r.baseOverride||r.nearestBase||'NJ'; r.t0=Math.min(...r.legs.map(l=>Date.parse(l.start||0))); }); // no foreman here — assignment happens in the dispatcher the day before
     const core=coreAvailOn(iso);
-    // shortage rows = the routes beyond core capacity (the last (routes-core) by latest start get flagged)
     const over=Math.max(0, rts.length-core.avail);
     const shortIds=new Set([...rts].sort((a,b)=>(b.t0||0)-(a.t0||0)).slice(0,over).map(r=>r.id));
-    return {routes:rts, availableCore:core.avail, off:core.off, shortIds:[...shortIds]};
-  } finally { DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; AUTOOFFLIST.clear(); kOff.forEach(x=>AUTOOFFLIST.add(x)); }
+    return {routes:rts, availableCore:core.avail, off:core.off, shortIds:[...shortIds], movedOut};
+  } finally { DATA.days[iso]=kDay; DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; AUTOOFFLIST.clear(); kOff.forEach(x=>AUTOOFFLIST.add(x)); }
 }
 
 // Per-crew-slot ordered options for the resolve flow + decline cascade.
@@ -277,4 +309,4 @@ function resolveSlots(plan, declined){
   return {slots, cover, gap};
 }
 
-if(typeof module!=='undefined'){ Object.assign(module.exports, {CLEAN, coreAvailOn, dayLoad, detectChains, optimizeStandard, cleanupPlan, scanHorizon, cleanWindow, jobByCode, slotOnTarget, buildMovePool, solvePlan, timelineData, resolveSlots}); }
+if(typeof module!=='undefined'){ Object.assign(module.exports, {CLEAN, coreAvailOn, dayLoad, detectChains, optimizeStandard, cleanupPlan, scanHorizon, cleanWindow, jobByCode, slotOnTarget, buildMovePool, solvePlan, timelineData, resolveSlots, nearbyDays, allProblemDays}); }
