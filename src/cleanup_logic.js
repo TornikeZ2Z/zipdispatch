@@ -242,7 +242,8 @@ function timelineData(iso){
     let rts=buildRoutes();
     for(let g=0;g<2;g++){const det=detectAutoChains(rts);if(!det.length)break;AUTOCHAINS=AUTOCHAINS.concat(det);rts=buildRoutes();}
     for(let k=0;k<14;k++){const r=detectChains(rts,iso).standard;if(!r.length)break;const p=r[0];AUTOCHAINS.push({tail:p.tail,after:p.after});const nr=buildRoutes();if(nr.length>=rts.length){AUTOCHAINS.pop();break;}rts=nr;}
-    try{assignAll(rts);}catch(e){}
+    try{assignAll(rts, getW(), 'nearest');}catch(e){console.error('assignAll',e);}
+    rts.forEach(r=>{ if(!r.base) r.base=r.baseOverride||r.nearestBase||'NJ'; });
     const core=coreAvailOn(iso);
     // shortage rows = the routes beyond core capacity (the last (routes-core) by latest start get flagged)
     const over=Math.max(0, rts.length-core.avail);
