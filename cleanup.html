@@ -1131,6 +1131,20 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 /* #6 positive feedback banners */
 .cres.win{background:linear-gradient(0deg,var(--fleet-bg),var(--fleet-bg)),#fff;border:1px solid var(--fleet-bd);color:#3D5512;border-radius:9px;padding:10px 13px;margin-bottom:8px;font-weight:600}
 .cres.okwin{background:var(--fleet-bg);border:1px solid var(--fleet-bd);color:#3D5512;border-radius:9px;padding:9px 12px;margin-bottom:8px;font-weight:500}
+/* ===== batch-5: move-story ghosts, incoming, distribution alerts ===== */
+.tlrow.ghostrow{opacity:.92}
+.tlrow.ghostrow .tllabel b{color:var(--dim);font-weight:600}
+.tlrow.ghostrow .tllabel span{color:var(--faint)}
+.tlblock.ghostblk{background:transparent!important;border:1.6px dashed var(--line2);color:var(--faint);font-weight:700;font-size:11px;box-shadow:none}
+.tlblock.ghostblk.gcall{border-color:#B26B0B;color:#B26B0B}
+.tlblock.ghostblk.gmove{border-color:#C2417A;color:#C2417A}
+.tlblock.ghostblk.gin{border-color:#1F6FD6;color:#1F6FD6;border-style:dotted}
+.tlrow.incomingrow .tllabel b{color:#1F6FD6;font-weight:700}
+.tlrow.incomingrow .tllabel span{color:var(--faint)}
+#cltl .tlsep.incsep{background:#E9F1FB;border-left-color:#1F6FD6;color:#1F6FD6}
+/* distribution checks */
+.distalert{font-size:12.5px;color:#B3362A;background:var(--hazard-bg);border:1px solid var(--hazard-bd);border-radius:8px;padding:8px 11px;margin:0 0 8px;font-weight:500}
+.distinfo{font-size:12px;color:var(--dim);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 11px;margin:0 0 8px}
 
 </style>
 </head>
@@ -2031,7 +2045,18 @@ function timelineData(iso, changes){
   const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay,kOff=new Set(AUTOOFFLIST),kDay=DATA.days[iso];
   try{
     // apply confirmed MOVES: drop the moved-away jobs from this day so the board re-routes
-    const movedOut=[];
+    const movedOut=[]; const ghosts=[];
+    const _chk=Object.keys(changes);
+    if(_chk.length){ // learn each changed job's ORIGINAL base+time by building the unchanged routes first (for the ghost)
+      DATA.jobs=(DATA.days[iso]||[]).slice(); currentDay=iso; AUTOCHAINS=[];
+      try{computeAutoOff();}catch(e){}
+      let _o=buildRoutes();
+      for(let g=0;g<2;g++){const det=detectAutoChains(_o);if(!det.length)break;AUTOCHAINS=AUTOCHAINS.concat(det);_o=buildRoutes();}
+      const _oi={};
+      _o.forEach(r=>{const b=r.baseOverride||r.nearestBase||'NJ';r.legs.forEach(l=>{_oi[l.code]={base:b,start:l.start,end:l.end||l.start,cf:l.cf||0,cityFrom:l.cityFrom||'',cityTo:l.cityTo||'',customer:l.customer||l.code};});});
+      _chk.forEach(code=>{const c=changes[code];const gi=_oi[code];if(!gi)return;ghosts.push({code,customer:gi.customer,base:gi.base,origStartMs:Date.parse(gi.start),origEndMs:Date.parse(gi.end),cf:gi.cf,cityFrom:gi.cityFrom,cityTo:gi.cityTo,kind:c.kind,to:c.to,after:c.after,arriveMs:c.arriveMs});});
+      AUTOCHAINS=[];
+    }
     let dayJobs=(DATA.days[iso]||[]).slice();
     dayJobs=dayJobs.filter(j=>{const c=changes[j.code]; if(c&&c.kind==='move'){movedOut.push({code:j.code,customer:j.customer||j.code,to:c.to});return false;} return true;});
     // re-chained calls flip to the afternoon: clone the job with its new chained start so the chip moves
@@ -2048,7 +2073,8 @@ function timelineData(iso, changes){
     const core=coreAvailOn(iso);
     const over=Math.max(0, rts.length-core.avail);
     const shortIds=new Set([...rts].sort((a,b)=>(b.t0||0)-(a.t0||0)).slice(0,over).map(r=>r.id));
-    return {routes:rts, availableCore:core.avail, off:core.off, shortIds:[...shortIds], movedOut};
+    ghosts.forEach(g=>{ if(g.kind==='call'){ const rr=rts.find(r=>r.legs.some(l=>l.code===g.code)); if(rr){g.newRouteId=rr.id; const nl=rr.legs.find(l=>l.code===g.code); if(nl)g.newStartMs=Date.parse(nl.start);} } });
+    return {routes:rts, availableCore:core.avail, off:core.off, shortIds:[...shortIds], movedOut, ghosts};
   } finally { DATA.days[iso]=kDay; DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; AUTOOFFLIST.clear(); kOff.forEach(x=>AUTOOFFLIST.add(x)); }
 }
 
@@ -2232,6 +2258,19 @@ function journeySteps(rec,kind){
 function loadLeads(){try{return JSON.parse(localStorage.getItem('zc_leads')||'{}');}catch(e){return {};}}
 function saveLeads(){try{localStorage.setItem('zc_leads',JSON.stringify(LEADS));}catch(e){}}
 let LEADS=loadLeads();
+function loadMoves(){try{return JSON.parse(localStorage.getItem('zc_moves')||'{}');}catch(e){return {};}}
+function saveMoves(){try{localStorage.setItem('zc_moves',JSON.stringify(CONFIRMED_MOVES));}catch(e){}}
+var CONFIRMED_MOVES=loadMoves();
+function incomingMoves(iso){try{return Object.keys(CONFIRMED_MOVES).map(k=>CONFIRMED_MOVES[k]).filter(m=>m.to===iso);}catch(e){return [];}}
+function distroChecks(td){
+  var afterMap={}, pm=[];
+  td.routes.forEach(function(r){
+    r.legs.forEach(function(l){ if(l.after){(afterMap[l.after]=afterMap[l.after]||[]).push(l.customer||l.code);} });
+    if(r.legs.length===1){var l=r.legs[0];var h=new Date(l.start).getHours();var lng=/long/i.test(String(l.movingType||''))||l._far;if(h>=12 && !lng && !l.after && !l._rechained){pm.push(l.customer||l.code);}}
+  });
+  var dbl=Object.keys(afterMap).filter(function(k){return afterMap[k].length>=2;}).map(function(k){return {lead:jobCust(td,k)||k, tails:afterMap[k]};});
+  return {doubleChains:dbl, standalonePM:pm};
+}
 function sKey(iso,slot,kind,id){return iso+'|slot'+slot+'|'+kind+'|'+id;}
 function lKey(iso,slot,tail){return iso+'|slot'+slot+'|'+tail;}
 function declinedSetFor(iso){const s=new Set();Object.keys(STATUS).forEach(k=>{if(STATUS[k]==='declined'){const p=k.split('|');if(p[0]===iso)s.add(p.slice(1).join('|'));}});return s;}
@@ -2300,7 +2339,7 @@ function renderStats(){
 }
 
 /* build the dispatcher .tl* timeline markup; routes (not individual moves), no foreman, pending changes highlighted */
-function tlChunk(td, changes){
+function tlChunk(td, changes, incoming){
   changes=changes||{};
   let RR=td.routes.slice();
   if(BASEFILTER.size) RR=RR.filter(r=>BASEFILTER.has(r.base));
@@ -2320,9 +2359,13 @@ function tlChunk(td, changes){
   const trackOf=r=>legBlocks(r).map(mkB).join('');
   let rows=''; const byB={};
   [...RR].sort((x,y)=>(x.base||'').localeCompare(y.base||'')||((x.t0||0)-(y.t0||0))).forEach(r=>{(byB[r.base]=byB[r.base]||[]).push(r);});
-  for(const bb of Object.keys(byB)){
-    const rs=byB[bb];
-    rows+='<div class="tlsep" data-b="'+esc(bb)+'"><span class="tlcaret">'+(COLLAPSED.has(bb)?'\u25b8':'\u25be')+'</span><h4>'+esc(bb)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+'</span></div>';
+  const _ghosts=(td.ghosts||[]).filter(g=>!BASEFILTER.size||BASEFILTER.has(g.base));
+  const _gByB={}; _ghosts.forEach(g=>{(_gByB[g.base]=_gByB[g.base]||[]).push(g);});
+  const _ghostRow=(g)=>{const gl=Math.max(0,pos(g.origStartMs));const gr=Math.min(100,pos(g.origEndMs||g.origStartMs));const gw=Math.max(3,gr-gl);const dest=g.kind==='call'?('now '+hmPretty(g.newStartMs||g.arriveMs)+', after '+(jobCust(td,g.after)||g.after)):('moved to '+fmtDay(g.to).mon+' '+fmtDay(g.to).dn);return '<div class="tlrow ghostrow" data-base="'+esc(g.base)+'"'+(COLLAPSED.has(g.base)?' style="display:none"':'')+' title="'+esc(g.customer+' \u2014 '+dest)+'"><div class="tllabel"><b>'+esc(g.customer)+'</b><span>was '+hmPretty(g.origStartMs)+' \u2192 '+esc(dest)+'</span></div><div class="tltrack"><div class="tlblock ghostblk '+(g.kind==='call'?'gcall':'gmove')+'" style="left:'+gl+'%;width:'+gw+'%">was here</div></div></div>';};
+  const _bases=[...new Set([...Object.keys(byB),...Object.keys(_gByB)])].sort();
+  for(const bb of _bases){
+    const rs=byB[bb]||[];
+    rows+='<div class="tlsep" data-b="'+esc(bb)+'"><span class="tlcaret">'+(COLLAPSED.has(bb)?'\u25b8':'\u25be')+'</span><h4>'+esc(bb)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length!==1?'s':'')+((_gByB[bb]||[]).length?' \u00b7 '+(_gByB[bb]).length+' moved':'')+'</span></div>';
     for(const r of rs){RECS['rt|'+r.id]={route:r};
       const cf=(r.totalCF||r.legs.reduce((s,l)=>s+(l.cf||0),0)).toLocaleString();
       const isShort=shortIds.has(r.id); const hasChg=r.legs.some(l=>changes[l.code]);
@@ -2330,11 +2373,14 @@ function tlChunk(td, changes){
       const r1=r.id+(r.legs.length>1?' \u26d3':'')+' \u00b7 '+cf+' CF';
       const r2=jobN+(isShort?' \u00b7 \u26a0 overflow':'');
       rows+='<div class="tlrow clickable'+(isShort?' tlshortrow':'')+(hasChg?' rowchg':'')+'" data-rt="rt|'+r.id+'" data-base="'+esc(bb)+'"'+(COLLAPSED.has(bb)?' style="display:none"':'')+' title="Click to see the whole route on the map"><div class="tllabel"><b>'+esc(r1)+'</b><span>'+esc(r2)+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';}
+    (_gByB[bb]||[]).forEach(g=>{rows+=_ghostRow(g);});
   }
   let scale='<div class="tlrow scale"><div class="tllabel"></div><div class="tltrack">';
   for(let h=A;h<=B;h++){const p=(h-A)*60/SPAN*100;scale+='<div class="tlgrid" style="left:'+p+'%"></div>'+(h<B?'<div class="tlhr" style="left:'+p+'%">'+(h%24)+':00</div>':'');}
   scale+='</div></div>';
-  return '<div id="cltl" class="tlwrap">'+scale+rows+'</div>';
+  let _inc='';
+  if(incoming&&incoming.length){ _inc='<div class="tlsep incsep"><span class="tlcaret"></span><h4>\u2193 INCOMING (from your moves)</h4><span class="tlmeta">'+incoming.length+' job'+(incoming.length>1?'s':'')+'</span></div>'; incoming.forEach(m=>{const il=Math.max(0,pos(m.startMs||Date.parse(m.to)));_inc+='<div class="tlrow incomingrow" title="'+esc(m.customer+' moving in from '+m.from)+'"><div class="tllabel"><b>'+esc(m.customer)+'</b><span>\u2190 from '+fmtDay(m.from).mon+' '+fmtDay(m.from).dn+'</span></div><div class="tltrack"><div class="tlblock ghostblk gin" style="left:'+il+'%;width:6%">incoming</div></div></div>';}); }
+  return '<div id="cltl" class="tlwrap">'+scale+_inc+rows+'</div>';
 }
 
 function dayJobOptions(td, selCode){
@@ -2366,8 +2412,8 @@ function renderSlot(iso, s, td, dupLeads){
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'. Offer \u002450 off for the date change.</div>';
     const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We\u2019ll take \u002450 off for changing the date.\u201d</div>';
     if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,sl,'move')+'</div>'; }
-    else if(stt==='accepted'){ body=desc+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'">Client declined instead</button></div>'; }
-    else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
+    else if(stt==='accepted'){ body=desc+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'" data-mvto="'+rec.to+'" data-mvcust="'+esc(rec.customer||rec.code)+'" data-mvstart="'+((function(){var j=jobByCode(rec.code);return j?Date.parse(rec.to+' '+String(j.start).slice(11)):Date.parse(rec.to);})())+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'">Client declined instead</button></div>'; }
+    else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'">change</button></div>'; }
   }
   const casc=(stt==='todo'&&s.altCount>0)?'<div class="casc">If they refuse, '+s.altCount+' other option'+(s.altCount>1?'s':'')+' for this crew \u2192 tap Declined.</div>':'';
   return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span>'+head+'</div><div class="slotbody">'+body+casc+'</div></div>';
@@ -2388,10 +2434,13 @@ function renderDay(iso){
     if(STATUS[id]==='confirmed'){ if(k==='call') changes[rec.tail]={kind:'call', after:(LEADS[lKey(iso,s.index,rec.tail)]||rec.after), arriveMs:rec.arriveMs}; else changes[rec.code]={kind:'move', to:rec.to}; } });
   CURCHANGES=changes;
   const td=timelineData(iso, changes);
+  const distro=distroChecks(td); const incoming=incomingMoves(iso);
   const f=fmtDay(iso); const st=plan.status;
   const chip=st==='short'?{c:'short',t:'over by '+Math.abs(plan.spare)}:st==='tight'?{c:'tight',t:'full \u00b7 no buffer'}:{c:'ok',t:plan.spare+' crews free'};
   let h='<div class="daycard"><div class="dchead"><div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2><div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.availableCore+'</b> core crews \u00b7 aim \u2264'+plan.target+(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off':'')+'</div></div><span class="schip '+chip.c+'">'+chip.t+'</span></div><div class="dcbody">';
   h+='<div class="fixpanel">';
+  if(distro.doubleChains.length){ distro.doubleChains.forEach(dc=>{ h+='<div class="distalert">\u26a0 Double chaining \u2014 <b>'+esc(dc.tails.join(' & '))+'</b> are both chained after <b>'+esc(dc.lead)+'</b>. One crew can\u2019t do both \u2014 split one off.</div>'; }); }
+  if(distro.standalonePM.length){ h+='<div class="distinfo">\ud83d\udd17 Afternoon job'+(distro.standalonePM.length>1?'s':'')+' running solo (no feasible chain found): '+esc(distro.standalonePM.join(', '))+'.</div>'; }
   if(plan.standardChains.length){h+='<div class="fixinfo"><span class="tlbl free">free</span> '+plan.standardChains.length+' afternoon job'+(plan.standardChains.length>1?'s':'')+' auto-chained (extra-chain, no call): '+plan.standardChains.map(c=>esc(c.customer||c.tail)+' after '+esc(c.anchorCustomer||c.after)).join('; ')+'.</div>';}
   if(st==='ok'){
     h+='<div class="cres ok">\u2713 This day holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Nothing to resolve.</div>';
@@ -2411,7 +2460,7 @@ function renderDay(iso){
   h+='</div>';
   if(td.movedOut&&td.movedOut.length){h+='<div class="movedout">\u2197 Moved off this day ('+td.movedOut.length+'): '+td.movedOut.map(m=>esc(m.customer)+' \u2192 '+fmtDay(m.to).mon+' '+fmtDay(m.to).dn).join(', ')+'</div>';}
   h+='<div class="tlbar"><div class="tltitle">Routes on '+f.dow+' '+f.dn+' \u2014 click any to see the whole run</div><div class="tlleg"><i style="background:#6E9220"></i>local <i style="background:#C98A1B"></i>long <i style="background:#6C4FD8"></i>straight <i style="background:#5B6770"></i>labor <span class="lgchg"></span>pending change</div></div>';
-  h+=tlChunk(td, changes);
+  h+=tlChunk(td, changes, incoming);
   h+='</div></div>';
   $('daydetail').innerHTML=h;
   bindDay(iso);
@@ -2423,8 +2472,8 @@ function bindDay(iso){
     const id=b.dataset.id, act=b.dataset.act;
     if(act==='accept')setStatus(id,'accepted');
     else if(act==='decline')setStatus(id,'declined');
-    else if(act==='reopen')setStatus(id,null);
-    else if(act==='confirm'){ if(b.dataset.lk){const sel=root.querySelector('.leadsel[data-lk="'+b.dataset.lk+'"]');if(sel){LEADS[b.dataset.lk]=sel.value;saveLeads();}} setStatus(id,'confirmed'); }
+    else if(act==='reopen'){ if(b.dataset.mvcode){delete CONFIRMED_MOVES[b.dataset.mvcode];saveMoves();} setStatus(id,null); }
+    else if(act==='confirm'){ if(b.dataset.lk){const sel=root.querySelector('.leadsel[data-lk="'+b.dataset.lk+'"]');if(sel){LEADS[b.dataset.lk]=sel.value;saveLeads();}} if(b.dataset.mvcode){CONFIRMED_MOVES[b.dataset.mvcode]={code:b.dataset.mvcode,customer:b.dataset.mvcust,from:iso,to:b.dataset.mvto,startMs:(+b.dataset.mvstart||Date.parse(b.dataset.mvto))};saveMoves();} setStatus(id,'confirmed'); }
     renderDay(iso); renderHorizon();
   }));
   root.querySelectorAll('.leadsel').forEach(s=>s.addEventListener('click',e=>e.stopPropagation()));
