@@ -17,8 +17,8 @@
 <body>
 <header>
   <div class="brand">
-    <img id="brandlogo" src="https://tornikez2z.github.io/zipdispatch/logo.png" alt="Zip To Zip" onerror="this.style.display='none';document.getElementById('brandtxt').style.display='block'">
-    <h1 id="brandtxt" style="display:none">Zip to Zip — cleanup</h1>
+    <img id="brandlogo" src="https://tornikez2z.github.io/zipdispatch/logo.png" alt="Zip To Zip" title="Back to menu" style="cursor:pointer" onclick="location.href='index.html'" onerror="this.style.display='none';document.getElementById('brandtxt').style.display='block'">
+    <h1 id="brandtxt" title="Back to menu" style="display:none;cursor:pointer" onclick="location.href='index.html'">Zip to Zip — cleanup</h1>
   </div>
   <div id="hwin">
     <label>From <input type="date" id="fromDate"></label>
@@ -206,147 +206,148 @@ function journeySteps(rec,kind){
   return rows.join('');
 }
 
-/* ===== render ===== */
-function declinedSetFor(iso){
-  const s=new Set();
-  Object.keys(STATUS).forEach(k=>{ if(STATUS[k]==='declined'){ const p=k.split('|'); if(p[0]===iso) s.add(p[1]+'|'+p[2]); }});
-  return s;
-}
+/* ===== render (timeline view) ===== */
+function loadLeads(){try{return JSON.parse(localStorage.getItem('zc_leads')||'{}');}catch(e){return {};}}
+function saveLeads(){try{localStorage.setItem('zc_leads',JSON.stringify(LEADS));}catch(e){}}
+let LEADS=loadLeads();
+function sKey(iso,slot,kind,id){return iso+'|slot'+slot+'|'+kind+'|'+id;}
+function lKey(iso,slot,tail){return iso+'|slot'+slot+'|'+tail;}
+function declinedSetFor(iso){const s=new Set();Object.keys(STATUS).forEach(k=>{if(STATUS[k]==='declined'){const p=k.split('|');if(p[0]===iso)s.add(p.slice(1).join('|'));}});return s;}
+
 function renderHorizon(){
   WINDOW=scanHorizon(windowStart(), +$('winLen').value);
   const el=$('horizon');
-  if(!WINDOW.length){el.innerHTML='<div class="cempty">No calendar days in this window.</div>';return;}
-  el.innerHTML=WINDOW.map(d=>{
-    const f=fmtDay(d.iso); const cls=d.status;
-    const label=d.status==='short'?('over '+Math.abs(d.spare)):d.status==='tight'?'full':(d.spare+' free');
-    const pct=Math.min(100,Math.round(d.routes/Math.max(d.availableCore,1)*100));
-    const col=d.status==='short'?'var(--hazard)':d.status==='tight'?'var(--rental)':'var(--fleet)';
-    return '<div class="dpill'+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="bdg '+cls+'">'+label+'</span>'
-      +'<div class="dd">'+f.dow+'</div><div class="dn">'+f.mon+' '+f.dn+'</div>'
-      +'<div class="meta"><span>'+d.routes+' routes</span><span class="cmuted">\u2264'+d.target+'</span></div>'
-      +'<div class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></div></div>';
-  }).join('');
-  el.querySelectorAll('.dpill').forEach(p=>p.addEventListener('click',()=>{SELECTED=p.dataset.iso;renderHorizon();renderDay(SELECTED);}));
+  if(!WINDOW.length){el.innerHTML='<div class="cempty">No calendar days in this window.</div>';renderStats();return;}
+  const probs=WINDOW.filter(d=>d.status!=='ok');
+  if(!probs.length){el.innerHTML='<div class="allclear">\u2713 Every day in this window holds the 2-crew buffer \u2014 nothing to clean up.</div>';$('daydetail').innerHTML='';renderStats();return;}
+  el.innerHTML='<div class="phlbl">Problem days</div><div class="phead">'+probs.map(d=>{const f=fmtDay(d.iso);const lab=d.status==='short'?('over '+Math.abs(d.spare)):'full';return '<button class="pchip '+d.status+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="pd">'+f.dow+' '+f.mon+' '+f.dn+'</span><span class="pm">'+d.routes+'/'+d.availableCore+' \u00b7 '+lab+'</span></button>';}).join('')+'</div>';
+  el.querySelectorAll('.pchip').forEach(p=>p.addEventListener('click',()=>{SELECTED=p.dataset.iso;renderHorizon();renderDay(SELECTED);}));
+  if(SELECTED&&!probs.find(d=>d.iso===SELECTED)){SELECTED=probs[0].iso;}
   renderStats();
 }
 function renderStats(){
   const att=WINDOW.filter(d=>d.status!=='ok').length, buf=WINDOW.filter(d=>d.status==='ok').length;
   const core=DATA.foremen.filter(f=>f.status==='Active').length;
-  $('stats').innerHTML=
-    '<div class="stat"><div class="v">'+core+'</div><div class="l">core crews</div></div>'
+  $('stats').innerHTML='<div class="stat"><div class="v">'+core+'</div><div class="l">core crews</div></div>'
     +'<div class="stat"><div class="v" style="'+(att?'color:var(--rental)':'')+'">'+att+'</div><div class="l">need attention</div></div>'
     +'<div class="stat"><div class="v" style="color:var(--fleet)">'+buf+'</div><div class="l">have buffer</div></div>';
 }
-function basePressure(snap){
-  const byBase={}; (snap||[]).forEach(r=>{byBase[r.base]=(byBase[r.base]||0)+1;});
-  const home={}; DATA.foremen.filter(f=>f.status==='Active').forEach(f=>{home[f.base]=(home[f.base]||0)+1;});
-  const bases=[...new Set([...Object.keys(byBase),...Object.keys(home)])].sort();
-  return bases.map(b=>({base:b,routes:byBase[b]||0,home:home[b]||0}));
+
+/* build the dispatcher .tl* timeline markup from timelineData(iso) */
+function tlChunk(td){
+  const RR=td.routes; let minH=8,maxH=18;
+  const legBlocks=r=>{const sl=[...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));return sl.map((l,i)=>{const st=Date.parse(l.start);const multi=l._far&&l.straight;let en=multi?null:(l._endMs||Date.parse(l.end||l.start));const nd=en&&new Date(en).getDate()!==new Date(st).getDate();return {r,l,i,n:sl.length,st,en,nd,multi};});};
+  RR.forEach(r=>legBlocks(r).forEach(b=>{minH=Math.min(minH,new Date(b.st).getHours());if(b.en&&!b.nd)maxH=Math.max(maxH,new Date(b.en).getHours()+1);}));
+  const A=Math.max(0,minH-1),B=Math.min(24,Math.max(maxH+1,19)),SPAN=(B-A)*60;
+  const pos=ms=>{const d=new Date(ms);return ((d.getHours()*60+d.getMinutes())-A*60)/SPAN*100;};
+  const kindCol=l=>{const jt=String(l.jobType||''),mt=String(l.movingType||'');if(/labor/i.test(jt))return '#5B6770';const ld=/long/i.test(mt)||l._far;if(ld&&(l.straight||/straight/i.test(jt)))return '#6C4FD8';if(ld)return '#C98A1B';return '#6E9220';};
+  const shortIds=new Set(td.shortIds||[]);
+  const mkB=b=>{const left=Math.max(0,pos(b.st));const right=(b.multi||b.nd)?100:Math.min(100,pos(b.en));const w=Math.max(2.5,right-left);const cf=(b.l.cf||0).toLocaleString();const lbl=(b.n>1?(b.i+1)+'/'+b.n+' \u00b7 ':'')+(b.l.cityFrom||'')+' \u2192 '+(b.l.cityTo||'labor')+' \u00b7 '+cf+' CF'+(b.multi?' \u00b7 \u2192 multi':(b.nd?' \u00b7 \u2192 next day':''));const tip=b.r.id+' \u00b7 '+(b.l.code||'')+' \u00b7 '+(b.l.cityFrom||'')+' \u2192 '+(b.l.cityTo||'\u2014')+' \u00b7 '+hmPretty(b.st)+(b.en?'\u2013'+new Date(b.en).toTimeString().slice(0,5):'')+' \u00b7 '+cf+' CF';return '<div class="tlblock'+(b.multi?' ld':'')+(b.nd?' nd':'')+'" style="left:'+left+'%;width:'+w+'%;background:'+kindCol(b.l)+'" title="'+esc(tip)+'">'+esc(lbl)+'</div>';};
+  const trackOf=r=>legBlocks(r).map(mkB).join('');
+  let rows=''; const byB={};
+  [...RR].sort((x,y)=>(x.base||'').localeCompare(y.base||'')||((x.t0||0)-(y.t0||0))).forEach(r=>{(byB[r.base]=byB[r.base]||[]).push(r);});
+  for(const b of Object.keys(byB)){
+    const rs=byB[b];
+    rows+='<div class="tlsep" data-b="'+esc(b)+'"><h4>'+esc(b)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+'</span></div>';
+    for(const r of rs){const cf=(r.legs.reduce((s,l)=>s+(l.cf||0),0)).toLocaleString();const isShort=shortIds.has(r.id);const r1=r.id+(r.legs.length>1?' \u26d3':'')+' \u00b7 '+cf+' CF';const r2=(r.legs.length>1?r.legs.length+' jobs':'1 job')+(isShort?' \u00b7 \u26a0 no spare crew':'');rows+='<div class="tlrow'+(isShort?' tlshortrow':'')+'"><div class="tllabel"><b>'+esc(r1)+'</b><span>'+esc(r2)+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';}
+  }
+  let scale='<div class="tlrow scale"><div class="tllabel"></div><div class="tltrack">';
+  for(let h=A;h<=B;h++){const p=(h-A)*60/SPAN*100;scale+='<div class="tlgrid" style="left:'+p+'%"></div>'+(h<B?'<div class="tlhr" style="left:'+p+'%">'+(h%24)+':00</div>':'');}
+  scale+='</div></div>';
+  return '<div id="cltl" class="tlwrap">'+scale+rows+'</div>';
 }
-function rbtn(id){return '<button class="cb route" data-route="'+id+'">\ud83d\uddfa show route</button>';}
-function adBtns(id,agreeLabel){const st=STATUS[id];let h='';
-  h+='<button class="cb '+(st==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st==='done'?'\u2713 '+agreeLabel:agreeLabel)+'</button>';
-  h+='<button class="cb '+(st==='declined'?'on-decl':'')+'" data-id="'+id+'" data-v="declined">'+(st==='declined'?'\u2715 declined':'declined')+'</button>';
-  h+='<button class="cb '+(st==='todo'?'on-todo':'')+'" data-id="'+id+'" data-v="todo">to&nbsp;do</button>';
-  return h;}
+
+function dayJobOptions(td, selCode){
+  const seen=new Set(); let opts='';
+  td.routes.forEach(r=>r.legs.forEach(l=>{if(!l.code||seen.has(l.code))return;seen.add(l.code);opts+='<option value="'+esc(l.code)+'"'+(l.code===selCode?' selected':'')+'>'+esc((l.customer||l.code)+' \u00b7 '+l.code)+'</option>';}));
+  return opts;
+}
+
+function renderSlot(iso, s, td, dupLeads){
+  if(!s.current){
+    return '<div class="slot escal"><div class="slothead"><span class="stag must">crew '+(s.index+1)+'</span><b>No automated option left</b></div><div class="slotbody">Every call and date-move for this crew has been refused. Escalate: pay overtime, add an extra rental truck, or move a <i>different</i> job off this day.</div></div>';
+  }
+  const kind=s.current.kind, rec=s.current.rec;
+  const id=sKey(iso,s.index,kind, kind==='call'?rec.tail:rec.code);
+  const stt=STATUS[id]||'todo';
+  const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
+  let head, body='';
+  if(kind==='call'){
+    head='<b>\ud83d\udcde Call '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>';
+    const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b>. Offer \u0024'+rec.discount+'.</div>';
+    const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning? We\u2019ll take \u0024'+rec.discount+' off for the flexibility.\u201d</div>';
+    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,rec,'call')+'</div>'; }
+    else if(stt==='accepted'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; body=desc+'<div class="leadrow"><label>Runs after (lead job):</label><select class="leadsel" data-lk="'+lk+'">'+dayJobOptions(td,lead)+'</select></div><div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-lk="'+lk+'">Confirm re-chain</button><button class="cb" data-act="decline" data-id="'+id+'">Client declined instead</button></div>'; }
+    else if(stt==='confirmed'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; const dup=dupLeads.has(lead); body='<div class="confirmed'+(dup?' dup':'')+'">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.tail)+' arrives '+rec.window.text+', runs after <b>'+esc(jobCust(td,lead))+'</b>.'+(dup?' <span class="dupwarn">\u26a0 same lead as another re-chain \u2014 re-do this.</span>':'')+'<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
+  } else {
+    const sl=rec.slot, tf=fmtDay(rec.to);
+    const where=sl.fresh?('as its own crew, ~'+hmPretty(sl.origStartMs)):('after <b>'+esc(sl.anchorCustomer||sl.anchorCode)+'</b>, arrive <span class="win">'+sl.window.text+'</span>');
+    head='<b>\ud83d\udcc5 Move '+esc(rec.customer||rec.code)+'</b> '+tag;
+    const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'.</div>';
+    const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We can offer a discount for the date change.\u201d</div>';
+    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,sl,'move')+'</div>'; }
+    else if(stt==='accepted'){ body=desc+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'">Client declined instead</button></div>'; }
+    else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
+  }
+  const casc=(stt==='todo'&&s.altCount>0)?'<div class="casc">If they refuse, '+s.altCount+' other option'+(s.altCount>1?'s':'')+' for this crew \u2192 tap Declined.</div>':'';
+  return '<div class="slot '+stt+'"><div class="slothead"><span class="stag crew">crew '+(s.index+1)+'</span>'+head+'</div><div class="slotbody">'+body+casc+'</div></div>';
+}
+function routeBtn(id,rec,kind){RECS[id+'|r']={rec,kind};return '<button class="cb route" data-route="'+id+'|r">\ud83d\uddfa route</button>';}
+function jobCust(td,code){let n=code;td.routes.forEach(r=>r.legs.forEach(l=>{if(l.code===code)n=l.customer||code;}));return n;}
 
 function renderDay(iso){
   const horizon=scanHorizon(windowStart(), +$('winLen').value);
-  const plan=cleanupPlan(iso, horizon);
+  const plan=cleanupPlan(iso,horizon);
   const declined=declinedSetFor(iso);
-  const sol=solvePlan(plan, declined);
+  const slots=resolveSlots(plan,declined);
+  const td=timelineData(iso);
   CURPLAN=plan; RECS={}; ACTIVE_ROUTE=null;
   const f=fmtDay(iso); const st=plan.status;
-  const chip = st==='short'?{c:'short',t:'over by '+Math.abs(plan.spare)}:st==='tight'?{c:'tight',t:'full \u00b7 no buffer'}:{c:'ok',t:plan.spare+' crews free'};
-  let html='<div class="daycard"><div class="dchead"><div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2>'
-    +'<div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.availableCore+'</b> core crews \u00b7 aim \u2264'+plan.target
-    +(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off':'')+'</div></div>'
-    +'<span class="schip '+chip.c+'">'+chip.t+'</span></div><div class="dcbody">';
-  const bp=basePressure(plan.routesSnap);
-  html+='<div class="bases">'+bp.map(b=>{const hot=b.routes>b.home,warm=b.routes===b.home&&b.home>0;return '<div class="bch'+(hot?' hot':warm?' warm':'')+'"><b>'+b.base+'</b><span class="pr">'+b.routes+'</span><span class="cmuted">rt /</span><span>'+b.home+'</span></div>';}).join('')+'</div>';
-
-  // goal line
-  if(st==='ok') html+='<div class="cres ok">\u2713 This day already holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Standard re-chains below are optional optimizations.</div>';
-  else if(st==='tight') html+='<div class="cres no">No buffer right now. You can free up to '+plan.gapToBuffer+' crew'+(plan.gapToBuffer>1?'s':'')+' below to rebuild it \u2014 optional, costs a discount.</div>';
-  else html+='<div class="cres no">Short '+Math.abs(plan.spare)+' \u2014 you must free '+plan.gapToCover+' crew'+(plan.gapToCover>1?'s':'')+' to avoid leaning on backups. Work the ladder below.</div>';
-
-  html+='<div class="ladder">';
-
-  // TIER 1 — standard (free)
-  html+='<div class="lstep"><div class="lhead"><span class="lnum free">1</span><span class="ltitle">Re-chain (free)</span><span class="lsub">route optimization, no call</span></div>';
-  if(plan.standardChains.length){
-    html+='<div class="lnote">An afternoon job can move onto an existing crew at no cost \u2014 it was sold as afternoon, so just confirm internally.</div><div class="items">';
-    plan.standardChains.forEach((c,i)=>{const id=iso+'|chain|'+c.tail;RECS[id]=c;const st2=STATUS[id];
-      html+='<div class="item'+(st2==='done'?' done':'')+'"><div class="itop"><span class="icust">'+esc(c.customer||c.tail)+'</span><span class="iwhere">'+esc(c.city)+' \u00b7 afternoon</span></div>'
-        +'<div class="iaction">Run after <b>'+esc(c.anchorCustomer||c.after)+'</b> instead of its own crew'+(c.linkMi!=null?' (~'+c.linkMi+' mi)':'')+'. Frees a crew, no customer call.</div>'
-        +'<div class="ibtns"><button class="cb '+(st2==='done'?'on-done':'')+'" data-id="'+id+'" data-v="done">'+(st2==='done'?'\u2713 confirmed':'confirm re-chain')+'</button>'+rbtn(id)+'</div></div>';});
-    html+='</div>';
-  } else html+='<div class="cempty">\u2713 Routes already optimized \u2014 the engine has chained every afternoon job it can. No free re-chains left.</div>';
-  html+='</div>';
-
-  // TIER 2 — calls
-  html+='<div class="lstep"><div class="lhead"><span class="lnum call">2</span><span class="ltitle">Call the customer \u2014 arrive later</span><span class="lsub">$100 tight \u00b7 $50 looser</span></div>';
-  if(sol.activeCalls.length){
-    html+='<div class="lnote">Ask a morning customer to flip to the afternoon so they chain onto another crew. Offer the discount for the flexibility.</div><div class="items">';
-    sol.activeCalls.forEach((e)=>{const id=iso+'|call|'+e.tail;RECS[id]=e;const st2=STATUS[id];
-      const tg=e.discount>=100?'sm':'med'; const tgt=e.discount>=100?'tight chain':'valid chain';
-      const pur=e.purpose==='cover'?'<span class="tg med">clears shortage</span>':'<span class="tg sm">buffer</span>';
-      html+='<div class="item'+(st2==='done'?' done':st2==='declined'?' declined':'')+'"><div class="itop"><span class="icust">'+esc(e.customer||e.tail)+'</span><span class="iwhere">'+esc(e.city)+' \u00b7 '+e.cf+' cf</span><span class="tg '+tg+'">$'+e.discount+' \u00b7 '+tgt+'</span>'+pur+'</div>'
-        +'<div class="iaction">Chain after <b>'+esc(e.anchorCustomer||e.after)+'</b>. Move start from <b>'+hmPretty(e.origStartMs)+'</b> to arrival <span class="win">'+e.window.text+'</span>. Frees one crew.</div>'
-        +'<div class="iscript">\ud83d\udcde "Hi '+esc(shortName(e.customer)||'there')+' \u2014 could we arrive between '+e.window.text+' on '+f.mon+' '+f.dn+' instead of the morning? We\u2019ll take $'+e.discount+' off for the flexibility."</div>'
-        +'<div class="ibtns">'+adBtns(id,'agreed')+rbtn(id)+'</div></div>';});
-    html+='</div>';
-    if(sol.moreCalls>0) html+='<div class="lnote cmuted" style="margin-top:8px">If declined, '+sol.moreCalls+' other customer'+(sol.moreCalls>1?'s':'')+' can be asked instead \u2014 mark one declined to see the next.</div>';
-  } else if(plan.callPool.length && declined.size){
-    html+='<div class="cempty">All call options here have been declined. See moves below.</div>';
-  } else if(st==='ok'){
-    html+='<div class="cempty cmuted">Not needed \u2014 buffer already met.</div>';
-  } else {
-    html+='<div class="cempty">No morning job here can flip to the afternoon (none chain within the rules).</div>';
+  const chip=st==='short'?{c:'short',t:'over by '+Math.abs(plan.spare)}:st==='tight'?{c:'tight',t:'full \u00b7 no buffer'}:{c:'ok',t:plan.spare+' crews free'};
+  let h='<div class="daycard"><div class="dchead"><div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2><div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.availableCore+'</b> core crews \u00b7 aim \u2264'+plan.target+(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off':'')+'</div></div><span class="schip '+chip.c+'">'+chip.t+'</span></div><div class="dcbody">';
+  h+='<div class="fixpanel">';
+  if(plan.standardChains.length){h+='<div class="fixinfo">\u2713 '+plan.standardChains.length+' afternoon job'+(plan.standardChains.length>1?'s':'')+' auto-chained for free (extra-chain, no call): '+plan.standardChains.map(c=>esc(c.customer||c.tail)+' after '+esc(c.anchorCustomer||c.after)).join('; ')+'.</div>';}
+  if(st==='ok'){
+    h+='<div class="cres ok">\u2713 This day holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Nothing to resolve.</div>';
+  }else{
+    h+='<div class="fixhead">'+(st==='short'?('Free '+plan.gapToCover+' crew'+(plan.gapToCover>1?'s':'')+' to clear the shortage'+(plan.gapToBuffer>plan.gapToCover?(' \u00b7 +'+(plan.gapToBuffer-plan.gapToCover)+' more rebuilds the buffer'):'')):('Optional \u2014 free up to '+plan.gapToBuffer+' crew'+(plan.gapToBuffer>1?'s':'')+' to rebuild the buffer'))+'</div>';
+    const confirmedLeads={};
+    slots.slots.forEach(s=>{if(s.current&&s.current.kind==='call'){const id=sKey(iso,s.index,'call',s.current.rec.tail);if(STATUS[id]==='confirmed'){const lead=LEADS[lKey(iso,s.index,s.current.rec.tail)]||s.current.rec.after;confirmedLeads[lead]=(confirmedLeads[lead]||0)+1;}}});
+    const dupLeads=new Set(Object.keys(confirmedLeads).filter(k=>confirmedLeads[k]>1));
+    slots.slots.forEach(s=>{h+=renderSlot(iso,s,td,dupLeads);});
+    const anyConfirmed=slots.slots.some(s=>{if(!s.current)return false;const id=sKey(iso,s.index,s.current.kind,s.current.kind==='call'?s.current.rec.tail:s.current.rec.code);return STATUS[id]==='confirmed';});
+    h+='<div class="calbar">'+(dupLeads.size?'<span class="dupwarn">\u26a0 Two re-chains share a lead \u2014 fix before updating.</span>':'')+'<button class="cb upd" id="updcal" '+((anyConfirmed&&!dupLeads.size)?'':'disabled')+'>\u2934 Update calendar</button><span class="cmuted">write-back parked \u2014 confirms saved here for now</span></div>';
   }
-  html+='</div>';
+  h+='</div>';
+  h+='<div class="tlbar"><div class="tltitle">The day on the board</div><div class="tlleg"><i style="background:#6E9220"></i>local <i style="background:#C98A1B"></i>long <i style="background:#6C4FD8"></i>straight <i style="background:#5B6770"></i>labor</div></div>';
+  h+=tlChunk(td);
+  h+='</div></div>';
+  $('daydetail').innerHTML=h;
+  bindDay(iso);
+}
 
-  // TIER 3 — moves
-  html+='<div class="lstep"><div class="lhead"><span class="lnum move">3</span><span class="ltitle">Move to a lighter day</span><span class="lsub">last resort for shortage</span></div>';
-  if(sol.activeMoves.length){
-    html+='<div class="lnote">Chaining can\u2019t clear the day \u2014 move to a nearby lighter day. The slot on that day is shown (chained where possible).</div><div class="items">';
-    sol.activeMoves.forEach((m)=>{const id=iso+'|move|'+m.code;RECS[id]=m.slot;const st2=STATUS[id];const tf=fmtDay(m.to);const s=m.slot;
-      const slotTxt=s.fresh?('as its own crew, keep <b>~'+hmPretty(s.origStartMs)+'</b>'):('after <b>'+esc(s.anchorCustomer||s.anchorCode)+'</b>, arrival <span class="win">'+s.window.text+'</span>');
-      html+='<div class="item'+(st2==='done'?' done':st2==='declined'?' declined':'')+'"><div class="itop"><span class="icust">'+esc(m.customer||m.code)+'</span><span class="iwhere">'+esc(m.city)+' \u00b7 '+m.cf+' cf</span><span class="tg sm">'+tf.dow+' has '+m.targetSpare+' free</span></div>'
-        +'<div class="iaction">Move from <b>'+f.mon+' '+f.dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> \u2014 '+slotTxt+'.</div>'
-        +'<div class="iscript">\ud83d\udcde "Would '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(s.fresh?'':' We\u2019d arrive around '+s.window.text+'.')+' We can offer a discount for moving the date."</div>'
-        +'<div class="ibtns">'+adBtns(id,'moved')+rbtn(id)+'</div></div>';});
-    html+='</div>';
-    if(sol.moreMoves>0) html+='<div class="lnote cmuted" style="margin-top:8px">If declined, '+sol.moreMoves+' other job'+(sol.moreMoves>1?'s':'')+' could move instead.</div>';
-  } else if(sol.clearedShortage && st!=='ok'){
-    html+='<div class="cempty cmuted">Not needed \u2014 calls above clear the shortage.</div>';
-  } else if(st==='ok'){
-    html+='<div class="cempty cmuted">\u2014</div>';
-  } else {
-    html+='<div class="cempty">No nearby lighter day with a free crew to move to.</div>';
-  }
-  html+='</div></div>';
-
-  // projected result
-  if(st!=='ok'){
-    if(sol.clearedShortage && sol.reachedBuffer) html+='<div class="cres ok">\u2705 After these \u2192 <b>'+sol.projectedRoutes+' routes</b>, buffer restored ('+(plan.availableCore-sol.projectedRoutes)+' free).</div>';
-    else if(sol.clearedShortage) html+='<div class="cres ok">\u2705 After these \u2192 <b>'+sol.projectedRoutes+' routes</b>, shortage cleared (no buffer \u2014 acceptable when there\u2019s no clean way to \u2264'+plan.target+').</div>';
-    else html+='<div class="cres no">\u26a0 Best case still <b>'+sol.projectedRoutes+' routes</b> ('+(sol.projectedRoutes-plan.availableCore)+' over). Needs a backup crew or a manual move.</div>';
-  }
-  html+='</div></div>';
-  $('daydetail').innerHTML=html;
-  $('daydetail').querySelectorAll('.cb[data-id]').forEach(b=>b.addEventListener('click',()=>{setStatus(b.dataset.id,STATUS[b.dataset.id]===b.dataset.v?null:b.dataset.v);renderDay(iso);renderHorizon();}));
-  $('daydetail').querySelectorAll('.cb[data-route]').forEach(b=>b.addEventListener('click',()=>{
-    const id=b.dataset.route; const rec=RECS[id]; const kind=id.split('|')[1];
+function bindDay(iso){
+  const root=$('daydetail');
+  root.querySelectorAll('.cb[data-act]').forEach(b=>b.addEventListener('click',()=>{
+    const id=b.dataset.id, act=b.dataset.act;
+    if(act==='accept')setStatus(id,'accepted');
+    else if(act==='decline')setStatus(id,'declined');
+    else if(act==='reopen')setStatus(id,null);
+    else if(act==='confirm'){ if(b.dataset.lk){const sel=root.querySelector('.leadsel[data-lk="'+b.dataset.lk+'"]');if(sel){LEADS[b.dataset.lk]=sel.value;saveLeads();}} setStatus(id,'confirmed'); }
+    renderDay(iso); renderHorizon();
+  }));
+  root.querySelectorAll('.leadsel').forEach(s=>s.addEventListener('change',()=>{LEADS[s.dataset.lk]=s.value;saveLeads();}));
+  root.querySelectorAll('.cb.route[data-route]').forEach(b=>b.addEventListener('click',()=>{
+    const r=RECS[b.dataset.route]; if(!r)return;
     document.querySelectorAll('.cb.route.active').forEach(x=>x.classList.remove('active'));
-    if(ACTIVE_ROUTE===id){exitMap();return;}
-    b.classList.add('active'); ACTIVE_ROUTE=id;
-    let title='',sub='';
-    if(kind==='chain'){title=rec.customer||rec.tail;sub='Re-chain after <b>'+esc(rec.anchorCustomer||rec.after)+'</b> \u2014 same crew, no call.';}
-    else if(kind==='call'){title=rec.customer||rec.tail;sub='Chain after <b>'+esc(rec.anchorCustomer||'')+'</b> if they accept '+(rec.window?rec.window.text:'')+'. Frees one crew \u00b7 $'+rec.discount+'.';}
-    else {title=rec.customer||'Moved job';sub=rec.fresh?'Runs as its own crew on the new day.':'On the new day, after <b>'+esc(rec.anchorCustomer||'')+'</b>, arrival '+rec.window.text+'.';}
+    if(ACTIVE_ROUTE===b.dataset.route){exitMap();ACTIVE_ROUTE=null;return;}
+    b.classList.add('active'); ACTIVE_ROUTE=b.dataset.route;
+    const rec=r.rec, kind=r.kind;
+    const title=rec.customer||rec.tail||'Route';
+    const sub=kind==='call'?('Chain after <b>'+esc(rec.anchorCustomer||'')+'</b> if they accept '+(rec.window?rec.window.text:'')+'.'):(rec.fresh?'Runs as its own crew on the new day.':'On the new day, after <b>'+esc(rec.anchorCustomer||'')+'</b>.');
     showRoute(rec,kind,title,sub);
   }));
+  const up=$('updcal'); if(up)up.addEventListener('click',()=>{ if(up.disabled)return; gModal('Calendar write-back is parked','The accept \u2192 pick-lead \u2192 confirm flow works and your confirmed changes are saved here. The actual calendar update is intentionally turned off until we review the write-back end-to-end for both tools.'); });
 }
 function plan_buffer(){return (typeof CLEAN!=='undefined'&&CLEAN.buffer)||2;}
 
