@@ -67,6 +67,7 @@ function recGeo(anchorLeg, jobObj){
 function detectChains(rts, iso){
   const standard=[], calls=[]; const seen=new Set();
   const singles = rts.filter(r=>r.legs.length===1 && !r.legs[0].after && !r.ldDeparture
+        && !/long/i.test(String(r.legs[0].movingType||'')) && !r.legs[0]._far
         && (r.legs[0].cf||0)<=CHAIN_RULES.maxCF && !AUTOOFFLIST.has(r.legs[0].code));
   for(const B of singles){
     const lb=B.legs[0]; let best=null;
@@ -151,7 +152,7 @@ function buildMovePool(iso, opt, horizon, callTails){
   const singleCodes=new Set(opt.routesSnap.filter(r=>r.single).map(r=>r.code));
   const movable=day.filter(j=>{
     if(!singleCodes.has(j.code))return false;
-    if(/long/i.test(j.movingType||''))return false;
+    if(/long/i.test(j.movingType||'')||j._far)return false; // local-only: never move long-distance/straight
     if(j._confirmed)return false;
     if(j.delivery && !INREGION(j.delivery))return false;
     return true;
