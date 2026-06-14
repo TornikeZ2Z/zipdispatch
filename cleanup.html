@@ -1038,6 +1038,74 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   #stats>*:not(.smob){display:block}
   #stats .stat{flex:0 0 auto;min-width:86px}
 }
+/* ===== routes-view v5: problems toggle, tiers, base filter, pending-change bars, single cal button ===== */
+.phrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 7px}
+.probtgl{font-family:'Inter';font-weight:600;font-size:12px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:999px;padding:4px 12px;cursor:pointer;transition:.12s;white-space:nowrap}
+.probtgl:hover{border-color:var(--ink);color:var(--ink)}
+.probtgl.on{background:var(--hazard);border-color:var(--hazard);color:#fff}
+.pchip.ok{border-left:4px solid #BFD89C}
+.pchip.ok .pm{color:var(--fleet)}
+.ktag{font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:5px;vertical-align:middle;display:inline-block}
+.ktag.free{background:var(--fleet-bg);color:var(--fleet)}
+.ktag.call{background:#ECEAFB;color:#5A4FCF}
+.ktag.move{background:var(--rental-bg);color:var(--rental)}
+.slot.kcall{border-left:4px solid #5A4FCF}
+.slot.kmove{border-left:4px solid var(--rental)}
+.stag.money{background:var(--rental-bg);color:var(--rental)}
+.confnote{color:var(--fleet);font-weight:600;font-size:12.5px} .confnote b{color:var(--ink)}
+.tlfilter{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 2px}
+.bflbl{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+.bfp{font-family:'Barlow Condensed';font-weight:600;font-size:14px;letter-spacing:.03em;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:7px;padding:3px 11px;cursor:pointer;transition:.12s}
+.bfp:hover{border-color:var(--ink);color:var(--ink)}
+.bfp.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.bfp.clr{font-family:'Inter';font-size:11px;color:var(--faint)}
+.tlblock.tlchg{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px);outline:2px dashed #1F2329;outline-offset:-2px;font-weight:700;z-index:2}
+.tlblock.tlchg.call{background-color:#5A4FCF}
+.tlblock.tlchg.move{background-color:var(--rental)}
+.tlchgrow .tllabel{box-shadow:inset 3px 0 0 #1F2329}
+.tlleg .chgkey{display:inline-block;width:18px;height:11px;border-radius:3px;background:#5A4FCF;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.4) 0 4px,transparent 4px 8px);outline:1.5px dashed #1F2329;outline-offset:-2px;vertical-align:middle}
+.tlrow[data-rt]{cursor:pointer}
+.tlrow[data-rt]:hover .tllabel{background:var(--paper)}
+.tlrow.rtsel .tllabel{background:var(--fleet-bg);box-shadow:inset 3px 0 0 var(--fleet)}
+.tlempty{padding:20px;color:var(--faint);font-size:13px;text-align:center}
+.calbtn{font-family:'Inter';font-weight:700;font-size:13px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:9px;padding:8px 14px;cursor:pointer;transition:.12s;white-space:nowrap}
+.calbtn:hover{border-color:var(--ink);color:var(--ink)}
+.calbtn.upd{background:var(--fleet);border-color:var(--fleet);color:#fff}
+.calbtn.upd:hover{background:#5d7c1b}
+#rfwrap{display:flex;align-items:center;gap:9px}
+/* ===== v5 routes-view: horizon controls, tier colours, pending-change, base filter ===== */
+.hzctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 9px}
+.ftoggle{font-family:'Inter';font-weight:700;font-size:12.5px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:20px;padding:6px 13px;cursor:pointer;transition:.12s}
+.ftoggle:hover{border-color:var(--ink);color:var(--ink)}
+.ftoggle.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.bflab{font-family:'Barlow Condensed';font-weight:600;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-left:4px}
+.bfilter{display:flex;gap:5px;flex-wrap:wrap}
+.bchip{font-family:'Inter';font-weight:700;font-size:11.5px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:7px;padding:4px 9px;cursor:pointer;transition:.12s;letter-spacing:.02em}
+.bchip:hover{border-color:var(--ink)}
+.bchip.clr{color:var(--faint);font-weight:600;padding:4px 8px}
+.bchip.b-NJ.on{background:#0F8A66;border-color:#0F8A66;color:#fff}
+.bchip.b-PA.on{background:#7C5CE0;border-color:#7C5CE0;color:#fff}
+.bchip.b-NY.on{background:#1F6FD6;border-color:#1F6FD6;color:#fff}
+.bchip.b-DE.on{background:#B26B0B;border-color:#B26B0B;color:#fff}
+.bchip.b-CT.on{background:#C2417A;border-color:#C2417A;color:#fff}
+.bchip.b-MA.on{background:#3E8E9C;border-color:#3E8E9C;color:#fff}
+/* inline tier pills — the 3 re-do tiers, colour-coded */
+.tlbl{display:inline-block;font-family:'Inter';font-weight:700;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:6px;vertical-align:middle}
+.tlbl.free{background:#E7F0D8;color:#4E6B16}
+.tlbl.call{background:#F7EBD7;color:#8A5210}
+.tlbl.move{background:#F8E3EE;color:#9B2D5F}
+/* slot accent by tier */
+.slot.tcall{border-left:4px solid #B26B0B}
+.slot.tmove{border-left:4px solid #C2417A}
+.slot.tcall.confirmed,.slot.tmove.confirmed{border-left-color:var(--fleet)}
+/* pending change on the routes timeline — what UPDATE will write */
+.tlblock.chgcall{background-color:#B26B0B!important}
+.tlblock.chgmove{background-color:#C2417A!important}
+.tlrow.rowchg:not(.rtsel) .tllabel b{color:#B26B0B}
+.tlrow.rowchg:not(.rtsel) .tllabel{box-shadow:inset 3px 0 0 #B26B0B}
+.tlrow.tlshortrow:not(.rtsel):not(.rowchg) .tllabel{box-shadow:inset 3px 0 0 var(--hazard)}
+.tlrow.tlshortrow .tllabel span{color:var(--hazard);font-weight:600}
+.tlleg .lgchg{display:inline-block;width:13px;height:13px;border-radius:3px;background:#B26B0B;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.45) 0 4px,transparent 4px 8px);outline:1.5px dashed #1F2329;outline-offset:-1px;margin:0 4px 0 8px;vertical-align:middle}
 
 </style>
 </head>
@@ -1049,16 +1117,10 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   </div>
   <div id="hwin">
     <label>From <input type="date" id="fromDate"></label>
-    <label>Window
-      <select id="winLen"><option value="5">5 days</option><option value="7">7 days</option><option value="10">10 days</option><option value="14" selected>14 days</option></select>
-    </label>
   </div>
   <div class="stats" id="stats"></div>
   <div id="rfwrap">
-    <div class="rfrowbtns">
-      <button id="calconnect" title="Connect the Google Calendar to enable writing agreed changes back">🗓 Connect Calendar</button>
-      <button id="calpush" title="Write the changes you've marked agreed/moved back to the calendar" disabled>⤴ Update calendar</button>
-    </div>
+    <button id="calbtn" class="calbtn">🗓 Connect Calendar</button>
     <span id="rfstamp"></span>
   </div>
 </header>
@@ -1850,11 +1912,35 @@ function buildMovePool(iso, opt, horizon, callTails){
   return out;
 }
 
+
+// days within +/- n of iso (never before today) that actually have jobs — for date moves (max +/-2)
+function nearbyDays(iso, n){
+  const out=[]; const base=Date.parse(iso+'T12:00');
+  for(let d=-n; d<=n; d++){ if(d===0)continue;
+    const dt=new Date(base+d*86400000);
+    const i=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    if(i<TODAY_ISO || !DATA.days[i])continue;
+    const l=dayLoad(i);
+    out.push({iso:i, routes:l.routes, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status});
+  }
+  return out;
+}
+// every future day (today onward) that is amber/red — for the "problems only" filter (not limited to a window)
+function allProblemDays(){
+  const out=[];
+  for(const iso of Object.keys(DATA.days).sort()){
+    if(iso<TODAY_ISO)continue;
+    const l=dayLoad(iso);
+    if(l.status!=='ok') out.push({iso, routes:l.routes, base:l.base, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status, standardCount:l.standardCount});
+  }
+  return out;
+}
+
 function cleanupPlan(iso, horizon){
   const load=dayLoad(iso); const opt=load._opt;
   const callPool=opt.calls.map(c=>Object.assign({}, c, {window:c.window||cleanWindow(c.arriveMs, iso),
       discount:c.discount||((c.linkMin<=CLEAN.tightLinkMin||c.linkMi<=CLEAN.tightLinkMi)?CLEAN.discountTight:CLEAN.discountLoose)}));
-  const movePool=buildMovePool(iso, opt, horizon||[], new Set(callPool.map(c=>c.tail)));
+  const movePool=buildMovePool(iso, opt, nearbyDays(iso, 2), new Set(callPool.map(c=>c.tail))); // max +/-2 day move
   const gapToBuffer=Math.max(0, load.routes-load.target);
   const gapToCover =Math.max(0, load.routes-load.availableCore);
   return { iso, availableCore:load.availableCore, coreOff:load.coreOff, target:load.target,
@@ -1922,8 +2008,7 @@ function timelineData(iso){
     let rts=buildRoutes();
     for(let g=0;g<2;g++){const det=detectAutoChains(rts);if(!det.length)break;AUTOCHAINS=AUTOCHAINS.concat(det);rts=buildRoutes();}
     for(let k=0;k<14;k++){const r=detectChains(rts,iso).standard;if(!r.length)break;const p=r[0];AUTOCHAINS.push({tail:p.tail,after:p.after});const nr=buildRoutes();if(nr.length>=rts.length){AUTOCHAINS.pop();break;}rts=nr;}
-    try{assignAll(rts, getW(), 'nearest');}catch(e){console.error('assignAll',e);}
-    rts.forEach(r=>{ if(!r.base) r.base=r.baseOverride||r.nearestBase||'NJ'; });
+    rts.forEach(r=>{ r.base=r.baseOverride||r.nearestBase||'NJ'; r.t0=Math.min(...r.legs.map(l=>Date.parse(l.start||0))); }); // no foreman here — assignment happens in the dispatcher the day before
     const core=coreAvailOn(iso);
     // shortage rows = the routes beyond core capacity (the last (routes-core) by latest start get flagged)
     const over=Math.max(0, rts.length-core.avail);
@@ -2024,9 +2109,9 @@ async function gapiFetch(path,opts){
 }
 const evPath=id=>'calendars/'+encodeURIComponent(GCAL_ID)+'/events/'+encodeURIComponent(String(id).split('@')[0]);
 function updateCalBtns(){
-  const c=$('calconnect'), p=$('calpush');
-  if(GTOKEN){ c.innerHTML='<span class="connpill">✓ Calendar connected</span>'; p.disabled=false; }
-  else { c.textContent='🗓 Connect Calendar'; p.disabled=true; }
+  const b=$('calbtn'); if(!b)return;
+  if(GTOKEN){ b.className='calbtn upd'; b.innerHTML='⤴ Update Calendar'; }
+  else { b.className='calbtn'; b.innerHTML='🗓 Connect Calendar'; }
 }
 
 /* ===== state ===== */
@@ -2035,6 +2120,8 @@ function saveStatus(s){try{localStorage.setItem('zc_status',JSON.stringify(s));}
 let STATUS=loadStatus();
 function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STATUS);}
 let WINDOW=[], SELECTED=null, RECS={}, CURPLAN=null, ACTIVE_ROUTE=null;
+let PROBONLY=false, BASEFILTER=new Set(), CURCHANGES={}, APD=null;
+function getAPD(){ if(APD===null){ try{APD=allProblemDays();}catch(e){APD=[];} } return APD; }
 function windowStart(){return $('fromDate').value||TODAY_ISO;}
 
 /* ===== map ===== */
@@ -2054,7 +2141,7 @@ function exitMap(){
   $('layout').classList.remove('mapon');
   $('mapcard').style.display='none';
   ACTIVE_ROUTE=null;
-  document.querySelectorAll('.cb.route.active').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.cb.route.active,.tlrow.rtsel').forEach(b=>{b.classList.remove('active');b.classList.remove('rtsel');});
 }
 async function showRoute(rec, kind, title, sub){
   openMapPane();
@@ -2114,42 +2201,90 @@ function sKey(iso,slot,kind,id){return iso+'|slot'+slot+'|'+kind+'|'+id;}
 function lKey(iso,slot,tail){return iso+'|slot'+slot+'|'+tail;}
 function declinedSetFor(iso){const s=new Set();Object.keys(STATUS).forEach(k=>{if(STATUS[k]==='declined'){const p=k.split('|');if(p[0]===iso)s.add(p.slice(1).join('|'));}});return s;}
 
-function renderHorizon(){
-  WINDOW=scanHorizon(windowStart(), +$('winLen').value);
-  const el=$('horizon');
-  if(!WINDOW.length){el.innerHTML='<div class="cempty">No calendar days in this window.</div>';renderStats();return;}
-  const probs=WINDOW.filter(d=>d.status!=='ok');
-  if(!probs.length){el.innerHTML='<div class="allclear">\u2713 Every day in this window holds the 2-crew buffer \u2014 nothing to clean up.</div>';$('daydetail').innerHTML='';renderStats();return;}
-  el.innerHTML='<div class="phlbl">Problem days</div><div class="phead">'+probs.map(d=>{const f=fmtDay(d.iso);const lab=d.status==='short'?('over '+Math.abs(d.spare)):'full';return '<button class="pchip '+d.status+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="pd">'+f.dow+' '+f.mon+' '+f.dn+'</span><span class="pm">'+d.routes+'/'+d.availableCore+' \u00b7 '+lab+'</span></button>';}).join('')+'</div>';
-  el.querySelectorAll('.pchip').forEach(p=>p.addEventListener('click',()=>{SELECTED=p.dataset.iso;renderHorizon();renderDay(SELECTED);}));
-  if(SELECTED&&!probs.find(d=>d.iso===SELECTED)){SELECTED=probs[0].iso;}
-  renderStats();
+function routeGeo(route){
+  const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start)); const stops=[];
+  sl.forEach(l=>{ const p=ptOf(l.pickup), d=ptOf(l.delivery);
+    if(p)stops.push({lat:p.lat,lon:p.lon,kind:'P',label:'pickup \u00b7 '+(l.cityFrom||''),customer:l.customer||''});
+    if(d)stops.push({lat:d.lat,lon:d.lon,kind:'D',label:'delivery \u00b7 '+(l.cityTo||''),customer:l.customer||''}); });
+  return stops;
 }
-function renderStats(){
-  const att=WINDOW.filter(d=>d.status!=='ok').length, buf=WINDOW.filter(d=>d.status==='ok').length;
-  const core=DATA.foremen.filter(f=>f.status==='Active').length;
-  $('stats').innerHTML='<div class="stat"><div class="v">'+core+'</div><div class="l">core crews</div></div>'
-    +'<div class="stat"><div class="v" style="'+(att?'color:var(--rental)':'')+'">'+att+'</div><div class="l">need attention</div></div>'
-    +'<div class="stat"><div class="v" style="color:var(--fleet)">'+buf+'</div><div class="l">have buffer</div></div>';
+function routeSteps(route){
+  const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
+  return sl.map(l=>{const st=Date.parse(l.start);return step(hmPretty(st),'<b>'+esc(l.customer||l.code)+'</b> \u00b7 '+esc(l.cityFrom||'')+' \u2192 '+esc(l.cityTo||'')+' \u00b7 '+(l.cf||0).toLocaleString()+' CF',false);}).join('');
+}
+async function showRouteJourney(route, title, sub){
+  openMapPane(); if(LAYER)LAYER.clearLayers();
+  const geo=routeGeo(route);
+  $('mapcard').style.display=''; $('mapcard').classList.remove('min');
+  $('mapcard').innerHTML='<div class="mchead"><div class="mt">'+esc(title)+'</div><div class="mcbtns"><button class="mcmin" title="Minimize">\u2013</button><button class="mcx" title="Close">\u2715 Exit</button></div></div><div class="mcbody"><div class="ms">'+sub+'</div><div class="steps">'+routeSteps(route)+'</div></div>';
+  $('mapcard').querySelector('.mcx').onclick=exitMap;
+  $('mapcard').querySelector('.mcmin').onclick=function(){const c=$('mapcard');c.classList.toggle('min');this.textContent=c.classList.contains('min')?'+':'\u2013';};
+  if(!geo.length)return;
+  const pts=geo.map(s=>[s.lat,s.lon]);
+  geo.forEach(s=>{const col=s.kind==='P'?'#1F2329':'#6E9220';L.marker([s.lat,s.lon],{zIndexOffset:600,icon:L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:'<div style="background:'+col+';color:#fff;border:3px solid #fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.3)">'+s.kind+'</div>'})}).addTo(LAYER).bindTooltip((s.customer?esc(s.customer)+' \u2014 ':'')+esc(s.label),{direction:'top',offset:[0,-12],className:'lpop'});});
+  LMAP.fitBounds(L.latLngBounds(pts).pad(0.28));
+  for(let i=0;i<geo.length-1;i++){const a=[geo[i].lat,geo[i].lon],b=[geo[i+1].lat,geo[i+1].lon];const reposition=geo[i].kind==='D'&&geo[i+1].kind==='P';let line=[a,b];try{const rt=await truckRoute(a,b);if(rt&&rt.pts&&rt.pts.length)line=rt.pts;}catch(e){}L.polyline(line,{color:'#FFFFFF',weight:6.5,opacity:.92,lineCap:'round'}).addTo(LAYER);L.polyline(line,{color:reposition?'#B26B0B':'#6C5CE0',weight:3,opacity:.95,dashArray:reposition?'8 7':null,lineCap:'round'}).addTo(LAYER);}
+  setTimeout(()=>{if(LMAP){LMAP.invalidateSize();LMAP.fitBounds(L.latLngBounds(pts).pad(0.28));}},140);
 }
 
-/* build the dispatcher .tl* timeline markup from timelineData(iso) */
-function tlChunk(td){
-  const RR=td.routes; let minH=8,maxH=18;
+function renderHorizon(){
+  const el=$('horizon'); if(!el)return;
+  const strip = PROBONLY ? getAPD() : scanHorizon(windowStart(), 7);
+  WINDOW=strip;
+  const bases=['NJ','PA','NY','DE','CT','MA'];
+  let ctrl='<div class="hzctrl"><button class="ftoggle'+(PROBONLY?' on':'')+'" id="probtoggle">'+(PROBONLY?'\u25c9 All problem days ahead':'\u25cb Problems only')+'</button>'
+    +'<span class="bflab">base</span><div class="bfilter">'+bases.map(b=>'<button class="bchip b-'+b+(BASEFILTER.has(b)?' on':'')+'" data-base="'+b+'">'+b+'</button>').join('')
+    +(BASEFILTER.size?'<button class="bchip clr" data-base="__clr" title="clear base filter">\u2715</button>':'')+'</div></div>';
+  if(!strip.length){ el.innerHTML=ctrl+'<div class="allclear">'+(PROBONLY?'\u2713 No problem days anywhere in the future schedule.':'No calendar days in the 7 days from this date \u2014 pick another start date above.')+'</div>'; renderStats(); bindHz(); if(PROBONLY)$('daydetail').innerHTML=''; return; }
+  el.innerHTML=ctrl+'<div class="phead">'+strip.map(d=>{const f=fmtDay(d.iso);const lab=d.status==='short'?('over '+Math.abs(d.spare)):(d.status==='tight'?'full':d.spare+' free');return '<button class="pchip '+d.status+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="pd">'+f.dow+' '+f.mon+' '+f.dn+'</span><span class="pm">'+d.routes+'/'+d.availableCore+' \u00b7 '+lab+'</span></button>';}).join('')+'</div>';
+  renderStats(); bindHz();
+}
+function bindHz(){
+  const pt=$('probtoggle'); if(pt)pt.onclick=()=>{ PROBONLY=!PROBONLY;
+    if(PROBONLY){const a=getAPD(); const nxt=a.find(d=>d.iso>=windowStart())||a[0]; if(nxt)SELECTED=nxt.iso;}
+    renderHorizon(); if(SELECTED&&WINDOW.find(d=>d.iso===SELECTED))renderDay(SELECTED); else if(WINDOW.length){SELECTED=WINDOW[0].iso;renderHorizon();renderDay(SELECTED);} else $('daydetail').innerHTML=''; };
+  document.querySelectorAll('#horizon .pchip').forEach(p=>p.addEventListener('click',()=>{SELECTED=p.dataset.iso;renderHorizon();renderDay(SELECTED);}));
+  document.querySelectorAll('#horizon .bchip').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.base;if(v==='__clr')BASEFILTER.clear();else if(BASEFILTER.has(v))BASEFILTER.delete(v);else BASEFILTER.add(v);renderHorizon();if(SELECTED&&WINDOW.find(d=>d.iso===SELECTED))renderDay(SELECTED);}));
+}
+function renderStats(){
+  const core=DATA.foremen.filter(f=>f.status==='Active').length;
+  const fp=getAPD().length; const n7=scanHorizon(windowStart(),7); const buf=n7.filter(d=>d.status==='ok').length;
+  $('stats').innerHTML='<div class="stat"><div class="v">'+core+'</div><div class="l">core crews</div></div>'
+    +'<div class="stat"><div class="v" style="'+(fp?'color:var(--rental)':'')+'">'+fp+'</div><div class="l">problem days ahead</div></div>'
+    +'<div class="stat"><div class="v" style="color:var(--fleet)">'+buf+'/'+(n7.length||0)+'</div><div class="l">next 7 ok</div></div>';
+}
+
+/* build the dispatcher .tl* timeline markup; routes (not individual moves), no foreman, pending changes highlighted */
+function tlChunk(td, changes){
+  changes=changes||{};
+  let RR=td.routes.slice();
+  if(BASEFILTER.size) RR=RR.filter(r=>BASEFILTER.has(r.base));
+  if(!RR.length) return '<div id="cltl" class="tlwrap"><div class="tlempty">No routes for the selected base'+(BASEFILTER.size>1?'s':'')+' on this day.</div></div>';
+  let minH=8,maxH=18;
   const legBlocks=r=>{const sl=[...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));return sl.map((l,i)=>{const st=Date.parse(l.start);const multi=l._far&&l.straight;let en=multi?null:(l._endMs||Date.parse(l.end||l.start));const nd=en&&new Date(en).getDate()!==new Date(st).getDate();return {r,l,i,n:sl.length,st,en,nd,multi};});};
   RR.forEach(r=>legBlocks(r).forEach(b=>{minH=Math.min(minH,new Date(b.st).getHours());if(b.en&&!b.nd)maxH=Math.max(maxH,new Date(b.en).getHours()+1);}));
   const A=Math.max(0,minH-1),B=Math.min(24,Math.max(maxH+1,19)),SPAN=(B-A)*60;
   const pos=ms=>{const d=new Date(ms);return ((d.getHours()*60+d.getMinutes())-A*60)/SPAN*100;};
   const kindCol=l=>{const jt=String(l.jobType||''),mt=String(l.movingType||'');if(/labor/i.test(jt))return '#5B6770';const ld=/long/i.test(mt)||l._far;if(ld&&(l.straight||/straight/i.test(jt)))return '#6C4FD8';if(ld)return '#C98A1B';return '#6E9220';};
   const shortIds=new Set(td.shortIds||[]);
-  const mkB=b=>{const left=Math.max(0,pos(b.st));const right=(b.multi||b.nd)?100:Math.min(100,pos(b.en));const w=Math.max(2.5,right-left);const cf=(b.l.cf||0).toLocaleString();const lbl=(b.n>1?(b.i+1)+'/'+b.n+' \u00b7 ':'')+(b.l.cityFrom||'')+' \u2192 '+(b.l.cityTo||'labor')+' \u00b7 '+cf+' CF'+(b.multi?' \u00b7 \u2192 multi':(b.nd?' \u00b7 \u2192 next day':''));const tip=b.r.id+' \u00b7 '+(b.l.code||'')+' \u00b7 '+(b.l.cityFrom||'')+' \u2192 '+(b.l.cityTo||'\u2014')+' \u00b7 '+hmPretty(b.st)+(b.en?'\u2013'+new Date(b.en).toTimeString().slice(0,5):'')+' \u00b7 '+cf+' CF';return '<div class="tlblock'+(b.multi?' ld':'')+(b.nd?' nd':'')+'" style="left:'+left+'%;width:'+w+'%;background:'+kindCol(b.l)+'" title="'+esc(tip)+'">'+esc(lbl)+'</div>';};
+  const mkB=b=>{const left=Math.max(0,pos(b.st));const right=(b.multi||b.nd)?100:Math.min(100,pos(b.en));const w=Math.max(2.5,right-left);const cf=(b.l.cf||0).toLocaleString();
+    const chg=changes[b.l.code]; const chgTag=chg?(chg.kind==='move'?' \u00b7 \u2192 moving '+fmtDay(chg.to).mon+' '+fmtDay(chg.to).dn:' \u00b7 \u2192 re-chained'):'';
+    const lbl=(b.n>1?(b.i+1)+'/'+b.n+' \u00b7 ':'')+(b.l.cityFrom||'')+' \u2192 '+(b.l.cityTo||'labor')+' \u00b7 '+cf+' CF'+chgTag+(b.multi?' \u00b7 \u2192 multi':(b.nd?' \u00b7 \u2192 next day':''));
+    const tip=b.r.id+' \u00b7 '+(b.l.code||'')+' \u00b7 '+(b.l.cityFrom||'')+' \u2192 '+(b.l.cityTo||'\u2014')+' \u00b7 '+hmPretty(b.st)+(b.en?'\u2013'+new Date(b.en).toTimeString().slice(0,5):'')+' \u00b7 '+cf+' CF'+(chg?' \u00b7 PENDING CHANGE \u2014 Update will write this':'');
+    return '<div class="tlblock'+(b.multi?' ld':'')+(b.nd?' nd':'')+(chg?' tlchg '+(chg.kind==='move'?'chgmove':'chgcall'):'')+'" style="left:'+left+'%;width:'+w+'%;'+(chg?'':'background:'+kindCol(b.l))+'" title="'+esc(tip)+'">'+esc(lbl)+'</div>';};
   const trackOf=r=>legBlocks(r).map(mkB).join('');
   let rows=''; const byB={};
   [...RR].sort((x,y)=>(x.base||'').localeCompare(y.base||'')||((x.t0||0)-(y.t0||0))).forEach(r=>{(byB[r.base]=byB[r.base]||[]).push(r);});
-  for(const b of Object.keys(byB)){
-    const rs=byB[b];
-    rows+='<div class="tlsep" data-b="'+esc(b)+'"><h4>'+esc(b)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+'</span></div>';
-    for(const r of rs){const cf=(r.totalCF||r.legs.reduce((s,l)=>s+(l.cf||0),0)).toLocaleString();const isShort=shortIds.has(r.id);const fn=r.foreman?esc(r.foreman.nick):'\u26a0 open';const r1=fn+' \u00b7 '+r.id+(r.legs.length>1?' \u26d3':'');const r2=cf+' CF \u00b7 '+(r.legs.length>1?r.legs.length+' jobs':'1 job')+(isShort?' \u00b7 \u26a0 overflow':'');rows+='<div class="tlrow'+(isShort?' tlshortrow':'')+'"><div class="tllabel"><b>'+r1+'</b><span>'+esc(r2)+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';}
+  for(const bb of Object.keys(byB)){
+    const rs=byB[bb];
+    rows+='<div class="tlsep" data-b="'+esc(bb)+'"><h4>'+esc(bb)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+'</span></div>';
+    for(const r of rs){RECS['rt|'+r.id]={route:r};
+      const cf=(r.totalCF||r.legs.reduce((s,l)=>s+(l.cf||0),0)).toLocaleString();
+      const isShort=shortIds.has(r.id); const hasChg=r.legs.some(l=>changes[l.code]);
+      const jobN=r.legs.length>1?(r.legs.length+' jobs'):((r.legs[0]&&r.legs[0].cityFrom||'')+' \u2192 '+(r.legs[0]&&r.legs[0].cityTo||''));
+      const r1=r.id+(r.legs.length>1?' \u26d3':'')+' \u00b7 '+cf+' CF';
+      const r2=jobN+(isShort?' \u00b7 \u26a0 overflow':'');
+      rows+='<div class="tlrow clickable'+(isShort?' tlshortrow':'')+(hasChg?' rowchg':'')+'" data-rt="rt|'+r.id+'" title="Click to see the whole route on the map"><div class="tllabel"><b>'+esc(r1)+'</b><span>'+esc(r2)+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';}
   }
   let scale='<div class="tlrow scale"><div class="tllabel"></div><div class="tltrack">';
   for(let h=A;h<=B;h++){const p=(h-A)*60/SPAN*100;scale+='<div class="tlgrid" style="left:'+p+'%"></div>'+(h<B?'<div class="tlhr" style="left:'+p+'%">'+(h%24)+':00</div>':'');}
@@ -2165,7 +2300,7 @@ function dayJobOptions(td, selCode){
 
 function renderSlot(iso, s, td, dupLeads){
   if(!s.current){
-    return '<div class="slot escal"><div class="slothead"><span class="stag must">crew '+(s.index+1)+'</span><b>No automated option left</b></div><div class="slotbody">Every call and date-move for this crew has been refused. Escalate: pay overtime, add an extra rental truck, or move a <i>different</i> job off this day.</div></div>';
+    return '<div class="slot escal tmove"><div class="slothead"><span class="stag must">crew '+(s.index+1)+'</span><b>No automated option left</b></div><div class="slotbody">Every call and date-move for this crew has been refused. Escalate: pay overtime, add an extra rental truck, or move a <i>different</i> job off this day.</div></div>';
   }
   const kind=s.current.kind, rec=s.current.rec;
   const id=sKey(iso,s.index,kind, kind==='call'?rec.tail:rec.code);
@@ -2173,7 +2308,7 @@ function renderSlot(iso, s, td, dupLeads){
   const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
   let head, body='';
   if(kind==='call'){
-    head='<b>\ud83d\udcde Call '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>';
+    head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>';
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b>. Offer \u0024'+rec.discount+'.</div>';
     const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning? We\u2019ll take \u0024'+rec.discount+' off for the flexibility.\u201d</div>';
     if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,rec,'call')+'</div>'; }
@@ -2182,7 +2317,7 @@ function renderSlot(iso, s, td, dupLeads){
   } else {
     const sl=rec.slot, tf=fmtDay(rec.to);
     const where=sl.fresh?('as its own crew, ~'+hmPretty(sl.origStartMs)):('after <b>'+esc(sl.anchorCustomer||sl.anchorCode)+'</b>, arrive <span class="win">'+sl.window.text+'</span>');
-    head='<b>\ud83d\udcc5 Move '+esc(rec.customer||rec.code)+'</b> '+tag;
+    head='<b><span class="tlbl move">\ud83d\udcc5 move date</span> '+esc(rec.customer||rec.code)+'</b> '+tag;
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'.</div>';
     const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We can offer a discount for the date change.\u201d</div>';
     if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,sl,'move')+'</div>'; }
@@ -2190,23 +2325,28 @@ function renderSlot(iso, s, td, dupLeads){
     else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
   }
   const casc=(stt==='todo'&&s.altCount>0)?'<div class="casc">If they refuse, '+s.altCount+' other option'+(s.altCount>1?'s':'')+' for this crew \u2192 tap Declined.</div>':'';
-  return '<div class="slot '+stt+'"><div class="slothead"><span class="stag crew">crew '+(s.index+1)+'</span>'+head+'</div><div class="slotbody">'+body+casc+'</div></div>';
+  return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag crew">crew '+(s.index+1)+'</span>'+head+'</div><div class="slotbody">'+body+casc+'</div></div>';
 }
 function routeBtn(id,rec,kind){RECS[id+'|r']={rec,kind};return '<button class="cb route" data-route="'+id+'|r">\ud83d\uddfa route</button>';}
 function jobCust(td,code){let n=code;td.routes.forEach(r=>r.legs.forEach(l=>{if(l.code===code)n=l.customer||code;}));return n;}
 
 function renderDay(iso){
-  const horizon=scanHorizon(windowStart(), +$('winLen').value);
+  const horizon=scanHorizon(windowStart(),7);
   const plan=cleanupPlan(iso,horizon);
   const declined=declinedSetFor(iso);
   const slots=resolveSlots(plan,declined);
   const td=timelineData(iso);
   CURPLAN=plan; RECS={}; ACTIVE_ROUTE=null;
+  // pending changes from confirmed slots -> highlight on the timeline (so user sees what Update will write)
+  const changes={};
+  slots.slots.forEach(s=>{ if(!s.current)return; const k=s.current.kind, rec=s.current.rec; const id=sKey(iso,s.index,k,k==='call'?rec.tail:rec.code);
+    if(STATUS[id]==='confirmed'){ if(k==='call') changes[rec.tail]={kind:'call', after:(LEADS[lKey(iso,s.index,rec.tail)]||rec.after)}; else changes[rec.code]={kind:'move', to:rec.to}; } });
+  CURCHANGES=changes;
   const f=fmtDay(iso); const st=plan.status;
   const chip=st==='short'?{c:'short',t:'over by '+Math.abs(plan.spare)}:st==='tight'?{c:'tight',t:'full \u00b7 no buffer'}:{c:'ok',t:plan.spare+' crews free'};
   let h='<div class="daycard"><div class="dchead"><div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2><div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.availableCore+'</b> core crews \u00b7 aim \u2264'+plan.target+(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off':'')+'</div></div><span class="schip '+chip.c+'">'+chip.t+'</span></div><div class="dcbody">';
   h+='<div class="fixpanel">';
-  if(plan.standardChains.length){h+='<div class="fixinfo">\u2713 '+plan.standardChains.length+' afternoon job'+(plan.standardChains.length>1?'s':'')+' auto-chained for free (extra-chain, no call): '+plan.standardChains.map(c=>esc(c.customer||c.tail)+' after '+esc(c.anchorCustomer||c.after)).join('; ')+'.</div>';}
+  if(plan.standardChains.length){h+='<div class="fixinfo"><span class="tlbl free">free</span> '+plan.standardChains.length+' afternoon job'+(plan.standardChains.length>1?'s':'')+' auto-chained (extra-chain, no call): '+plan.standardChains.map(c=>esc(c.customer||c.tail)+' after '+esc(c.anchorCustomer||c.after)).join('; ')+'.</div>';}
   if(st==='ok'){
     h+='<div class="cres ok">\u2713 This day holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Nothing to resolve.</div>';
   }else{
@@ -2219,8 +2359,8 @@ function renderDay(iso){
     h+='<div class="calbar">'+(dupLeads.size?'<span class="dupwarn">\u26a0 Two re-chains share a lead \u2014 fix before updating.</span>':'')+'<button class="cb upd" id="updcal" '+((anyConfirmed&&!dupLeads.size)?'':'disabled')+'>\u2934 Update calendar</button><span class="cmuted">write-back parked \u2014 confirms saved here for now</span></div>';
   }
   h+='</div>';
-  h+='<div class="tlbar"><div class="tltitle">The day on the board</div><div class="tlleg"><i style="background:#6E9220"></i>local <i style="background:#C98A1B"></i>long <i style="background:#6C4FD8"></i>straight <i style="background:#5B6770"></i>labor</div></div>';
-  h+=tlChunk(td);
+  h+='<div class="tlbar"><div class="tltitle">Routes on '+f.dow+' '+f.dn+' \u2014 click any to see the whole run</div><div class="tlleg"><i style="background:#6E9220"></i>local <i style="background:#C98A1B"></i>long <i style="background:#6C4FD8"></i>straight <i style="background:#5B6770"></i>labor <span class="lgchg"></span>pending change</div></div>';
+  h+=tlChunk(td, changes);
   h+='</div></div>';
   $('daydetail').innerHTML=h;
   bindDay(iso);
@@ -2228,7 +2368,7 @@ function renderDay(iso){
 
 function bindDay(iso){
   const root=$('daydetail');
-  root.querySelectorAll('.cb[data-act]').forEach(b=>b.addEventListener('click',()=>{
+  root.querySelectorAll('.cb[data-act]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();
     const id=b.dataset.id, act=b.dataset.act;
     if(act==='accept')setStatus(id,'accepted');
     else if(act==='decline')setStatus(id,'declined');
@@ -2236,8 +2376,9 @@ function bindDay(iso){
     else if(act==='confirm'){ if(b.dataset.lk){const sel=root.querySelector('.leadsel[data-lk="'+b.dataset.lk+'"]');if(sel){LEADS[b.dataset.lk]=sel.value;saveLeads();}} setStatus(id,'confirmed'); }
     renderDay(iso); renderHorizon();
   }));
+  root.querySelectorAll('.leadsel').forEach(s=>s.addEventListener('click',e=>e.stopPropagation()));
   root.querySelectorAll('.leadsel').forEach(s=>s.addEventListener('change',()=>{LEADS[s.dataset.lk]=s.value;saveLeads();}));
-  root.querySelectorAll('.cb.route[data-route]').forEach(b=>b.addEventListener('click',()=>{
+  root.querySelectorAll('.cb.route[data-route]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();
     const r=RECS[b.dataset.route]; if(!r)return;
     document.querySelectorAll('.cb.route.active').forEach(x=>x.classList.remove('active'));
     if(ACTIVE_ROUTE===b.dataset.route){exitMap();ACTIVE_ROUTE=null;return;}
@@ -2247,7 +2388,17 @@ function bindDay(iso){
     const sub=kind==='call'?('Chain after <b>'+esc(rec.anchorCustomer||'')+'</b> if they accept '+(rec.window?rec.window.text:'')+'.'):(rec.fresh?'Runs as its own crew on the new day.':'On the new day, after <b>'+esc(rec.anchorCustomer||'')+'</b>.');
     showRoute(rec,kind,title,sub);
   }));
-  const up=$('updcal'); if(up)up.addEventListener('click',()=>{ if(up.disabled)return; gModal('Calendar write-back is parked','The accept \u2192 pick-lead \u2192 confirm flow works and your confirmed changes are saved here. The actual calendar update is intentionally turned off until we review the write-back end-to-end for both tools.'); });
+  // click a route ROW (or any bar in it) -> show the whole route on the map
+  root.querySelectorAll('.tlrow.clickable[data-rt]').forEach(row=>row.addEventListener('click',()=>{
+    const r=RECS[row.dataset.rt]; if(!r||!r.route)return;
+    document.querySelectorAll('.tlrow.rtsel').forEach(x=>x.classList.remove('rtsel'));
+    if(ACTIVE_ROUTE===row.dataset.rt){exitMap();ACTIVE_ROUTE=null;return;}
+    row.classList.add('rtsel'); ACTIVE_ROUTE=row.dataset.rt;
+    const rt=r.route; const title=rt.id+' \u00b7 '+(rt.legs.length>1?rt.legs.length+' jobs':((rt.legs[0].cityFrom||'')+' \u2192 '+(rt.legs[0].cityTo||'')));
+    const sub='Base '+esc(rt.base||'')+' \u00b7 '+(rt.totalCF||0).toLocaleString()+' CF \u00b7 the whole run for this day.';
+    showRouteJourney(rt, title, sub);
+  }));
+  const up=$('updcal'); if(up)up.addEventListener('click',()=>{ if(up.disabled)return; gModal('Calendar write-back is parked','The accept \u2192 pick-lead \u2192 confirm flow works and your confirmed changes are saved here (and highlighted on the timeline). The actual calendar update is intentionally turned off until we review the write-back end-to-end for both tools.'); });
 }
 function plan_buffer(){return (typeof CLEAN!=='undefined'&&CLEAN.buffer)||2;}
 
@@ -2303,18 +2454,16 @@ function updateCalendarFlow(){
 }
 
 /* ===== boot ===== */
-$('calconnect').addEventListener('click',()=>{if(GTOKEN){gModal('Calendar connected','<div class="gsub">You\u2019re connected. Use <b>⤴ Update calendar</b> to write agreed changes.</div>');}else ensureGToken(()=>{updateCalBtns();gModal('Connected','<div class="gsub">✅ Calendar connected. Agreed calls and moves can now be written back with <b>⤴ Update calendar</b>.</div>');});});
-$('calpush').addEventListener('click',updateCalendarFlow);
+$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ gModal('Update calendar','<div class="gsub">Calendar write-back is parked while we verify it updates events correctly. Your confirmed re-chains and moves are saved here and will push once it\u2019s unlocked.</div>'); } else ensureGToken(()=>{updateCalBtns();gModal('Connected','<div class="gsub">\u2705 Calendar connected \u2014 the button is now <b>Update Calendar</b>. Write-back stays parked until we verify it end-to-end.</div>');}); });
 $('fromDate').addEventListener('change',()=>{SELECTED=null;boot();});
-$('winLen').addEventListener('change',()=>{renderHorizon();if(SELECTED)renderDay(SELECTED);});
 function boot(){
-  $('fromDate').value=TODAY_ISO;
-  $('rfstamp').textContent='jobs through '+Object.keys(DATA.days).sort().slice(-1)[0]+' · '+DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length+' backup crews held';
+  if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
+  $('rfstamp').textContent='jobs through '+Object.keys(DATA.days).sort().slice(-1)[0]+' \u00b7 '+DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length+' backup crews held';
   updateCalBtns();
   renderHorizon();
-  const fs=WINDOW.find(d=>d.status==='short')||WINDOW.find(d=>d.status==='tight');
+  const fs=WINDOW.find(d=>d.status==='short')||WINDOW.find(d=>d.status==='tight')||WINDOW[0];
   if(fs){SELECTED=fs.iso;renderHorizon();renderDay(SELECTED);}
-  else $('daydetail').innerHTML='<div class="pickprompt">All days in this window are comfortably covered by your core crews. 🎉<br>Pick any day above, or extend the window.</div>';
+  else $('daydetail').innerHTML='<div class="pickprompt">No calendar days in this range. Pick another start date above.</div>';
 }
 boot();
 </script>
