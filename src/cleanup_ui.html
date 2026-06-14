@@ -163,22 +163,53 @@ async function showRoute(rec, kind, title, sub){
     +'<div class="mcbody"><div class="ms">'+sub+'</div><div class="steps">'+journeySteps(rec,kind)+'</div></div>';
   $('mapcard').querySelector('.mcx').onclick=exitMap;
   $('mapcard').querySelector('.mcmin').onclick=function(){const c=$('mapcard');c.classList.toggle('min');this.textContent=c.classList.contains('min')?'+':'–';};
-  if(!geo.length){return;}
-  const pts=geo.map(s=>[s.lat,s.lon]);
-  geo.forEach(s=>{
-    const col=s.kind==='A'?'#646B73':s.kind==='P'?'#1F2329':'#6E9220';
-    const txt=s.kind==='A'?'●':s.kind;
-    L.marker([s.lat,s.lon],{zIndexOffset:600,icon:L.divIcon({className:'',iconSize:[26,26],iconAnchor:[13,13],html:'<div style="background:'+col+';color:#fff;border:3px solid #fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,.3)">'+txt+'</div>'})}).addTo(LAYER).bindTooltip((s.customer?esc(s.customer)+' — ':'')+esc(s.label),{direction:'top',offset:[0,-12],className:'lpop'});
-  });
-  LMAP.fitBounds(L.latLngBounds(pts).pad(0.28));
-  for(let i=0;i<geo.length-1;i++){
-    const a=[geo[i].lat,geo[i].lon],b=[geo[i+1].lat,geo[i+1].lon];
-    const reposition=geo[i].kind==='A';let line=[a,b];
-    try{const rt=await truckRoute(a,b);if(rt&&rt.pts&&rt.pts.length)line=rt.pts;}catch(e){}
-    L.polyline(line,{color:'#FFFFFF',weight:6.5,opacity:.92,lineCap:'round'}).addTo(LAYER);
-    L.polyline(line,{color:reposition?'#B26B0B':'#6C5CE0',weight:3,opacity:.95,dashArray:reposition?'8 7':null,lineCap:'round'}).addTo(LAYER);
+  if(!geo.length){setTimeout(()=>{if(LMAP)LMAP.invalidateSize();},120);return;}
+  CUSEQ++; const seq=CUSEQ;
+  const col='#0F8A66';                 // pre-assignment -> fleet green, same as the board + the routes view
+  const pts=[]; let prev=null, stopN=0; const items=[];
+  const estMin=(a,b)=>Math.max(5,Math.round(havArr(a,b)/35*60*1.15)+4);
+  function travelLeg(from,to,label,reposition){
+    const kcol=reposition?'#8A63D2':TRAVEL;
+    const cpts=curvePts(from,to,-1,1.7);
+    const casing=L.polyline(cpts,{color:'#FFFFFF',weight:6.5,opacity:0.92,lineCap:'round',interactive:false}).addTo(LAYER);
+    const line=L.polyline(cpts,{color:kcol,weight:3,opacity:0.95,dashArray:'8 7',lineCap:'round',className:'flowline'}).addTo(LAYER);
+    line.on('mouseover',()=>line.setStyle({weight:4.5})); line.on('mouseout',()=>line.setStyle({weight:3}));
+    line.bindTooltip('<div class="tt">'+label+'</div><div class="ts">empty drive \u00b7 reposition'+(rec.linkMin!=null?' \u00b7 '+rec.linkMin+' min':'')+(rec.linkMi!=null?' \u00b7 '+rec.linkMi+' mi':'')+'</div>',{sticky:true,className:'lpop',opacity:1});
+    const arrow=arrowAt(cpts,kcol);
+    const it={kind:'travel',from,to,line,casing,arrow,fallback:estMin(from,to)}; items.push(it); return it;
   }
-  setTimeout(()=>{if(LMAP){LMAP.invalidateSize();LMAP.fitBounds(L.latLngBounds(pts).pad(0.28));}},140);
+  for(const s of geo){
+    const pt=[s.lat,s.lon];
+    if(s.kind==='A'){
+      L.marker(pt,{zIndexOffset:400,icon:L.divIcon({className:'',iconSize:[18,18],iconAnchor:[9,9],html:'<div style="width:14px;height:14px;border-radius:50%;background:#6B7280;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>'})}).addTo(LAYER).bindTooltip('<div class="tt">Crew finishes the previous job here</div><div class="ts">'+esc(rec.anchorCustomer||s.customer||'')+(rec.anchorCity?' \u00b7 '+esc(rec.anchorCity):'')+'</div>',{direction:'top',offset:[0,-10],className:'lpop',opacity:1});
+      L.tooltip({permanent:true,direction:'bottom',offset:[0,12],className:'placechip'}).setLatLng(pt).setContent('finishes '+esc((rec.anchorCustomer||'prev').split(' ')[0])).addTo(LAYER);
+      pts.push(pt); prev=pt; continue;
+    }
+    if(s.kind==='P'){
+      if(prev)travelLeg(prev,pt,'Reposition to job pickup',true);
+      stopN++; stopMarker(pt,stopN,'P',col,'<div class="tt">Stop '+stopN+' \u00b7 pickup'+(rec.window?' \u00b7 ask '+rec.window.text:'')+'</div><div class="ts">'+esc(rec.customer||s.customer||'')+' \u00b7 '+esc(rec.city||'')+'</div>');
+      L.tooltip({permanent:true,direction:'top',offset:[0,-14],className:'placechip'}).setLatLng(pt).setContent(esc((rec.customer||s.customer||'pickup').split(' ')[0])+(rec.city?' \u00b7 '+esc(rec.city):'')).addTo(LAYER);
+      pts.push(pt); prev=pt; continue;
+    }
+    if(s.kind==='D'){
+      if(prev){const cpts=curvePts(prev,pt,1,1); const w0=Math.max(4,Math.min((rec.cf||300)/300,8));
+        const casing=L.polyline(cpts,{color:'#FFFFFF',weight:w0+3.5,opacity:0.95,lineCap:'round',interactive:false}).addTo(LAYER);
+        const line=L.polyline(cpts,{color:col,weight:w0,opacity:0.95,lineCap:'round'}).addTo(LAYER);
+        line.on('mouseover',()=>line.setStyle({weight:w0+2})); line.on('mouseout',()=>line.setStyle({weight:w0}));
+        line.bindTooltip('<div class="tt">Loaded \u00b7 '+(rec.cf||0).toLocaleString()+' CF</div><div class="ts">'+esc(rec.city||'')+' \u2192 '+esc(rec.deliveryCity||'')+'</div>',{sticky:true,className:'lpop',opacity:1});
+        arrowAt(cpts,col);
+        items.push({kind:'job',from:prev,to:pt,line,casing,fallback:estMin(prev,pt)});
+      }
+      stopN++; stopMarker(pt,stopN,'D',col,'<div class="tt">Stop '+stopN+' \u00b7 delivery</div><div class="ts">'+esc(rec.deliveryCity||'')+'</div>');
+      L.tooltip({permanent:true,direction:'top',offset:[0,-14],className:'placechip'}).setLatLng(pt).setContent(esc(rec.deliveryCity||'delivery')).addTo(LAYER);
+      pts.push(pt); prev=pt; continue;
+    }
+  }
+  drawBasesCU(null);
+  if(pts.length)LMAP.flyToBounds(L.latLngBounds(pts),{duration:0.6,maxZoom:13,paddingTopLeft:[480,40],paddingBottomRight:[40,60]});
+  setTimeout(()=>{if(LMAP)LMAP.invalidateSize();},120);
+  const fetches=items.filter(it=>it.from&&it.to).map(it=>truckRoute(it.from,it.to).then(rt=>{ if(seq!==CUSEQ||!rt)return; if(it.line)it.line.setLatLngs(rt.pts); if(it.casing)it.casing.setLatLngs(rt.pts); if(it.arrow){LAYER.removeLayer(it.arrow); it.arrow=arrowAt(rt.pts,it.kind==='job'?col:'#8A63D2');} }));
+  if(HERE_KEY)Promise.all(fetches).catch(()=>{});
 }
 function step(t,txt,tv,late){return '<div class="step'+(tv?' tv':'')+(late?' late':'')+'"><span class="dot"></span><span class="st">'+(t||'')+'</span><span>'+txt+'</span></div>';}
 function journeySteps(rec,kind){
