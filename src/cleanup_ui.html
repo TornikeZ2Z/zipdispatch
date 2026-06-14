@@ -129,7 +129,7 @@ function saveStatus(s){try{localStorage.setItem('zc_status',JSON.stringify(s));}
 let STATUS=loadStatus();
 function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STATUS);}
 let WINDOW=[], SELECTED=null, RECS={}, CURPLAN=null, ACTIVE_ROUTE=null;
-let PROBONLY=false, BASEFILTER=new Set(), CURCHANGES={}, APD=null;
+let PROBONLY=false, BASEFILTER=new Set(), CURCHANGES={}, APD=null, COLLAPSED=new Set();
 function getAPD(){ if(APD===null){ try{APD=allProblemDays();}catch(e){APD=[];} } return APD; }
 function windowStart(){return $('fromDate').value||TODAY_ISO;}
 
@@ -137,7 +137,7 @@ function windowStart(){return $('fromDate').value||TODAY_ISO;}
 let LMAP=null, LAYER=null;
 function initMap(){
   if(LMAP)return;
-  LMAP=L.map('map',{zoomControl:true,attributionControl:true}).setView([40.7,-74.3],8);
+  LMAP=L.map('map',{zoomControl:false,attributionControl:true}).setView([40.7,-74.3],8);L.control.zoom({position:'topright'}).addTo(LMAP);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(LMAP);
   LAYER=L.layerGroup().addTo(LMAP);
 }
@@ -219,7 +219,17 @@ function routeGeo(route){
 }
 function routeSteps(route){
   const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
-  return sl.map(l=>{const st=Date.parse(l.start);return step(hmPretty(st),'<b>'+esc(l.customer||l.code)+'</b> \u00b7 '+esc(l.cityFrom||'')+' \u2192 '+esc(l.cityTo||'')+' \u00b7 '+(l.cf||0).toLocaleString()+' CF',false);}).join('');
+  const rows=[]; let prevDoneMs=null;
+  sl.forEach((l,i)=>{ const st=Date.parse(l.start); const act=(l.actH||schedH(l)||3);
+    if(i>0&&prevDoneMs!=null) rows.push(step(fmtMs(prevDoneMs),'Reposition to <b>'+esc(l.customer||l.code)+'</b> \u00b7 '+esc(l.cityFrom||''),true));
+    rows.push(step(fmtMs(st),'Arrive <b>'+esc(l.customer||l.code)+'</b> \u00b7 pickup '+esc(l.cityFrom||'')+' \u00b7 '+(l.cf||0).toLocaleString()+' CF',false));
+    const loadMs=st+act*0.6*3600000;
+    rows.push(step(fmtMs(loadMs),'Load ~'+(Math.round(act*0.6*10)/10)+'h, drive to '+esc(l.cityTo||'delivery'),true));
+    const doneMs=loadMs+30*60000+act*0.4*3600000;
+    rows.push(step(fmtMs(doneMs),'Deliver '+esc(l.cityTo||'')+' \u00b7 done ~'+fmtMs(doneMs),false));
+    prevDoneMs=doneMs;
+  });
+  return rows.join('');
 }
 async function showRouteJourney(route, title, sub){
   openMapPane(); if(LAYER)LAYER.clearLayers();
@@ -286,14 +296,14 @@ function tlChunk(td, changes){
   [...RR].sort((x,y)=>(x.base||'').localeCompare(y.base||'')||((x.t0||0)-(y.t0||0))).forEach(r=>{(byB[r.base]=byB[r.base]||[]).push(r);});
   for(const bb of Object.keys(byB)){
     const rs=byB[bb];
-    rows+='<div class="tlsep" data-b="'+esc(bb)+'"><h4>'+esc(bb)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+'</span></div>';
+    rows+='<div class="tlsep" data-b="'+esc(bb)+'"><span class="tlcaret">'+(COLLAPSED.has(bb)?'\u25b8':'\u25be')+'</span><h4>'+esc(bb)+' BASE</h4><span class="tlmeta">'+rs.length+' route'+(rs.length>1?'s':'')+'</span></div>';
     for(const r of rs){RECS['rt|'+r.id]={route:r};
       const cf=(r.totalCF||r.legs.reduce((s,l)=>s+(l.cf||0),0)).toLocaleString();
       const isShort=shortIds.has(r.id); const hasChg=r.legs.some(l=>changes[l.code]);
       const jobN=r.legs.length>1?(r.legs.length+' jobs'):((r.legs[0]&&r.legs[0].cityFrom||'')+' \u2192 '+(r.legs[0]&&r.legs[0].cityTo||''));
       const r1=r.id+(r.legs.length>1?' \u26d3':'')+' \u00b7 '+cf+' CF';
       const r2=jobN+(isShort?' \u00b7 \u26a0 overflow':'');
-      rows+='<div class="tlrow clickable'+(isShort?' tlshortrow':'')+(hasChg?' rowchg':'')+'" data-rt="rt|'+r.id+'" title="Click to see the whole route on the map"><div class="tllabel"><b>'+esc(r1)+'</b><span>'+esc(r2)+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';}
+      rows+='<div class="tlrow clickable'+(isShort?' tlshortrow':'')+(hasChg?' rowchg':'')+'" data-rt="rt|'+r.id+'" data-base="'+esc(bb)+'"'+(COLLAPSED.has(bb)?' style="display:none"':'')+' title="Click to see the whole route on the map"><div class="tllabel"><b>'+esc(r1)+'</b><span>'+esc(r2)+'</span></div><div class="tltrack">'+trackOf(r)+'</div></div>';}
   }
   let scale='<div class="tlrow scale"><div class="tllabel"></div><div class="tltrack">';
   for(let h=A;h<=B;h++){const p=(h-A)*60/SPAN*100;scale+='<div class="tlgrid" style="left:'+p+'%"></div>'+(h<B?'<div class="tlhr" style="left:'+p+'%">'+(h%24)+':00</div>':'');}
@@ -309,7 +319,7 @@ function dayJobOptions(td, selCode){
 
 function renderSlot(iso, s, td, dupLeads){
   if(!s.current){
-    return '<div class="slot escal tmove"><div class="slothead"><span class="stag must">crew '+(s.index+1)+'</span><b>No automated option left</b></div><div class="slotbody">Every call and date-move for this crew has been refused. Escalate: pay overtime, add an extra rental truck, or move a <i>different</i> job off this day.</div></div>';
+    return '<div class="slot escal tmove"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span><b>No automated option left</b></div><div class="slotbody">Every call and date-move for this crew has been refused. Escalate: pay overtime, add an extra rental truck, or move a <i>different</i> job off this day.</div></div>';
   }
   const kind=s.current.kind, rec=s.current.rec;
   const id=sKey(iso,s.index,kind, kind==='call'?rec.tail:rec.code);
@@ -317,7 +327,7 @@ function renderSlot(iso, s, td, dupLeads){
   const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
   let head, body='';
   if(kind==='call'){
-    head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>';
+    head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>'+((function(){var j=jobByCode(rec.tail);var p=j&&(j.phone||j.tel||j.phoneNumber);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b>. Offer \u0024'+rec.discount+'.</div>';
     const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning? We\u2019ll take \u0024'+rec.discount+' off for the flexibility.\u201d</div>';
     if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,rec,'call')+'</div>'; }
@@ -334,7 +344,7 @@ function renderSlot(iso, s, td, dupLeads){
     else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
   }
   const casc=(stt==='todo'&&s.altCount>0)?'<div class="casc">If they refuse, '+s.altCount+' other option'+(s.altCount>1?'s':'')+' for this crew \u2192 tap Declined.</div>':'';
-  return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag crew">crew '+(s.index+1)+'</span>'+head+'</div><div class="slotbody">'+body+casc+'</div></div>';
+  return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span>'+head+'</div><div class="slotbody">'+body+casc+'</div></div>';
 }
 function routeBtn(id,rec,kind){RECS[id+'|r']={rec,kind};return '<button class="cb route" data-route="'+id+'|r">\ud83d\uddfa route</button>';}
 function jobCust(td,code){let n=code;td.routes.forEach(r=>r.legs.forEach(l=>{if(l.code===code)n=l.customer||code;}));return n;}
@@ -344,13 +354,13 @@ function renderDay(iso){
   const plan=cleanupPlan(iso,horizon);
   const declined=declinedSetFor(iso);
   const slots=resolveSlots(plan,declined);
-  const td=timelineData(iso);
   CURPLAN=plan; RECS={}; ACTIVE_ROUTE=null;
-  // pending changes from confirmed slots -> highlight on the timeline (so user sees what Update will write)
+  // pending changes from confirmed slots -> apply to the timeline so the chip re-routes (and mark what Update will write)
   const changes={};
   slots.slots.forEach(s=>{ if(!s.current)return; const k=s.current.kind, rec=s.current.rec; const id=sKey(iso,s.index,k,k==='call'?rec.tail:rec.code);
-    if(STATUS[id]==='confirmed'){ if(k==='call') changes[rec.tail]={kind:'call', after:(LEADS[lKey(iso,s.index,rec.tail)]||rec.after)}; else changes[rec.code]={kind:'move', to:rec.to}; } });
+    if(STATUS[id]==='confirmed'){ if(k==='call') changes[rec.tail]={kind:'call', after:(LEADS[lKey(iso,s.index,rec.tail)]||rec.after), arriveMs:rec.arriveMs}; else changes[rec.code]={kind:'move', to:rec.to}; } });
   CURCHANGES=changes;
+  const td=timelineData(iso, changes);
   const f=fmtDay(iso); const st=plan.status;
   const chip=st==='short'?{c:'short',t:'over by '+Math.abs(plan.spare)}:st==='tight'?{c:'tight',t:'full \u00b7 no buffer'}:{c:'ok',t:plan.spare+' crews free'};
   let h='<div class="daycard"><div class="dchead"><div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2><div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.availableCore+'</b> core crews \u00b7 aim \u2264'+plan.target+(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off':'')+'</div></div><span class="schip '+chip.c+'">'+chip.t+'</span></div><div class="dcbody">';
@@ -359,6 +369,7 @@ function renderDay(iso){
   if(st==='ok'){
     h+='<div class="cres ok">\u2713 This day holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Nothing to resolve.</div>';
   }else{
+    h+='<div class="fixnote">Each step below frees one crew-day \u2014 work them top to bottom.</div>';
     h+='<div class="fixhead">'+(st==='short'?('Free '+plan.gapToCover+' crew'+(plan.gapToCover>1?'s':'')+' to clear the shortage'+(plan.gapToBuffer>plan.gapToCover?(' \u00b7 +'+(plan.gapToBuffer-plan.gapToCover)+' more rebuilds the buffer'):'')):('Optional \u2014 free up to '+plan.gapToBuffer+' crew'+(plan.gapToBuffer>1?'s':'')+' to rebuild the buffer'))+'</div>';
     const confirmedLeads={};
     slots.slots.forEach(s=>{if(s.current&&s.current.kind==='call'){const id=sKey(iso,s.index,'call',s.current.rec.tail);if(STATUS[id]==='confirmed'){const lead=LEADS[lKey(iso,s.index,s.current.rec.tail)]||s.current.rec.after;confirmedLeads[lead]=(confirmedLeads[lead]||0)+1;}}});
@@ -368,6 +379,7 @@ function renderDay(iso){
     h+='<div class="calbar">'+(dupLeads.size?'<span class="dupwarn">\u26a0 Two re-chains share a lead \u2014 fix before updating.</span>':'')+'<button class="cb upd" id="updcal" '+((anyConfirmed&&!dupLeads.size)?'':'disabled')+'>\u2934 Update calendar</button><span class="cmuted">write-back parked \u2014 confirms saved here for now</span></div>';
   }
   h+='</div>';
+  if(td.movedOut&&td.movedOut.length){h+='<div class="movedout">\u2197 Moved off this day ('+td.movedOut.length+'): '+td.movedOut.map(m=>esc(m.customer)+' \u2192 '+fmtDay(m.to).mon+' '+fmtDay(m.to).dn).join(', ')+'</div>';}
   h+='<div class="tlbar"><div class="tltitle">Routes on '+f.dow+' '+f.dn+' \u2014 click any to see the whole run</div><div class="tlleg"><i style="background:#6E9220"></i>local <i style="background:#C98A1B"></i>long <i style="background:#6C4FD8"></i>straight <i style="background:#5B6770"></i>labor <span class="lgchg"></span>pending change</div></div>';
   h+=tlChunk(td, changes);
   h+='</div></div>';
@@ -407,7 +419,18 @@ function bindDay(iso){
     const sub='Base '+esc(rt.base||'')+' \u00b7 '+(rt.totalCF||0).toLocaleString()+' CF \u00b7 the whole run for this day.';
     showRouteJourney(rt, title, sub);
   }));
-  const up=$('updcal'); if(up)up.addEventListener('click',()=>{ if(up.disabled)return; gModal('Calendar write-back is parked','The accept \u2192 pick-lead \u2192 confirm flow works and your confirmed changes are saved here (and highlighted on the timeline). The actual calendar update is intentionally turned off until we review the write-back end-to-end for both tools.'); });
+  root.querySelectorAll('#cltl .tlsep[data-b]').forEach(sep=>sep.addEventListener('click',()=>{ const b=sep.dataset.b; if(COLLAPSED.has(b))COLLAPSED.delete(b); else COLLAPSED.add(b); root.querySelectorAll('#cltl .tlrow[data-base="'+b+'"]').forEach(r=>{r.style.display=COLLAPSED.has(b)?'none':'';}); const c=sep.querySelector('.tlcaret'); if(c)c.textContent=COLLAPSED.has(b)?'\u25b8':'\u25be'; }));
+  const up=$('updcal'); if(up)up.addEventListener('click',()=>{ if(up.disabled)return;
+    const chg=CURCHANGES||{}; const ents=Object.keys(chg);
+    if(!ents.length){gModal('Nothing confirmed yet','<div class="gsub">Mark the calls you\u2019ve agreed and the dates you\u2019ve moved as <b>confirmed</b> first \u2014 then this shows the summary.</div>');return;}
+    const calls=ents.filter(c=>chg[c].kind==='call'), moves=ents.filter(c=>chg[c].kind==='move');
+    const nm=c=>{const j=jobByCode(c);return esc((j&&j.customer)||c);};
+    let html='<div class="gsub">Changes you confirmed for <b>'+fmtDay(iso).dow+' '+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b>. Write-back is parked \u2014 this is the summary that will be applied once it\u2019s unlocked.</div>';
+    if(calls.length){html+='<div class="sumsec"><h4>\ud83d\udcde Re-chained \u2014 '+calls.length+'</h4><ul>'+calls.map(c=>'<li>'+nm(c)+' \u2192 runs after <b>'+nm(chg[c].after)+'</b> (afternoon)</li>').join('')+'</ul></div>';}
+    if(moves.length){html+='<div class="sumsec"><h4>\ud83d\udcc5 Date moves \u2014 '+moves.length+'</h4><ul>'+moves.map(c=>'<li>'+nm(c)+' \u2192 <b>'+fmtDay(chg[c].to).dow+' '+fmtDay(chg[c].to).mon+' '+fmtDay(chg[c].to).dn+'</b></li>').join('')+'</ul></div>';}
+    html+='<div class="sumnet">Net effect: frees <b>'+ents.length+'</b> crew-day'+(ents.length>1?'s':'')+' on this date.</div>';
+    gModal('Update summary \u2014 '+ents.length+' change'+(ents.length>1?'s':''), html);
+  });
 }
 function plan_buffer(){return (typeof CLEAN!=='undefined'&&CLEAN.buffer)||2;}
 
