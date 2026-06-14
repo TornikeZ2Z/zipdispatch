@@ -264,7 +264,18 @@ function timelineData(iso, changes){
   const kJ=DATA.jobs,kAC=AUTOCHAINS,kD=currentDay,kOff=new Set(AUTOOFFLIST),kDay=DATA.days[iso];
   try{
     // apply confirmed MOVES: drop the moved-away jobs from this day so the board re-routes
-    const movedOut=[];
+    const movedOut=[]; const ghosts=[];
+    const _chk=Object.keys(changes);
+    if(_chk.length){ // learn each changed job's ORIGINAL base+time by building the unchanged routes first (for the ghost)
+      DATA.jobs=(DATA.days[iso]||[]).slice(); currentDay=iso; AUTOCHAINS=[];
+      try{computeAutoOff();}catch(e){}
+      let _o=buildRoutes();
+      for(let g=0;g<2;g++){const det=detectAutoChains(_o);if(!det.length)break;AUTOCHAINS=AUTOCHAINS.concat(det);_o=buildRoutes();}
+      const _oi={};
+      _o.forEach(r=>{const b=r.baseOverride||r.nearestBase||'NJ';r.legs.forEach(l=>{_oi[l.code]={base:b,start:l.start,end:l.end||l.start,cf:l.cf||0,cityFrom:l.cityFrom||'',cityTo:l.cityTo||'',customer:l.customer||l.code};});});
+      _chk.forEach(code=>{const c=changes[code];const gi=_oi[code];if(!gi)return;ghosts.push({code,customer:gi.customer,base:gi.base,origStartMs:Date.parse(gi.start),origEndMs:Date.parse(gi.end),cf:gi.cf,cityFrom:gi.cityFrom,cityTo:gi.cityTo,kind:c.kind,to:c.to,after:c.after,arriveMs:c.arriveMs});});
+      AUTOCHAINS=[];
+    }
     let dayJobs=(DATA.days[iso]||[]).slice();
     dayJobs=dayJobs.filter(j=>{const c=changes[j.code]; if(c&&c.kind==='move'){movedOut.push({code:j.code,customer:j.customer||j.code,to:c.to});return false;} return true;});
     // re-chained calls flip to the afternoon: clone the job with its new chained start so the chip moves
@@ -281,7 +292,8 @@ function timelineData(iso, changes){
     const core=coreAvailOn(iso);
     const over=Math.max(0, rts.length-core.avail);
     const shortIds=new Set([...rts].sort((a,b)=>(b.t0||0)-(a.t0||0)).slice(0,over).map(r=>r.id));
-    return {routes:rts, availableCore:core.avail, off:core.off, shortIds:[...shortIds], movedOut};
+    ghosts.forEach(g=>{ if(g.kind==='call'){ const rr=rts.find(r=>r.legs.some(l=>l.code===g.code)); if(rr){g.newRouteId=rr.id; const nl=rr.legs.find(l=>l.code===g.code); if(nl)g.newStartMs=Date.parse(nl.start);} } });
+    return {routes:rts, availableCore:core.avail, off:core.off, shortIds:[...shortIds], movedOut, ghosts};
   } finally { DATA.days[iso]=kDay; DATA.jobs=kJ; AUTOCHAINS=kAC; currentDay=kD; AUTOOFFLIST.clear(); kOff.forEach(x=>AUTOOFFLIST.add(x)); }
 }
 
