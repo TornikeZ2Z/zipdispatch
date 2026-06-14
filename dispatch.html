@@ -889,8 +889,8 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 <body><script>(function(){const _dp=Date.parse.bind(Date);Date.parse=function(s){const v=_dp(s);if(!isNaN(v)||typeof s!=='string')return v;return _dp(s.replace(' ','T'));};})();</script>
 <header>
   <div class="brand">
-    <img id="brandlogo" src="logo.png" alt="Zip To Zip" onerror="this.style.display='none';document.getElementById('brandtxt').style.display='block'">
-    <h1 id="brandtxt" style="display:none">Zip to Zip — dispatch</h1>
+    <img id="brandlogo" src="logo.png" alt="Zip To Zip" title="Back to menu" style="cursor:pointer" onclick="location.href='index.html'" onerror="this.style.display='none';document.getElementById('brandtxt').style.display='block'">
+    <h1 id="brandtxt" title="Back to menu" style="display:none;cursor:pointer" onclick="location.href='index.html'">Zip to Zip — dispatch</h1>
     <span class="date" id="hdate"></span>
   </div>
   <div id="daynav">
