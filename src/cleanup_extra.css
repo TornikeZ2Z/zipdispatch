@@ -218,3 +218,25 @@
 .tlrow.tlshortrow:not(.rtsel):not(.rowchg) .tllabel{box-shadow:inset 3px 0 0 var(--hazard)}
 .tlrow.tlshortrow .tllabel span{color:var(--hazard);font-weight:600}
 .tlleg .lgchg{display:inline-block;width:13px;height:13px;border-radius:3px;background:#B26B0B;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.45) 0 4px,transparent 4px 8px);outline:1.5px dashed #1F2329;outline-offset:-1px;margin:0 4px 0 8px;vertical-align:middle}
+/* ===== batch-3 fixes: timeline size, chip padding, step badge, collapsible bases, summary, phone ===== */
+/* #2 timeline rows back to full height + #7 chip padding */
+#cltl .tlrow{min-height:46px}
+#cltl .tltrack{padding-right:8px}
+#cltl .tlblock{top:6px;bottom:6px;padding:0 10px}
+/* #6 numbered step badge (replaces confusing "crew N") */
+.slot .stag.step{background:var(--ink);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:11.5px;font-weight:700;flex:0 0 auto}
+.fixnote{font-size:12px;color:var(--dim);margin:0 0 8px}
+/* #4 collapsible base sections */
+#cltl .tlsep{cursor:pointer;user-select:none}
+#cltl .tlsep:hover{filter:brightness(.975)}
+#cltl .tlsep .tlcaret{font-size:11px;opacity:.65;width:12px;display:inline-block}
+/* #1 moved-off-this-day note */
+.movedout{font-size:12.5px;color:var(--rental);background:var(--rental-bg);border:1px solid var(--rental-bd);border-radius:8px;padding:7px 11px;margin:8px 0 2px;font-weight:500}
+/* #8 update summary modal */
+.sumsec{margin:13px 0 0}
+.sumsec h4{margin:0 0 5px;font-family:'Barlow Condensed';font-weight:600;font-size:16px;letter-spacing:.03em}
+.sumsec ul{margin:0 0 0 18px;line-height:1.75}
+.sumnet{margin:13px 0 2px;font-weight:600}
+/* #5 phone chip */
+.telchip{display:inline-block;font-family:'Inter';font-weight:700;font-size:12px;color:#1F6FD6;text-decoration:none;border:1px solid #BBD0EC;border-radius:6px;padding:1px 7px;margin-left:5px;vertical-align:middle}
+.telchip:hover{background:#EAF1FB}
