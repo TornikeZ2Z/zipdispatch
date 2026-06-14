@@ -202,6 +202,16 @@ function journeySteps(rec,kind){
   return rows.join('');
 }
 
+/* ===== dispatcher-style route map — ported verbatim from the logistics board ===== */
+const TRAVEL='#6C5CE0';
+const tmCU=s=>s?String(s).slice(11,16):'';
+function fmtH(h){const m=Math.round(h*60),hh=Math.floor(m/60),mm=m%60;return hh+'h'+(mm?String(mm).padStart(2,'0'):'');}
+function curvePts(a,b,sign,scale){sign=sign||1;scale=scale||1;const n=24,pts=[];const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy)||1e-9;const bow=Math.min(len*0.18*scale,0.10*scale)*sign;const cx=mx-dy/len*bow,cy=my+dx/len*bow;for(let i=0;i<=n;i++){const u=i/n;pts.push([(1-u)*(1-u)*a[0]+2*(1-u)*u*cx+u*u*b[0],(1-u)*(1-u)*a[1]+2*(1-u)*u*cy+u*u*b[1]]);}return pts;}
+function arrowAt(pts,col){const i=Math.floor(pts.length/2);const p=pts[i],q=pts[Math.min(i+1,pts.length-1)];const deg=Math.atan2(q[1]-p[1],q[0]-p[0])*180/Math.PI;return L.marker(p,{interactive:false,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],html:'<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid '+col+';transform:rotate('+deg.toFixed(1)+'deg);filter:drop-shadow(0 0 1.5px #fff)"></div>'})}).addTo(LAYER);}
+function stopMarker(pt,label,kind,col,popup){const style=kind==='P'?'background:#1F2329;color:#fff;border:3px solid #fff;':'background:#fff;color:'+col+';border:3px solid '+col+';';const mk=L.marker(pt,{zIndexOffset:500,icon:L.divIcon({className:'',iconSize:[26,26],iconAnchor:[13,13],html:'<div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed;font-weight:600;font-size:13px;box-shadow:0 1px 5px rgba(0,0,0,.28);'+style+'">'+label+'</div>'})}).addTo(LAYER);if(popup)mk.bindPopup(popup,{className:'lpop'});return mk;}
+function drawBasesCU(focusBase){for(const[k,b]of Object.entries(DATA.bases)){if(focusBase&&k!==focusBase)continue;const mk=L.marker([b.lat,b.lon],{icon:L.divIcon({className:'',html:'<div class="bmark">'+k+'</div>',iconSize:[32,32],iconAnchor:[16,16]}),zIndexOffset:600}).addTo(LAYER);mk.bindTooltip(k+' base \u2014 '+b.city,{direction:'top',offset:[0,-12]});}}
+function backAtBaseMs(r){if(r.ldDeparture||!r.base||!DATA.bases[r.base])return null;const sl=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));const bb=DATA.bases[r.base];const lastLeg=sl[sl.length-1];let backMs=r.t1!=null?r.t1:Date.parse(lastLeg.end||lastLeg.start);{const from=lastLeg._carrier?(lastLeg.carrierDrop||null):((lastLeg.delivery&&INREGION(lastLeg.delivery))?lastLeg.delivery:lastLeg.pickup);if(from)backMs+=hav(from,bb)/35*3600000*1.15;}return backMs;}
+
 /* ===== render (timeline view) ===== */
 function loadLeads(){try{return JSON.parse(localStorage.getItem('zc_leads')||'{}');}catch(e){return {};}}
 function saveLeads(){try{localStorage.setItem('zc_leads',JSON.stringify(LEADS));}catch(e){}}
@@ -244,19 +254,162 @@ function routeSteps(route){
   });
   return rows.join('');
 }
+let CUSEQ=0;
 async function showRouteJourney(route, title, sub){
   openMapPane(); if(LAYER)LAYER.clearLayers();
-  const geo=routeGeo(route);
+  CUSEQ++; const seq=CUSEQ;
+  const r=route;
+  const col='#0F8A66';                 // cleanup routes are pre-assignment -> fleet green (matches the board's fleet color)
+  const base=DATA.bases[r.base]; const basePt=base?[base.lat,base.lon]:null;
+  const legs=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0)).filter(l=>l.pickup&&l.delivery);
+  let prev=basePt, stopN=0, jobN=0;
+  const pts=basePt?[basePt]:[];
+  const items=[];
+  const estMin=(a,b)=>Math.max(5,Math.round(havArr(a,b)/35*60*1.15)+4);
+  function addTravel(from,to,label,kind){
+    if(havArr(from,to)<0.35)return null;
+    const KC={topickup:'#1F6FD6',between:'#8A63D2',return:'#6B7280'};
+    const kcol=KC[kind]||TRAVEL;
+    const cpts=curvePts(from,to,-1,1.7);
+    const casing=L.polyline(cpts,{color:'#FFFFFF',weight:6.5,opacity:0.92,lineCap:'round',interactive:false}).addTo(LAYER);
+    const line=L.polyline(cpts,{color:kcol,weight:3,opacity:0.95,dashArray:'8 7',lineCap:'round',className:'flowline'}).addTo(LAYER);
+    line.on('mouseover',()=>line.setStyle({weight:4.5})); line.on('mouseout',()=>line.setStyle({weight:3}));
+    const arrow=arrowAt(cpts,kcol);
+    const it={type:kind||'travel',from,to,label,line,casing,arrow,fallback:estMin(from,to)};
+    line.bindTooltip('<div class="tt">'+label+'</div><div class="ts">'+(kind==='topickup'?'empty drive to the pickup':kind==='between'?'empty drive between jobs':kind==='return'?'empty drive back to base':'empty travel')+'</div>',{sticky:true,className:'lpop',opacity:1});
+    items.push(it); return it;
+  }
+  for(const l of legs){
+    jobN++;
+    const _cd=!!(l._carrier&&l.carrierDrop);
+    const a=[l.pickup.lat,l.pickup.lon], b=_cd?[l.carrierDrop.lat,l.carrierDrop.lon]:[l.delivery.lat,l.delivery.lon];
+    if(prev)addTravel(prev,a,jobN===1?('Leave '+r.base+' base \u2192 job #1'):('Travel to job #'+jobN),jobN===1?'topickup':'between');
+    if(l._carrier&&!_cd){
+      const it={type:'job',leg:l,jobN,from:a,to:null,carrier:true,inreg:false,fallback:0};
+      items.push(it);
+      stopN++;stopMarker(a,stopN,'P',col,'<div class="tt">Stop '+stopN+' \u00b7 job #'+jobN+' pickup (carrier move) \u00b7 '+tmCU(l.start)+'</div><div class="ts">'+esc(l.pickupAddr||l.cityFrom)+'</div>');
+      L.tooltip({permanent:true,direction:'top',offset:[0,-14],className:'placechip'}).setLatLng(a).setContent(esc((l.customer||l.cityFrom).split(' ')[0])+' \u00b7 '+esc(l.cityFrom)).addTo(LAYER);
+      pts.push(a); prev=a; continue;
+    }
+    const inreg=_cd?true:INREGION(l.delivery);
+    const cpts=curvePts(a,b,1,1);
+    const w0=Math.max(4,Math.min(l.cf/300,8));
+    const casing=L.polyline(cpts,{color:'#FFFFFF',weight:w0+3.5,opacity:0.95,lineCap:'round',interactive:false}).addTo(LAYER);
+    const line=L.polyline(cpts,{color:col,weight:w0,opacity:0.95,dashArray:r.ldDeparture?'10 8':null,lineCap:'round'}).addTo(LAYER);
+    line.on('mouseover',()=>line.setStyle({weight:w0+2})); line.on('mouseout',()=>line.setStyle({weight:w0}));
+    line.bindTooltip('<div class="tt">Job #'+jobN+' \u00b7 '+esc(l.code)+'</div><div class="ts">'+esc(l.cityFrom)+' \u2192 '+esc(l.cityTo)+' \u00b7 '+(l.cf||0).toLocaleString()+' CF \u00b7 ACT '+fmtH(l.actH||schedH(l))+'</div>',{sticky:true,className:'lpop',opacity:1});
+    arrowAt(cpts,col);
+    const it={type:'job',leg:l,jobN,from:a,to:b,inreg,line,casing,fallback:estMin(a,b),cdrop:_cd};
+    items.push(it);
+    stopN++;stopMarker(a,stopN,'P',col,'<div class="tt">Stop '+stopN+' \u00b7 job #'+jobN+' pickup \u00b7 '+tmCU(l.start)+'</div><div class="ts">'+esc(l.pickupAddr||l.cityFrom)+'</div>');
+    L.tooltip({permanent:true,direction:'top',offset:[0,-14],className:'placechip'}).setLatLng(a).setContent(esc((l.customer||l.cityFrom).split(' ')[0])+' \u00b7 '+esc(l.cityFrom)).addTo(LAYER);
+    pts.push(a);
+    stopN++;stopMarker(b,stopN,'D',col,'<div class="tt">Stop '+stopN+' \u00b7 job #'+jobN+' delivery'+(inreg?'':' \u00b7 long distance')+'</div><div class="ts">'+esc(l.deliveryAddr||l.cityTo)+(inreg?' \u00b7 ETA in itinerary':'')+'</div>');
+    if(!inreg)L.tooltip({permanent:true,direction:'top',offset:[0,-14],className:'placechip'}).setLatLng(b).setContent(esc(l.cityTo)+(l.stateTo?', '+esc(l.stateTo):'')).addTo(LAYER);
+    pts.push(b);
+    if(inreg){ prev=b; } else { prev=null;
+      if(basePt){ const rp=curvePts(b,basePt,-1,1.4); const rl=L.polyline(rp,{color:TRAVEL,weight:2.5,opacity:0.55,dashArray:'3 9',lineCap:'round'}).addTo(LAYER); rl.bindTooltip('<div class="tt">Return to '+r.base+' base</div><div class="ts">long distance \u2014 typically next day</div>',{sticky:true,className:'lpop',opacity:1}); }
+    }
+  }
+  if(prev&&basePt&&!r.ldDeparture)addTravel(prev,basePt,'Return to '+r.base+' base'+(r.hasCarrier?' with goods':''),'return');
+  drawBasesCU(r.base);
+  if(basePt)L.tooltip({permanent:true,direction:'bottom',offset:[0,14],className:'placechip'}).setLatLng(basePt).setContent(r.base+' base').addTo(LAYER);
+  if(pts.length)LMAP.flyToBounds(L.latLngBounds(pts),{duration:0.6,maxZoom:13,paddingTopLeft:[480,40],paddingBottomRight:[40,60]});
+
+  // ---- journey panel (same structure as the board: header info + stop-by-stop itinerary + day totals) ----
+  const sl2=[...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
+  const endR=Math.max(...sl2.map(l=>Date.parse(l.end||l.start)));
+  const bm=backAtBaseMs(r);
+  const mt=[...new Set(sl2.map(l=>String(l.movingType||'').trim()).filter(Boolean))].join(' / ');
+  const acts=sl2.reduce((s,l)=>s+(l.actH||0),0);
+  const totalCF=r.totalCF||sl2.reduce((s,l)=>s+(l.cf||0),0);
+  const head='<div class="mchead"><div class="mt">'+esc(title||(r.id+' \u00b7 day timeline'))+'</div><div class="mcbtns"><button class="mcmin" title="Minimize panel">\u2013</button><button class="mcx" title="Exit map">\u2715 Exit map</button></div></div>';
+  const minfo='<div class="minfo">'
+    +'<div class="mirow"><b>'+esc(sl2.map(l=>l.customer||l.code).join(' + '))+'</b><span class="mono ts">'+sl2.map(l=>esc(l.code)).join(' \u00b7 ')+'</span></div>'
+    +'<div class="mirow">'+tmCU(sl2[0].start)+' \u2013 ~'+new Date(endR).toTimeString().slice(0,5)+' \u00b7 '+totalCF.toLocaleString()+' CF \u00b7 crew '+(r.crew||'')+(acts?' \u00b7 ACT '+acts+'h':'')+(bm!=null?(function(){const d=new Date(bm);if(d.getMinutes()||d.getSeconds())d.setHours(d.getHours()+1);d.setMinutes(0,0,0);return ' \u00b7 <b>back ~'+d.toTimeString().slice(0,5)+'</b>';})():'')+'</div>'
+    +'<div class="mirow">'+(mt?'<span class="chip">'+esc(mt)+'</span>':'')+'<span class="chip">'+legs.length+' stop'+(legs.length!==1?'s':'')+'</span>'+(sub?'<span class="chip" style="background:#EAF5EF;border-color:#BFE3D2">'+sub+'</span>':'')+'</div>'
+    +'</div>';
   $('mapcard').style.display=''; $('mapcard').classList.remove('min');
-  $('mapcard').innerHTML='<div class="mchead"><div class="mt">'+esc(title)+'</div><div class="mcbtns"><button class="mcmin" title="Minimize">\u2013</button><button class="mcx" title="Close">\u2715 Exit</button></div></div><div class="mcbody"><div class="ms">'+sub+'</div><div class="steps">'+routeSteps(route)+'</div></div>';
+  $('mapcard').innerHTML=head+'<div class="mcbody">'+minfo+'<div class="steps" id="cu-steps-'+seq+'"></div><div class="ms" id="cu-daytot-'+seq+'" style="margin-top:6px"></div></div>';
   $('mapcard').querySelector('.mcx').onclick=exitMap;
   $('mapcard').querySelector('.mcmin').onclick=function(){const c=$('mapcard');c.classList.toggle('min');this.textContent=c.classList.contains('min')?'+':'\u2013';};
-  if(!geo.length)return;
-  const pts=geo.map(s=>[s.lat,s.lon]);
-  geo.forEach(s=>{const col=s.kind==='P'?'#1F2329':'#6E9220';L.marker([s.lat,s.lon],{zIndexOffset:600,icon:L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:'<div style="background:'+col+';color:#fff;border:3px solid #fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.3)">'+s.kind+'</div>'})}).addTo(LAYER).bindTooltip((s.customer?esc(s.customer)+' \u2014 ':'')+esc(s.label),{direction:'top',offset:[0,-12],className:'lpop'});});
-  LMAP.fitBounds(L.latLngBounds(pts).pad(0.28));
-  for(let i=0;i<geo.length-1;i++){const a=[geo[i].lat,geo[i].lon],b=[geo[i+1].lat,geo[i+1].lon];const reposition=geo[i].kind==='D'&&geo[i+1].kind==='P';let line=[a,b];try{const rt=await truckRoute(a,b);if(rt&&rt.pts&&rt.pts.length)line=rt.pts;}catch(e){}L.polyline(line,{color:'#FFFFFF',weight:6.5,opacity:.92,lineCap:'round'}).addTo(LAYER);L.polyline(line,{color:reposition?'#B26B0B':'#6C5CE0',weight:3,opacity:.95,dashArray:reposition?'8 7':null,lineCap:'round'}).addTo(LAYER);}
-  setTimeout(()=>{if(LMAP){LMAP.invalidateSize();LMAP.fitBounds(L.latLngBounds(pts).pad(0.28));}},140);
+  setTimeout(()=>{if(LMAP)LMAP.invalidateSize();},120);
+
+  renderItineraryCU(r,items,seq,false);
+  const fetches=items.filter(it=>it.from&&it.to).map(it=>truckRoute(it.from,it.to).then(rt=>{
+    if(seq!==CUSEQ||!rt)return;
+    it.min=rt.min; it.mi=rt.mi;
+    if(it.line)it.line.setLatLngs(rt.pts);
+    if(it.casing)it.casing.setLatLngs(rt.pts);
+    if(it.arrow){LAYER.removeLayer(it.arrow);it.arrow=arrowAt(rt.pts,it.type==='job'?col:TRAVEL);}
+  }));
+  if(HERE_KEY)Promise.all(fetches).then(()=>{if(seq===CUSEQ)renderItineraryCU(r,items,seq,true);});
+}
+function renderItineraryCU(r,items,seq,resolved){
+  const box=document.getElementById('cu-steps-'+seq); const tot=document.getElementById('cu-daytot-'+seq);
+  if(!box)return;
+  const rows=[]; let cursor=null, totMi=0, totMin=0, empMi=0, empMin=0;
+  const M=it=>it.min!=null?Math.round(it.min):it.fallback;
+  const MI=it=>it.mi!=null?it.mi:((it.from&&it.to)?havArr(it.from,it.to)*1.15:0);
+  for(const it of items){
+    const min=M(it), mi=MI(it);
+    if(it.type==='travel'||it.type==='topickup'||it.type==='between'||it.type==='return'){
+      totMi+=mi;totMin+=min;empMi+=mi;empMin+=min;
+      if(cursor===null){
+        const next=items[items.indexOf(it)+1];
+        const sched=next&&next.leg?Date.parse(next.leg.start):null;
+        const dep=sched?sched-min*60000:null;
+        rows.push({t:dep?fmtMs(dep):'',txt:it.label+' \u00b7 '+min+' min \u00b7 '+mi.toFixed(0)+' miles',travel:true});
+        cursor=sched;
+      } else if(it.type==='return'){
+        const back=cursor+min*60000;
+        rows.push({t:fmtMs(cursor),txt:it.label+' \u00b7 '+min+' min \u00b7 back ~'+fmtMs(back),travel:true});
+        cursor=back;
+      } else {
+        const eta=cursor+min*60000;
+        const next=items[items.indexOf(it)+1];
+        const sched=next&&next.leg?Date.parse(next.leg.start):null;
+        let note='';
+        if(sched!=null){
+          const dl=Date.parse(next.leg.winEnd||next.leg.start);
+          const slack=Math.round((dl-eta)/60000);
+          const lbl=next.leg.winEnd?('window until '+String(next.leg.winEnd).slice(11,16)):('scheduled '+fmtMs(sched));
+          note=slack>=0?(' \u00b7 ETA '+fmtMs(eta)+', '+lbl+' ('+slack+' min slack)'):(' \u00b7 ETA '+fmtMs(eta)+' \u2014 '+(-slack)+' min LATE vs '+lbl);
+        }
+        rows.push({t:fmtMs(cursor),txt:it.label+' \u00b7 '+min+' min'+note,travel:true,warn:note.includes('LATE')});
+        cursor=sched!=null?Math.max(eta,sched):eta;
+      }
+    } else {
+      const l=it.leg; if(!l)continue;
+      const act=l.actH||schedH(l);
+      const sched=Date.parse(l.start);
+      const arrive=cursor===null?sched:cursor;
+      const workStart=Math.max(arrive,sched);
+      totMi+=mi;totMin+=min;
+      const loadMs=act*ACT_LOAD_SHARE*3600000;
+      const unloadMs=act*(1-ACT_LOAD_SHARE)*3600000;
+      const departP=workStart+loadMs;
+      const etaD=departP+min*60000;
+      const done=etaD+unloadMs;
+      rows.push({t:fmtMs(workStart),txt:'Job #'+it.jobN+' \u00b7 '+l.code+' \u00b7 pickup '+l.cityFrom+' \u2014 '+(it.carrier?'load':'work')+' '+fmtH(act)+' (ACT)',travel:false});
+      if(it.carrier){
+        rows.push({t:'',txt:'Hand off to carrier \u2014 goods continue to '+l.cityTo+(l.stateTo?', '+l.stateTo:'')+' by carrier. Crew & truck head back to base.',travel:true});
+        cursor=done;
+      } else if(it.inreg){
+        rows.push({t:fmtMs(departP),txt:'Drive to delivery \u00b7 '+min+' min \u00b7 '+mi.toFixed(0)+' miles',travel:true});
+        rows.push({t:fmtMs(etaD),txt:'Deliver '+l.cityTo+' \u00b7 ETA '+fmtMs(etaD)+' \u00b7 done ~'+fmtMs(done),travel:false});
+        cursor=done;
+      } else {
+        const farMi=Math.round(MI(it));
+        const farDrv=it.min!=null?(Math.floor(it.min/60)+'h'+String(Math.round(it.min%60)).padStart(2,'0')+' truck drive'):('~'+Math.round(farMi/52)+'h drive est');
+        rows.push({t:fmtMs(departP),txt:'Departs long distance \u2192 '+l.cityTo+(l.stateTo?', '+l.stateTo:'')+' \u00b7 '+(it.mi!=null?'':'~')+farMi.toLocaleString()+' miles ('+farDrv+')',travel:true});
+        rows.push({t:'',txt:'No same-day return \u2014 long-distance departure. Truck & crew continue; back at '+r.base+' base over the next day(s).',travel:true});
+        cursor=null;
+      }
+    }
+  }
+  box.innerHTML=rows.map(s=>'<div class="step'+(s.travel?' tv':'')+(s.warn?' late':'')+'"><span class="dot"></span><span class="st">'+(s.t||'')+'</span><span>'+esc(s.txt)+'</span></div>').join('');
+  tot.innerHTML='Day driving ~<b>'+Math.floor(totMin/60)+'h'+String(Math.round(totMin%60)).padStart(2,'0')+' \u00b7 '+totMi.toFixed(0)+' miles</b> \u00b7 empty '+Math.round(empMin)+' min / '+empMi.toFixed(0)+' miles <span class="rsrc">'+(resolved?'HERE truck routes':'straight-line estimate'+(HERE_KEY?' \u2014 refining\u2026':''))+'</span><br><span class="rsrc">ACT split 60% loading / 40% unloading; work starts no earlier than the booked time.</span>';
 }
 
 function renderHorizon(){
