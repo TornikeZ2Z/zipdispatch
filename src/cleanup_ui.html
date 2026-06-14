@@ -327,7 +327,7 @@ function renderSlot(iso, s, td, dupLeads){
   const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
   let head, body='';
   if(kind==='call'){
-    head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>'+((function(){var j=jobByCode(rec.tail);var p=j&&(j.phone||j.tel||j.phoneNumber);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
+    head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>'+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b>. Offer \u0024'+rec.discount+'.</div>';
     const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning? We\u2019ll take \u0024'+rec.discount+' off for the flexibility.\u201d</div>';
     if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,rec,'call')+'</div>'; }
@@ -336,9 +336,9 @@ function renderSlot(iso, s, td, dupLeads){
   } else {
     const sl=rec.slot, tf=fmtDay(rec.to);
     const where=sl.fresh?('as its own crew, ~'+hmPretty(sl.origStartMs)):('after <b>'+esc(sl.anchorCustomer||sl.anchorCode)+'</b>, arrive <span class="win">'+sl.window.text+'</span>');
-    head='<b><span class="tlbl move">\ud83d\udcc5 move date</span> '+esc(rec.customer||rec.code)+'</b> '+tag;
-    const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'.</div>';
-    const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We can offer a discount for the date change.\u201d</div>';
+    head='<b><span class="tlbl move">\ud83d\udcc5 move date</span> '+esc(rec.customer||rec.code)+'</b> '+tag+' <span class="stag $">\u002450</span>';
+    const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'. Offer \u002450 off for the date change.</div>';
+    const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We\u2019ll take \u002450 off for changing the date.\u201d</div>';
     if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,sl,'move')+'</div>'; }
     else if(stt==='accepted'){ body=desc+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'">Client declined instead</button></div>'; }
     else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
@@ -348,6 +348,7 @@ function renderSlot(iso, s, td, dupLeads){
 }
 function routeBtn(id,rec,kind){RECS[id+'|r']={rec,kind};return '<button class="cb route" data-route="'+id+'|r">\ud83d\uddfa route</button>';}
 function jobCust(td,code){let n=code;td.routes.forEach(r=>r.legs.forEach(l=>{if(l.code===code)n=l.customer||code;}));return n;}
+function parsePhone(j){ if(!j)return null; var d=j.description||j.notes||j.summary||j.desc||''; var m=String(d).match(/customer\s*mobile\s*[:\-]?\s*([+0-9()\s.\-]{7,})/i); var p=m?m[1]:(j.phone||j.mobile||j.tel||j.phoneNumber||null); return p?String(p).replace(/\s+/g,' ').trim():null; }
 
 function renderDay(iso){
   const horizon=scanHorizon(windowStart(),7);
@@ -369,6 +370,9 @@ function renderDay(iso){
   if(st==='ok'){
     h+='<div class="cres ok">\u2713 This day holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Nothing to resolve.</div>';
   }else{
+    var _post=td.routes.length, _nchg=Object.keys(changes).length;
+    if(_nchg>0 && _post<=plan.target){ h+='<div class="cres win">\ud83c\udf89 With your '+_nchg+' confirmed change'+(_nchg>1?'s':'')+', '+f.mon+' '+f.dn+' is back to a full '+plan_buffer()+'-crew buffer \u2014 '+(plan.availableCore-_post)+' free. Nicely done.</div>'; }
+    else if(_nchg>0 && _post<=plan.availableCore){ h+='<div class="cres okwin">\u2713 Your '+_nchg+' change'+(_nchg>1?'s':'')+' clear'+(_nchg>1?'':'s')+' the shortage \u2014 now '+_post+'/'+plan.availableCore+' crews running.'+(_post>plan.target?(' Free '+(_post-plan.target)+' more to rebuild the buffer.'):'')+'</div>'; }
     h+='<div class="fixnote">Each step below frees one crew-day \u2014 work them top to bottom.</div>';
     h+='<div class="fixhead">'+(st==='short'?('Free '+plan.gapToCover+' crew'+(plan.gapToCover>1?'s':'')+' to clear the shortage'+(plan.gapToBuffer>plan.gapToCover?(' \u00b7 +'+(plan.gapToBuffer-plan.gapToCover)+' more rebuilds the buffer'):'')):('Optional \u2014 free up to '+plan.gapToBuffer+' crew'+(plan.gapToBuffer>1?'s':'')+' to rebuild the buffer'))+'</div>';
     const confirmedLeads={};
@@ -429,7 +433,9 @@ function bindDay(iso){
     if(calls.length){html+='<div class="sumsec"><h4>\ud83d\udcde Re-chained \u2014 '+calls.length+'</h4><ul>'+calls.map(c=>'<li>'+nm(c)+' \u2192 runs after <b>'+nm(chg[c].after)+'</b> (afternoon)</li>').join('')+'</ul></div>';}
     if(moves.length){html+='<div class="sumsec"><h4>\ud83d\udcc5 Date moves \u2014 '+moves.length+'</h4><ul>'+moves.map(c=>'<li>'+nm(c)+' \u2192 <b>'+fmtDay(chg[c].to).dow+' '+fmtDay(chg[c].to).mon+' '+fmtDay(chg[c].to).dn+'</b></li>').join('')+'</ul></div>';}
     html+='<div class="sumnet">Net effect: frees <b>'+ents.length+'</b> crew-day'+(ents.length>1?'s':'')+' on this date.</div>';
-    gModal('Update summary \u2014 '+ents.length+' change'+(ents.length>1?'s':''), html);
+    var box=gModal('Update summary \u2014 '+ents.length+' change'+(ents.length>1?'s':''), html, '<button class="cb" id="sumcancel">Cancel</button> <button class="cb yes" id="sumconfirm">Confirm \u0026 update calendar</button>');
+    box.querySelector('#sumcancel').onclick=function(){$('gmodalhost').innerHTML='';};
+    box.querySelector('#sumconfirm').onclick=function(){$('gmodalhost').innerHTML='';gModal('Calendar write-back is paused','<div class="gsub">\u2705 Your '+ents.length+' change'+(ents.length>1?'s are':' is')+' confirmed and saved here. The actual calendar write is intentionally paused until we verify it end-to-end \u2014 it\u2019ll push automatically once we switch it on.</div>');};
   });
 }
 function plan_buffer(){return (typeof CLEAN!=='undefined'&&CLEAN.buffer)||2;}
