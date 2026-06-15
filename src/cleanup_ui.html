@@ -588,6 +588,7 @@ function renderDay(iso){
     slots.slots.forEach(s=>{h+=renderSlot(iso,s,td,dupLeads);});
     const anyConfirmed=slots.slots.some(s=>{if(!s.current)return false;const id=sKey(iso,s.index,s.current.kind,s.current.kind==='call'?s.current.rec.tail:s.current.rec.code);return STATUS[id]==='confirmed';});
     h+='<div class="calbar">'+(dupLeads.size?'<span class="dupwarn">\u26a0 Two re-chains share a lead \u2014 fix before updating.</span>':'')+'<button class="cb upd" id="updcal" '+((anyConfirmed&&!dupLeads.size)?'':'disabled')+'>\u2934 Update calendar</button><span class="cmuted">write-back parked \u2014 confirms saved here for now</span></div>';
+    if(slots.declinedCusts&&slots.declinedCusts.length){ h+='<div class="declog">\u2715 Declined \u2014 won\u2019t suggest again (you\u2019ve already spoken to them): <b>'+slots.declinedCusts.map(esc).join(', ')+'</b></div>'; }
   }
   h+='</div>';
   if(td.movedOut&&td.movedOut.length){h+='<div class="movedout">\u2197 Moved off this day ('+td.movedOut.length+'): '+td.movedOut.map(m=>esc(m.customer)+' \u2192 '+fmtDay(m.to).mon+' '+fmtDay(m.to).dn).join(', ')+'</div>';}
