@@ -2729,20 +2729,22 @@ function bindDay(iso){
     showRouteJourney(rt, title, sub);
   }));
   root.querySelectorAll('#cltl .tlsep[data-b]').forEach(sep=>sep.addEventListener('click',()=>{ const b=sep.dataset.b; if(COLLAPSED.has(b))COLLAPSED.delete(b); else COLLAPSED.add(b); root.querySelectorAll('#cltl .tlrow[data-base="'+b+'"]').forEach(r=>{r.style.display=COLLAPSED.has(b)?'none':'';}); const c=sep.querySelector('.tlcaret'); if(c)c.textContent=COLLAPSED.has(b)?'\u25b8':'\u25be'; }));
-  const up=$('updcal'); if(up)up.addEventListener('click',()=>{ if(up.disabled)return;
-    const chg=CURCHANGES||{}; const ents=Object.keys(chg);
-    if(!ents.length){gModal('Nothing confirmed yet','<div class="gsub">Mark the calls you\u2019ve agreed and the dates you\u2019ve moved as <b>confirmed</b> first \u2014 then this shows the summary.</div>');return;}
-    const calls=ents.filter(c=>chg[c].kind==='call'), moves=ents.filter(c=>chg[c].kind==='move');
-    const nm=c=>{const j=jobByCode(c);return esc((j&&j.customer)||c);};
-    let html='<div class="gsub">Changes you confirmed for <b>'+fmtDay(iso).dow+' '+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b>. Write-back is parked \u2014 this is the summary that will be applied once it\u2019s unlocked.</div>';
-    if(calls.length){html+='<div class="sumsec"><h4>\ud83d\udcde Re-chained \u2014 '+calls.length+'</h4><ul>'+calls.map(c=>'<li>'+nm(c)+' \u2192 runs after <b>'+nm(chg[c].after)+'</b> (afternoon)</li>').join('')+'</ul></div>';}
-    if(moves.length){html+='<div class="sumsec"><h4>\ud83d\udcc5 Date moves \u2014 '+moves.length+'</h4><ul>'+moves.map(c=>'<li>'+nm(c)+' \u2192 <b>'+fmtDay(chg[c].to).dow+' '+fmtDay(chg[c].to).mon+' '+fmtDay(chg[c].to).dn+'</b></li>').join('')+'</ul></div>';}
-    html+='<div class="sumnet">Net effect: frees <b>'+ents.length+'</b> crew-day'+(ents.length>1?'s':'')+' on this date.</div>';
-    var box=gModal('Update summary \u2014 '+ents.length+' change'+(ents.length>1?'s':''), html, '<button class="cb" id="sumcancel">Cancel</button> <button class="cb yes" id="sumconfirm">Confirm \u0026 update calendar</button>');
-    box.querySelector('#sumcancel').onclick=function(){$('gmodalhost').innerHTML='';};
-    box.querySelector('#sumconfirm').onclick=function(){$('gmodalhost').innerHTML='';gModal('Calendar write-back is paused','<div class="gsub">\u2705 Your '+ents.length+' change'+(ents.length>1?'s are':' is')+' confirmed and saved here. The actual calendar write is intentionally paused until we verify it end-to-end \u2014 it\u2019ll push automatically once we switch it on.</div>');};
-  });
+  const up=$('updcal'); if(up)up.addEventListener('click',()=>{ if(!up.disabled)showUpdateSummary(); });
 }
+function showUpdateSummary(){
+  const iso=SELECTED; const chg=CURCHANGES||{}; const ents=Object.keys(chg);
+  if(!ents.length){gModal('Nothing confirmed yet','<div class="gsub">Mark the calls you\u2019ve agreed and the dates you\u2019ve moved as <b>confirmed</b> first \u2014 then this shows the summary of what will change.</div>');return;}
+  const calls=ents.filter(c=>chg[c].kind==='call'), moves=ents.filter(c=>chg[c].kind==='move');
+  const nm=c=>{const j=jobByCode(c);return esc((j&&j.customer)||c);};
+  let html='<div class="gsub">Review before writing \u2014 changes confirmed for <b>'+fmtDay(iso).dow+' '+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b>:</div>';
+  if(calls.length){html+='<div class="sumsec"><h4>\ud83d\udcde Re-chained \u2014 '+calls.length+'</h4><ul>'+calls.map(c=>'<li>'+nm(c)+' \u2192 runs after <b>'+nm(chg[c].after)+'</b> (afternoon)</li>').join('')+'</ul></div>';}
+  if(moves.length){html+='<div class="sumsec"><h4>\ud83d\udcc5 Date moves \u2014 '+moves.length+'</h4><ul>'+moves.map(c=>'<li>'+nm(c)+' \u2192 <b>'+fmtDay(chg[c].to).dow+' '+fmtDay(chg[c].to).mon+' '+fmtDay(chg[c].to).dn+'</b></li>').join('')+'</ul></div>';}
+  html+='<div class="sumnet">Net effect: frees <b>'+ents.length+'</b> crew-day'+(ents.length>1?'s':'')+' on this date.</div>';
+  var box=gModal('Update summary \u2014 '+ents.length+' change'+(ents.length>1?'s':''), html, '<button class="cb" id="sumcancel">Cancel</button> <button class="cb yes" id="sumconfirm">Confirm \u0026 update calendar</button>');
+  box.querySelector('#sumcancel').onclick=function(){$('gmodalhost').innerHTML='';};
+  box.querySelector('#sumconfirm').onclick=function(){$('gmodalhost').innerHTML='';gModal('Calendar write-back is paused','<div class="gsub">\u2705 Your '+ents.length+' change'+(ents.length>1?'s are':' is')+' confirmed and saved here. The actual calendar write is intentionally paused until we verify it end-to-end \u2014 it\u2019ll push automatically once we switch it on.</div>');};
+}
+
 function plan_buffer(){return (typeof CLEAN!=='undefined'&&CLEAN.buffer)||2;}
 
 /* ===== Update Calendar: write agreed actions ===== */
@@ -2862,7 +2864,7 @@ async function syncFromSheet(){
   }catch(e){}
   APD=null; renderHorizon(); if(SELECTED)renderDay(SELECTED);
 }
-$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet(); gModal('Synced','<div class="gsub">\u2705 Pulled the latest day-offs and team decisions from the sheet. Calendar write-back stays parked until verified end-to-end.</div>'); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. Calendar write-back stays parked until verified.</div>');}); });
+$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet().then(()=>showUpdateSummary()); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. Calendar write-back stays parked until verified.</div>');}); });
 $('fromDate').addEventListener('change',()=>{SELECTED=null;HZPAGE=0;boot();});
 function boot(){
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
