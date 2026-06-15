@@ -262,7 +262,7 @@ function distroChecks(td){
 }
 function sKey(iso,slot,kind,id){return iso+'|slot'+slot+'|'+kind+'|'+id;}
 function lKey(iso,slot,tail){return iso+'|slot'+slot+'|'+tail;}
-function declinedSetFor(iso){const s=new Set();Object.keys(STATUS).forEach(k=>{if(STATUS[k]==='declined'){const p=k.split('|');if(p[0]===iso)s.add(p.slice(1).join('|'));}});return s;}
+function declinedSetFor(iso){const s=new Set();Object.keys(STATUS).forEach(k=>{if(STATUS[k]==='declined'){const p=k.split('|');s.add(p.slice(3).join('|'));}});return s;}
 
 function routeGeo(route){
   const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start)); const stops=[];
