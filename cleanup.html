@@ -2177,7 +2177,7 @@ function gcalReady(){return !!(window.google&&google.accounts&&google.accounts.o
 function ensureGToken(cb){
   if(GTOKEN&&Date.now()<GTOKEXP-60000)return cb();
   if(window._gsiFail||!gcalReady())return gModal('Google sign-in unavailable here','The Google sign-in library could not load (previews block it). Open this on its hosted GitHub Pages URL and it will work.');
-  _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events',callback:()=>{}});
+  _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:()=>{}});
   _tokenClient.callback=resp=>{
     if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);
       try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP}));localStorage.setItem('zd_gconn','1');}catch(e){}
@@ -2331,7 +2331,7 @@ function saveDeclC(){try{localStorage.setItem('zc_declc',JSON.stringify(DECLINED
 var DECLINED_CUSTS=loadDeclC();   // {iso:{customerName:[ids]}} — once you've spoken to a customer, they're off the table for that day (call OR move)
 function declCustSet(iso){return new Set(Object.keys(DECLINED_CUSTS[iso]||{}));}
 function recordDecline(iso,cust,id){ if(!cust)return; DECLINED_CUSTS[iso]=DECLINED_CUSTS[iso]||{}; var arr=DECLINED_CUSTS[iso][cust]||[]; if(arr.indexOf(id)<0)arr.push(id); DECLINED_CUSTS[iso][cust]=arr; saveDeclC(); }
-function undoDecline(iso,cust){ if(DECLINED_CUSTS[iso]){delete DECLINED_CUSTS[iso][cust];saveDeclC();}
+function undoDecline(iso,cust){ if(DECLINED_CUSTS[iso]){delete DECLINED_CUSTS[iso][cust];saveDeclC();} Object.keys(SHEET_RES[iso]||{}).forEach(function(code){if(SHEET_RES[iso][code].customer===cust)logDecision(iso,code,cust,SHEET_RES[iso][code].kind||'','reopened','');});
   var c2={}; ((CURPLAN&&CURPLAN.callPool)||[]).forEach(function(c){c2[c.tail]=c.customer;}); ((CURPLAN&&CURPLAN.movePool)||[]).forEach(function(m){c2[m.code]=m.customer;});
   Object.keys(STATUS).forEach(function(k){ if(STATUS[k]==='declined'&&k.indexOf(iso+'|')===0){ var code=k.split('|').slice(3).join('|'); if(c2[code]===cust) delete STATUS[k]; } }); saveStatus(STATUS); }
 function incomingMoves(iso){try{return Object.keys(CONFIRMED_MOVES).map(k=>CONFIRMED_MOVES[k]).filter(m=>m.to===iso);}catch(e){return [];}}
@@ -2621,7 +2621,7 @@ function renderSlot(iso, s, td, dupLeads){
     return '<div class="slot escal tmove"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span><b>No automated option left</b></div><div class="slotbody">Every call and date-move for this crew has been refused. Escalate: pay overtime, add an extra rental truck, or move a <i>different</i> job off this day.</div></div>';
   }
   const kind=s.current.kind, rec=s.current.rec;
-  const id=sKey(iso,s.index,kind, kind==='call'?rec.tail:rec.code);
+  const id=sKey(iso,s.index,kind, kind==='call'?rec.tail:rec.code); SLOTCUST[id]=rec.customer||rec.tail||rec.code;
   const stt=STATUS[id]||'todo';
   const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
   let head, body='';
@@ -2653,7 +2653,7 @@ function renderDay(iso){
   const horizon=scanHorizon(windowStart(),7);
   const plan=cleanupPlan(iso,horizon);
   const declined=declinedSetFor(iso);
-  const slots=resolveSlots(plan,declined,declCustSet(iso));
+  const slots=resolveSlots(plan,declined,new Set([...declCustSet(iso),...sheetExcluded(iso)]));
   CURPLAN=plan; RECS={}; ACTIVE_ROUTE=null;
   // pending changes from confirmed slots -> apply to the timeline so the chip re-routes (and mark what Update will write)
   const changes={};
@@ -2698,10 +2698,11 @@ function bindDay(iso){
   const root=$('daydetail');
   root.querySelectorAll('.cb[data-act]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();
     const id=b.dataset.id, act=b.dataset.act;
-    if(act==='accept')setStatus(id,'accepted');
-    else if(act==='decline'){ if(b.dataset.cust)recordDecline(iso,b.dataset.cust,id); setStatus(id,'declined'); }
-    else if(act==='reopen'){ if(b.dataset.mvcode){delete CONFIRMED_MOVES[b.dataset.mvcode];saveMoves();} setStatus(id,null); }
-    else if(act==='confirm'){ if(b.dataset.lk){const sel=root.querySelector('.leadsel[data-lk="'+b.dataset.lk+'"]');if(sel){LEADS[b.dataset.lk]=sel.value;saveLeads();}} if(b.dataset.mvcode){CONFIRMED_MOVES[b.dataset.mvcode]={code:b.dataset.mvcode,customer:b.dataset.mvcust,from:iso,to:b.dataset.mvto,startMs:(+b.dataset.mvstart||Date.parse(b.dataset.mvto))};saveMoves();} setStatus(id,'confirmed'); }
+    const _code=id.split('|').slice(3).join('|'), _kind=id.split('|')[2], _cust=SLOTCUST[id]||b.dataset.cust||b.dataset.mvcust||'';
+    if(act==='accept'){ setStatus(id,'accepted'); logDecision(iso,_code,_cust,_kind,'accepted',''); }
+    else if(act==='decline'){ if(b.dataset.cust)recordDecline(iso,b.dataset.cust,id); setStatus(id,'declined'); logDecision(iso,_code,_cust,_kind,'declined',''); }
+    else if(act==='reopen'){ if(b.dataset.mvcode){delete CONFIRMED_MOVES[b.dataset.mvcode];saveMoves();} setStatus(id,null); logDecision(iso,_code,_cust,_kind,'reopened',''); }
+    else if(act==='confirm'){ let _detail=''; if(b.dataset.lk){const sel=root.querySelector('.leadsel[data-lk="'+b.dataset.lk+'"]');if(sel){LEADS[b.dataset.lk]=sel.value;saveLeads();_detail=sel.value;}} if(b.dataset.mvcode){CONFIRMED_MOVES[b.dataset.mvcode]={code:b.dataset.mvcode,customer:b.dataset.mvcust,from:iso,to:b.dataset.mvto,startMs:(+b.dataset.mvstart||Date.parse(b.dataset.mvto))};saveMoves();_detail=b.dataset.mvto;} setStatus(id,'confirmed'); logDecision(iso,_code,_cust,_kind,'confirmed',_detail); }
     renderDay(iso); renderHorizon();
   }));
   root.querySelectorAll('.declundo[data-undocust]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();undoDecline(iso,b.dataset.undocust);renderDay(iso);renderHorizon();}));
@@ -2796,7 +2797,72 @@ function updateCalendarFlow(){
 }
 
 /* ===== boot ===== */
-$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ gModal('Update calendar','<div class="gsub">Calendar write-back is parked while we verify it updates events correctly. Your confirmed re-chains and moves are saved here and will push once it\u2019s unlocked.</div>'); } else ensureGToken(()=>{updateCalBtns();gModal('Connected','<div class="gsub">\u2705 Calendar connected \u2014 the button is now <b>Update Calendar</b>. Write-back stays parked until we verify it end-to-end.</div>');}); });
+/* ===== team-sheet sync: day-offs IN (live) + decisions OUT (shared across computers) — mirrors the dispatcher ===== */
+const SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
+const LOGTAB='ZipDispatch Cleanup Log';
+var SHEET_RES={};                 // {iso:{code:{customer,kind,action,detail}}} replayed from the log tab
+var SLOTCUST={};                  // id -> customer, so decisions can be logged without threading recs
+var SHEET_DEV=(function(){try{var d=localStorage.getItem('zc_dev');if(!d){d='c'+Math.random().toString(36).slice(2,7);localStorage.setItem('zc_dev',d);}return d;}catch(e){return 'c';}})();
+function colA1(i){let s='';i++;while(i){s=String.fromCharCode(65+(i-1)%26)+s;i=Math.floor((i-1)/26);}return s;}
+async function shFetch(path,opt){
+  if(!GTOKEN)throw new Error('not connected');
+  const r=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+path,Object.assign({headers:{'Authorization':'Bearer '+GTOKEN,'Content-Type':'application/json'}},opt||{}));
+  if(r.status===403)throw new Error('Google needs the Sheets permission \u2014 click Connect once to re-approve');
+  if(!r.ok)throw new Error('Sheets API HTTP '+r.status);
+  return r.json();
+}
+async function shValues(tab){return (await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+'?valueRenderOption=FORMATTED_VALUE')).values||[];}
+async function shAppendRow(tab,obj){
+  let vals; try{vals=await shValues(tab);}catch(e){vals=[];}
+  let header=vals[0]||[];
+  if(!header.length){
+    try{await shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})});}catch(e){}
+    header=Object.keys(obj);
+    await shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});
+  }
+  const row=header.map(h=>obj[h]!=null?String(obj[h]):'');
+  Object.keys(obj).forEach(k=>{if(!header.includes(k))row.push(String(obj[k]));});
+  await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});
+}
+function mdyToIso(s){if(!s)return '';const p=String(s).trim().split('/');if(p.length!==3)return '';const m=('0'+p[0].trim()).slice(-2),d=('0'+p[1].trim()).slice(-2);let y=p[2].trim();if(y.length===2)y='20'+y;return y+'-'+m+'-'+d;}
+function hasLocalStatus(iso,code){return Object.keys(STATUS).some(k=>k.indexOf(iso+'|')===0 && STATUS[k] && k.split('|').slice(3).join('|')===code);}
+function sheetExcluded(iso){
+  const s=new Set(); const m=SHEET_RES[iso]||{};
+  Object.keys(m).forEach(code=>{const r=m[code]||{};
+    if(r.action==='declined'){ if(r.customer)s.add(r.customer); }
+    else if(r.action==='accepted'||r.action==='confirmed'){ if(r.customer&&!hasLocalStatus(iso,code))s.add(r.customer); }
+  });
+  return s;
+}
+function logDecision(iso,code,customer,kind,action,detail){
+  SHEET_RES[iso]=SHEET_RES[iso]||{};
+  if(action==='reopened')delete SHEET_RES[iso][code]; else SHEET_RES[iso][code]={customer:customer,kind:kind,action:action,detail:detail||''};
+  if(GTOKEN){ shAppendRow(LOGTAB,{'Timestamp':new Date().toISOString(),'Date':iso,'Job Code':code,'Customer':customer||'','Kind':kind||'','Action':action,'Detail':detail||'','By':SHEET_DEV}).catch(()=>{}); }
+}
+async function syncFromSheet(){
+  if(!GTOKEN)return;
+  try{ const v=await shValues('Crew Day Offs');
+    if(v&&v.length>1){ const h=v[0],iS=h.indexOf('Start Date'),iE=h.indexOf('End Date'),iN=h.indexOf('Forman Name'),iT=h.indexOf('Note');
+      const off=[]; for(let i=1;i<v.length;i++){const r=v[i]||[];const nm=(r[iN]||'').trim(),a=mdyToIso(r[iS]),b=mdyToIso(r[iE]||r[iS]);if(nm&&a)off.push([nm,a,b||a,(r[iT]||'').trim()]);}
+      if(off.length){DATA.dayoffs=off;APD=null;}
+    }
+  }catch(e){}
+  try{ const v=await shValues(LOGTAB);
+    if(v&&v.length>1){ const h=v[0],cD=h.indexOf('Date'),cC=h.indexOf('Job Code'),cU=h.indexOf('Customer'),cK=h.indexOf('Kind'),cA=h.indexOf('Action'),cT=h.indexOf('Detail');
+      SHEET_RES={};
+      for(let i=1;i<v.length;i++){const r=v[i]||[];const iso=(r[cD]||'').trim(),code=(r[cC]||'').trim();if(!iso||!code)continue;
+        const cust=(r[cU]||'').trim(),kind=(r[cK]||'').trim(),act=(r[cA]||'').trim(),det=(r[cT]||'').trim();
+        SHEET_RES[iso]=SHEET_RES[iso]||{};
+        if(act==='reopened'){delete SHEET_RES[iso][code]; if(kind==='move')delete CONFIRMED_MOVES[code];}
+        else{SHEET_RES[iso][code]={customer:cust,kind:kind,action:act,detail:det};
+          if(kind==='move'&&(act==='confirmed'||act==='accepted')){CONFIRMED_MOVES[code]={code:code,customer:cust,from:iso,to:det,startMs:(Date.parse(det+' 09:00')||Date.parse(det)||0)};}
+        }
+      }
+    }
+  }catch(e){}
+  APD=null; renderHorizon(); if(SELECTED)renderDay(SELECTED);
+}
+$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet(); gModal('Synced','<div class="gsub">\u2705 Pulled the latest day-offs and team decisions from the sheet. Calendar write-back stays parked until verified end-to-end.</div>'); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. Calendar write-back stays parked until verified.</div>');}); });
 $('fromDate').addEventListener('change',()=>{SELECTED=null;HZPAGE=0;boot();});
 function boot(){
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
@@ -2806,6 +2872,7 @@ function boot(){
   const fs=WINDOW.find(d=>d.status==='short')||WINDOW.find(d=>d.status==='tight')||WINDOW[0];
   if(fs){SELECTED=fs.iso;renderHorizon();renderDay(SELECTED);}
   else $('daydetail').innerHTML='<div class="pickprompt">No calendar days in this range. Pick another start date above.</div>';
+  if(GTOKEN)syncFromSheet();
 }
 boot();
 </script>
