@@ -130,6 +130,7 @@ let STATUS=loadStatus();
 function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STATUS);}
 let WINDOW=[], SELECTED=null, RECS={}, CURPLAN=null, ACTIVE_ROUTE=null;
 let PROBONLY=false, BASEFILTER=new Set(), CURCHANGES={}, APD=null, COLLAPSED=new Set();
+let HZPAGE=0, _hzManual=false;
 function getAPD(){ if(APD===null){ try{APD=allProblemDays();}catch(e){APD=[];} } return APD; }
 function windowStart(){return $('fromDate').value||TODAY_ISO;}
 
@@ -455,18 +456,29 @@ function renderHorizon(){
   const el=$('horizon'); if(!el)return;
   const strip = PROBONLY ? getAPD() : scanHorizon(windowStart(), 7);
   WINDOW=strip;
+  const HZ_PER=14; let pageStrip=strip, pager='';
+  if(strip.length>HZ_PER){
+    const selIdx=strip.findIndex(d=>d.iso===SELECTED); if(selIdx>=0 && !_hzManual)HZPAGE=Math.floor(selIdx/HZ_PER);
+    const pages=Math.ceil(strip.length/HZ_PER); HZPAGE=Math.max(0,Math.min(HZPAGE,pages-1));
+    const a=HZPAGE*HZ_PER, b=Math.min(a+HZ_PER,strip.length); pageStrip=strip.slice(a,b);
+    pager='<div class="hzpager"><button class="hzpg" id="hzprev"'+(HZPAGE<=0?' disabled':'')+'>\u2039 newer</button><span class="hzpglbl">'+(a+1)+'\u2013'+b+' of '+strip.length+' problem days</span><button class="hzpg" id="hznext"'+(HZPAGE>=pages-1?' disabled':'')+'>later \u203a</button></div>';
+  }
+  _hzManual=false;
   const bases=['NJ','PA','NY','DE','CT','MA'];
   let ctrl='<div class="hzctrl"><button class="ftoggle'+(PROBONLY?' on':'')+'" id="probtoggle">'+(PROBONLY?'\u25c9 All problem days ahead':'\u25cb Problems only')+'</button>'
     +'<span class="bflab">base</span><div class="bfilter">'+bases.map(b=>'<button class="bchip b-'+b+(BASEFILTER.has(b)?' on':'')+'" data-base="'+b+'">'+b+'</button>').join('')
     +(BASEFILTER.size?'<button class="bchip clr" data-base="__clr" title="clear base filter">\u2715</button>':'')+'</div></div>';
   if(!strip.length){ el.innerHTML=ctrl+'<div class="allclear">'+(PROBONLY?'\u2713 No problem days anywhere in the future schedule.':'No calendar days in the 7 days from this date \u2014 pick another start date above.')+'</div>'; renderStats(); bindHz(); if(PROBONLY)$('daydetail').innerHTML=''; return; }
-  el.innerHTML=ctrl+'<div class="phead">'+strip.map(d=>{const f=fmtDay(d.iso);const lab=d.status==='short'?('over '+Math.abs(d.spare)):(d.status==='tight'?'full':d.spare+' free');return '<button class="pchip '+d.status+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="pd">'+f.dow+' '+f.mon+' '+f.dn+'</span><span class="pm">'+d.routes+'/'+d.availableCore+' \u00b7 '+lab+'</span></button>';}).join('')+'</div>';
+  el.innerHTML=ctrl+'<div class="phead">'+pageStrip.map(d=>{const f=fmtDay(d.iso);const lab=d.status==='short'?('over '+Math.abs(d.spare)):(d.status==='tight'?'full':d.spare+' free');return '<button class="pchip '+d.status+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="pd">'+f.dow+' '+f.mon+' '+f.dn+'</span><span class="pm">'+d.routes+'/'+d.availableCore+' \u00b7 '+lab+'</span></button>';}).join('')+'</div>'+pager;
   renderStats(); bindHz();
 }
 function bindHz(){
-  const pt=$('probtoggle'); if(pt)pt.onclick=()=>{ PROBONLY=!PROBONLY;
+  const pt=$('probtoggle'); if(pt)pt.onclick=()=>{ PROBONLY=!PROBONLY; HZPAGE=0;
     if(PROBONLY){const a=getAPD(); const nxt=a.find(d=>d.iso>=windowStart())||a[0]; if(nxt)SELECTED=nxt.iso;}
     renderHorizon(); if(SELECTED&&WINDOW.find(d=>d.iso===SELECTED))renderDay(SELECTED); else if(WINDOW.length){SELECTED=WINDOW[0].iso;renderHorizon();renderDay(SELECTED);} else $('daydetail').innerHTML=''; };
+  const hp=$('hzprev'),hn=$('hznext');
+  if(hp)hp.onclick=()=>{_hzManual=true;HZPAGE=Math.max(0,HZPAGE-1);renderHorizon();};
+  if(hn)hn.onclick=()=>{_hzManual=true;HZPAGE=HZPAGE+1;renderHorizon();};
   document.querySelectorAll('#horizon .pchip').forEach(p=>p.addEventListener('click',()=>{SELECTED=p.dataset.iso;renderHorizon();renderDay(SELECTED);}));
   document.querySelectorAll('#horizon .bchip').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.base;if(v==='__clr')BASEFILTER.clear();else if(BASEFILTER.has(v))BASEFILTER.delete(v);else BASEFILTER.add(v);renderHorizon();if(SELECTED&&WINDOW.find(d=>d.iso===SELECTED))renderDay(SELECTED);}));
 }
@@ -710,7 +722,7 @@ function updateCalendarFlow(){
 
 /* ===== boot ===== */
 $('calbtn').addEventListener('click',()=>{ if(GTOKEN){ gModal('Update calendar','<div class="gsub">Calendar write-back is parked while we verify it updates events correctly. Your confirmed re-chains and moves are saved here and will push once it\u2019s unlocked.</div>'); } else ensureGToken(()=>{updateCalBtns();gModal('Connected','<div class="gsub">\u2705 Calendar connected \u2014 the button is now <b>Update Calendar</b>. Write-back stays parked until we verify it end-to-end.</div>');}); });
-$('fromDate').addEventListener('change',()=>{SELECTED=null;boot();});
+$('fromDate').addEventListener('change',()=>{SELECTED=null;HZPAGE=0;boot();});
 function boot(){
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   $('rfstamp').textContent='jobs through '+Object.keys(DATA.days).sort().slice(-1)[0]+' \u00b7 '+DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length+' backup crews held';
