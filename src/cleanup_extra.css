@@ -10,13 +10,13 @@
 .dpill .meta{font-size:12.5px;color:var(--dim);display:flex;justify-content:space-between;gap:6px}
 .dpill .bar{height:5px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
 .dpill .bar i{display:block;height:100%;border-radius:3px}
-.dpill .bdg{position:absolute;top:9px;right:9px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:999px}
+.dpill .bdg{position:absolute;top:9px;right:9px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:999px}
 .bdg.ok{background:var(--fleet-bg);color:var(--fleet)} .bdg.tight{background:var(--rental-bg);color:var(--rental)} .bdg.short{background:var(--hazard-bg);color:var(--hazard)}
 .daycard{background:var(--card);border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:12px}
 .dchead{padding:9px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;flex-wrap:wrap}
 .dchead h2{font-family:'Barlow Condensed';font-weight:600;font-size:18px;margin:0;letter-spacing:.03em;text-transform:uppercase}
 .dcsum{font-size:12.5px;color:var(--dim)}
-.schip{margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:999px;align-self:center}
+.schip{margin-left:auto;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:999px;align-self:center}
 .schip.ok{background:var(--fleet-bg);color:var(--fleet)} .schip.tight{background:var(--rental-bg);color:var(--rental)} .schip.short{background:var(--hazard-bg);color:var(--hazard)}
 .dcbody{padding:10px 14px 12px}
 .bases{display:flex;flex-wrap:wrap;gap:7px;padding:13px 0 5px;border-bottom:1px dashed var(--line)}
@@ -53,7 +53,7 @@
 .cb.on-todo{background:var(--travel);border-color:var(--travel);color:#fff}
 .cb.route{margin-left:auto;border-color:var(--line2);color:var(--ink)}
 .cb.route.active{background:var(--ink);border-color:var(--ink);color:#fff}
-.tg{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-left:5px}
+.tg{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-left:5px}
 .tg.big{background:var(--hazard-bg);color:var(--hazard)} .tg.med{background:var(--rental-bg);color:var(--rental)} .tg.sm{background:var(--fleet-bg);color:var(--fleet)}
 .cres{margin-top:4px;padding:9px 13px;border-radius:9px;font-size:13px;font-weight:600}
 .cres.ok{background:var(--fleet-bg);border:1px solid var(--fleet-bd);color:var(--fleet)}
@@ -69,7 +69,7 @@
 .stats{display:flex;gap:9px;align-items:stretch}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:4px 12px;text-align:center;min-width:58px}
 .stat .v{font-family:'Barlow Condensed';font-weight:600;font-size:20px;line-height:1;color:var(--ink)}
-.stat .l{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-top:1px;white-space:nowrap}
+.stat .l{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-top:1px;white-space:nowrap}
 .ladder{margin-top:6px}
 /* mobile fixes (ported from the parallel chat) — override inherited dispatcher ≤820px rules */
 @media(max-width:820px){
@@ -85,7 +85,7 @@
 .pchip.sel{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
 .pchip.short{border-left:4px solid var(--hazard)} .pchip.tight{border-left:4px solid var(--rental)}
 .pchip .pd{font-family:'Barlow Condensed';font-weight:600;font-size:14px;letter-spacing:.03em}
-.pchip .pm{font-size:11px;color:var(--dim)}
+.pchip .pm{font-size:12px;color:var(--dim)}
 .pchip.short .pm{color:var(--hazard);font-weight:600} .pchip.tight .pm{color:var(--rental);font-weight:600}
 .allclear{background:var(--fleet-bg);border:1px solid var(--fleet-bd);color:var(--fleet);border-radius:9px;padding:11px 14px;font-weight:600;font-size:13.5px}
 .fixpanel{margin-bottom:10px}
@@ -96,7 +96,7 @@
 .slot.escal{border-color:var(--rental-bd);background:var(--rental-bg)}
 .slothead{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px;font-size:14px}
 .slothead b{font-weight:600}
-.stag{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px}
+.stag{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px}
 .stag.crew{background:var(--paper);border:1px solid var(--line2);color:var(--faint)}
 .stag.must{background:var(--hazard-bg);color:var(--hazard)} .stag.buf{background:var(--fleet-bg);color:var(--fleet)}
 .stag.\$,.stag[class*="$"]{background:var(--rental-bg);color:var(--rental)}
@@ -106,7 +106,7 @@
 .leadrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:6px 0;font-size:12.5px}
 .leadrow label{font-weight:600;color:var(--ink)}
 .leadsel{font-family:'Inter';font-size:14px;padding:7px 10px;border:1.5px solid var(--line2);border-radius:8px;background:var(--card);color:var(--ink);max-width:100%;cursor:pointer}
-.casc{font-size:11.5px;color:var(--faint);margin-top:6px;font-style:italic}
+.casc{font-size:12.5px;color:var(--faint);margin-top:6px;font-style:italic}
 .confirmed{font-size:12.5px;color:var(--fleet);font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .confirmed b{color:var(--ink)} .confirmed.dup{color:var(--hazard)}
 .dupwarn{color:var(--hazard);font-weight:700;font-size:13px}
@@ -132,7 +132,7 @@
 #cltl .tlrow{min-height:40px}
 #cltl .tllabel{width:208px}
 #cltl .tllabel b{font-size:13.5px}
-#cltl .tllabel span{font-size:11.5px}
+#cltl .tllabel span{font-size:12.5px}
 /* ===== mobile header fix (v4.1) — define the missing --bg token + lay out cleanup's own header controls ===== */
 :root{--bg:#F7F6F2}   /* referenced 17x but never defined -> var(--bg) was transparent -> see-through sticky header */
 @media(max-width:820px){
@@ -141,7 +141,7 @@
   .brand img{height:24px}
   #rfwrap{order:2;margin-left:auto;flex:0 0 auto;width:auto}
   #rfwrap .rfrowbtns{gap:6px;flex-wrap:nowrap}
-  #rfwrap button{font-size:11.5px;padding:7px 9px}
+  #rfwrap button{font-size:12.5px;padding:7px 9px}
   #rfwrap #rfstamp{display:none}
   #hwin{order:3;flex:1 1 100%;gap:10px;margin:2px 0 0}
   #hwin label{font-size:12px}
@@ -157,7 +157,7 @@
 .probtgl.on{background:var(--hazard);border-color:var(--hazard);color:#fff}
 .pchip.ok{border-left:4px solid #BFD89C}
 .pchip.ok .pm{color:var(--fleet)}
-.ktag{font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:5px;vertical-align:middle;display:inline-block}
+.ktag{font-size:12px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:5px;vertical-align:middle;display:inline-block}
 .ktag.free{background:var(--fleet-bg);color:var(--fleet)}
 .ktag.call{background:#ECEAFB;color:#5A4FCF}
 .ktag.move{background:var(--rental-bg);color:var(--rental)}
@@ -166,11 +166,11 @@
 .stag.money{background:var(--rental-bg);color:var(--rental)}
 .confnote{color:var(--fleet);font-weight:600;font-size:12.5px} .confnote b{color:var(--ink)}
 .tlfilter{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 2px}
-.bflbl{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+.bflbl{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
 .bfp{font-family:'Barlow Condensed';font-weight:600;font-size:14px;letter-spacing:.03em;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:7px;padding:3px 11px;cursor:pointer;transition:.12s}
 .bfp:hover{border-color:var(--ink);color:var(--ink)}
 .bfp.on{background:var(--ink);border-color:var(--ink);color:#fff}
-.bfp.clr{font-family:'Inter';font-size:11px;color:var(--faint)}
+.bfp.clr{font-family:'Inter';font-size:12px;color:var(--faint)}
 .tlblock.tlchg{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px);outline:2px dashed #1F2329;outline-offset:-2px;font-weight:700;z-index:2}
 .tlblock.tlchg.call{background-color:#5A4FCF}
 .tlblock.tlchg.move{background-color:var(--rental)}
@@ -192,7 +192,7 @@
 .ftoggle.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .bflab{font-family:'Barlow Condensed';font-weight:600;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-left:4px}
 .bfilter{display:flex;gap:5px;flex-wrap:wrap}
-.bchip{font-family:'Inter';font-weight:700;font-size:11.5px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:7px;padding:4px 9px;cursor:pointer;transition:.12s;letter-spacing:.02em}
+.bchip{font-family:'Inter';font-weight:700;font-size:12.5px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:7px;padding:4px 9px;cursor:pointer;transition:.12s;letter-spacing:.02em}
 .bchip:hover{border-color:var(--ink)}
 .bchip.clr{color:var(--faint);font-weight:600;padding:4px 8px}
 .bchip.b-NJ.on{background:#0F8A66;border-color:#0F8A66;color:#fff}
@@ -202,7 +202,7 @@
 .bchip.b-CT.on{background:#C2417A;border-color:#C2417A;color:#fff}
 .bchip.b-MA.on{background:#3E8E9C;border-color:#3E8E9C;color:#fff}
 /* inline tier pills — the 3 re-do tiers, colour-coded */
-.tlbl{display:inline-block;font-family:'Inter';font-weight:700;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:6px;vertical-align:middle}
+.tlbl{display:inline-block;font-family:'Inter';font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:6px;vertical-align:middle}
 .tlbl.free{background:#E7F0D8;color:#4E6B16}
 .tlbl.call{background:#F7EBD7;color:#8A5210}
 .tlbl.move{background:#F8E3EE;color:#9B2D5F}
@@ -224,12 +224,12 @@
 #cltl .tltrack{padding-right:8px}
 #cltl .tlblock{top:6px;bottom:6px;padding:0 10px}
 /* #6 numbered step badge (replaces confusing "crew N") */
-.slot .stag.step{background:var(--ink);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:11.5px;font-weight:700;flex:0 0 auto}
+.slot .stag.step{background:var(--ink);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:12.5px;font-weight:700;flex:0 0 auto}
 .fixnote{font-size:12px;color:var(--dim);margin:0 0 8px}
 /* #4 collapsible base sections */
 #cltl .tlsep{cursor:pointer;user-select:none}
 #cltl .tlsep:hover{filter:brightness(.975)}
-#cltl .tlsep .tlcaret{font-size:11px;opacity:.65;width:12px;display:inline-block}
+#cltl .tlsep .tlcaret{font-size:12px;opacity:.65;width:12px;display:inline-block}
 /* #1 moved-off-this-day note */
 .movedout{font-size:12.5px;color:var(--rental);background:var(--rental-bg);border:1px solid var(--rental-bd);border-radius:8px;padding:7px 11px;margin:8px 0 2px;font-weight:500}
 /* #8 update summary modal */
@@ -247,7 +247,7 @@
 .tlrow.ghostrow{opacity:.92}
 .tlrow.ghostrow .tllabel b{color:var(--dim);font-weight:600}
 .tlrow.ghostrow .tllabel span{color:var(--faint)}
-.tlblock.ghostblk{background:transparent!important;border:1.6px dashed var(--line2);color:var(--faint);font-weight:700;font-size:11px;box-shadow:none}
+.tlblock.ghostblk{background:transparent!important;border:1.6px dashed var(--line2);color:var(--faint);font-weight:700;font-size:12px;box-shadow:none}
 .tlblock.ghostblk.gcall{border-color:#B26B0B;color:#B26B0B}
 .tlblock.ghostblk.gmove{border-color:#C2417A;color:#C2417A}
 .tlblock.ghostblk.gin{border-color:#1F6FD6;color:#1F6FD6;border-style:dotted}
