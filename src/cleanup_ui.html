@@ -250,6 +250,14 @@ let LEADS=loadLeads();
 function loadMoves(){try{return JSON.parse(localStorage.getItem('zc_moves')||'{}');}catch(e){return {};}}
 function saveMoves(){try{localStorage.setItem('zc_moves',JSON.stringify(CONFIRMED_MOVES));}catch(e){}}
 var CONFIRMED_MOVES=loadMoves();
+function loadDeclC(){try{return JSON.parse(localStorage.getItem('zc_declc')||'{}');}catch(e){return {};}}
+function saveDeclC(){try{localStorage.setItem('zc_declc',JSON.stringify(DECLINED_CUSTS));}catch(e){}}
+var DECLINED_CUSTS=loadDeclC();   // {iso:{customerName:[ids]}} — once you've spoken to a customer, they're off the table for that day (call OR move)
+function declCustSet(iso){return new Set(Object.keys(DECLINED_CUSTS[iso]||{}));}
+function recordDecline(iso,cust,id){ if(!cust)return; DECLINED_CUSTS[iso]=DECLINED_CUSTS[iso]||{}; var arr=DECLINED_CUSTS[iso][cust]||[]; if(arr.indexOf(id)<0)arr.push(id); DECLINED_CUSTS[iso][cust]=arr; saveDeclC(); }
+function undoDecline(iso,cust){ if(DECLINED_CUSTS[iso]){delete DECLINED_CUSTS[iso][cust];saveDeclC();}
+  var c2={}; ((CURPLAN&&CURPLAN.callPool)||[]).forEach(function(c){c2[c.tail]=c.customer;}); ((CURPLAN&&CURPLAN.movePool)||[]).forEach(function(m){c2[m.code]=m.customer;});
+  Object.keys(STATUS).forEach(function(k){ if(STATUS[k]==='declined'&&k.indexOf(iso+'|')===0){ var code=k.split('|').slice(3).join('|'); if(c2[code]===cust) delete STATUS[k]; } }); saveStatus(STATUS); }
 function incomingMoves(iso){try{return Object.keys(CONFIRMED_MOVES).map(k=>CONFIRMED_MOVES[k]).filter(m=>m.to===iso);}catch(e){return [];}}
 function distroChecks(td){
   var afterMap={}, pm=[];
@@ -534,8 +542,8 @@ function renderSlot(iso, s, td, dupLeads){
     head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>'+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b>. Offer \u0024'+rec.discount+'.</div>';
     const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning? We\u2019ll take \u0024'+rec.discount+' off for the flexibility.\u201d</div>';
-    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,rec,'call')+'</div>'; }
-    else if(stt==='accepted'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; body=desc+'<div class="leadrow"><label>Runs after (lead job):</label><select class="leadsel" data-lk="'+lk+'">'+dayJobOptions(td,lead)+'</select></div><div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-lk="'+lk+'">Confirm re-chain</button><button class="cb" data-act="decline" data-id="'+id+'">Client declined instead</button></div>'; }
+    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,rec,'call')+'</div>'; }
+    else if(stt==='accepted'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; body=desc+'<div class="leadrow"><label>Runs after (lead job):</label><select class="leadsel" data-lk="'+lk+'">'+dayJobOptions(td,lead)+'</select></div><div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-lk="'+lk+'">Confirm re-chain</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Client declined instead</button></div>'; }
     else if(stt==='confirmed'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; const dup=dupLeads.has(lead); body='<div class="confirmed'+(dup?' dup':'')+'">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.tail)+' arrives '+rec.window.text+', runs after <b>'+esc(jobCust(td,lead))+'</b>.'+(dup?' <span class="dupwarn">\u26a0 same lead as another re-chain \u2014 re-do this.</span>':'')+'<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
   } else {
     const sl=rec.slot, tf=fmtDay(rec.to);
@@ -543,8 +551,8 @@ function renderSlot(iso, s, td, dupLeads){
     head='<b><span class="tlbl move">\ud83d\udcc5 move date</span> '+esc(rec.customer||rec.code)+'</b> '+tag+' <span class="stag $">\u002450</span>';
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'. Offer \u002450 off for the date change.</div>';
     const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We\u2019ll take \u002450 off for changing the date.\u201d</div>';
-    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'">Declined</button>'+routeBtn(id,sl,'move')+'</div>'; }
-    else if(stt==='accepted'){ body=desc+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'" data-mvto="'+rec.to+'" data-mvcust="'+esc(rec.customer||rec.code)+'" data-mvstart="'+((function(){var j=jobByCode(rec.code);return j?Date.parse(rec.to+' '+String(j.start).slice(11)):Date.parse(rec.to);})())+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'">Client declined instead</button></div>'; }
+    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,sl,'move')+'</div>'; }
+    else if(stt==='accepted'){ body=desc+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'" data-mvto="'+rec.to+'" data-mvcust="'+esc(rec.customer||rec.code)+'" data-mvstart="'+((function(){var j=jobByCode(rec.code);return j?Date.parse(rec.to+' '+String(j.start).slice(11)):Date.parse(rec.to);})())+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Client declined instead</button></div>'; }
     else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'">change</button></div>'; }
   }
   const casc=(stt==='todo'&&s.altCount>0)?'<div class="casc">If they refuse, '+s.altCount+' other option'+(s.altCount>1?'s':'')+' for this crew \u2192 tap Declined.</div>':'';
@@ -558,7 +566,7 @@ function renderDay(iso){
   const horizon=scanHorizon(windowStart(),7);
   const plan=cleanupPlan(iso,horizon);
   const declined=declinedSetFor(iso);
-  const slots=resolveSlots(plan,declined);
+  const slots=resolveSlots(plan,declined,declCustSet(iso));
   CURPLAN=plan; RECS={}; ACTIVE_ROUTE=null;
   // pending changes from confirmed slots -> apply to the timeline so the chip re-routes (and mark what Update will write)
   const changes={};
@@ -588,7 +596,7 @@ function renderDay(iso){
     slots.slots.forEach(s=>{h+=renderSlot(iso,s,td,dupLeads);});
     const anyConfirmed=slots.slots.some(s=>{if(!s.current)return false;const id=sKey(iso,s.index,s.current.kind,s.current.kind==='call'?s.current.rec.tail:s.current.rec.code);return STATUS[id]==='confirmed';});
     h+='<div class="calbar">'+(dupLeads.size?'<span class="dupwarn">\u26a0 Two re-chains share a lead \u2014 fix before updating.</span>':'')+'<button class="cb upd" id="updcal" '+((anyConfirmed&&!dupLeads.size)?'':'disabled')+'>\u2934 Update calendar</button><span class="cmuted">write-back parked \u2014 confirms saved here for now</span></div>';
-    if(slots.declinedCusts&&slots.declinedCusts.length){ h+='<div class="declog">\u2715 Declined \u2014 won\u2019t suggest again (you\u2019ve already spoken to them): <b>'+slots.declinedCusts.map(esc).join(', ')+'</b></div>'; }
+    if(slots.declinedCusts&&slots.declinedCusts.length){ h+='<div class="declog"><span class="decllbl">\u2715 Declined \u2014 won\u2019t suggest again (you\u2019ve already spoken to them):</span> '+slots.declinedCusts.map(function(c){return '<span class="declchip">'+esc(c)+'<button class="declundo" data-undocust="'+esc(c)+'" title="Undo \u2014 put this customer back as an option">\u21ba</button></span>';}).join('')+'</div>'; }
   }
   h+='</div>';
   if(td.movedOut&&td.movedOut.length){h+='<div class="movedout">\u2197 Moved off this day ('+td.movedOut.length+'): '+td.movedOut.map(m=>esc(m.customer)+' \u2192 '+fmtDay(m.to).mon+' '+fmtDay(m.to).dn).join(', ')+'</div>';}
@@ -604,11 +612,12 @@ function bindDay(iso){
   root.querySelectorAll('.cb[data-act]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();
     const id=b.dataset.id, act=b.dataset.act;
     if(act==='accept')setStatus(id,'accepted');
-    else if(act==='decline')setStatus(id,'declined');
+    else if(act==='decline'){ if(b.dataset.cust)recordDecline(iso,b.dataset.cust,id); setStatus(id,'declined'); }
     else if(act==='reopen'){ if(b.dataset.mvcode){delete CONFIRMED_MOVES[b.dataset.mvcode];saveMoves();} setStatus(id,null); }
     else if(act==='confirm'){ if(b.dataset.lk){const sel=root.querySelector('.leadsel[data-lk="'+b.dataset.lk+'"]');if(sel){LEADS[b.dataset.lk]=sel.value;saveLeads();}} if(b.dataset.mvcode){CONFIRMED_MOVES[b.dataset.mvcode]={code:b.dataset.mvcode,customer:b.dataset.mvcust,from:iso,to:b.dataset.mvto,startMs:(+b.dataset.mvstart||Date.parse(b.dataset.mvto))};saveMoves();} setStatus(id,'confirmed'); }
     renderDay(iso); renderHorizon();
   }));
+  root.querySelectorAll('.declundo[data-undocust]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();undoDecline(iso,b.dataset.undocust);renderDay(iso);renderHorizon();}));
   root.querySelectorAll('.leadsel').forEach(s=>s.addEventListener('click',e=>e.stopPropagation()));
   root.querySelectorAll('.leadsel').forEach(s=>s.addEventListener('change',()=>{LEADS[s.dataset.lk]=s.value;saveLeads();}));
   root.querySelectorAll('.cb.route[data-route]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();
