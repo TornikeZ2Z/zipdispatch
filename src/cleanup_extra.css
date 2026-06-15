@@ -65,11 +65,13 @@
 #hwin label{font-size:14px;color:var(--dim);font-weight:600;display:flex;align-items:center;gap:6px}
 #hwin input[type=date],#hwin select{font-family:'Inter';font-size:14.5px;border:1.5px solid var(--line2);border-radius:8px;padding:5px 9px;background:var(--card);color:var(--ink);font-weight:600}
 .connpill{font-size:14px;color:var(--fleet);font-weight:600;display:inline-flex;align-items:center;gap:5px}
-/* header stat blocks + ladder wrapper (added v3) */
-.stats{display:flex;gap:9px;align-items:stretch}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:4px 12px;text-align:center;min-width:58px}
-.stat .v{font-family:'Barlow Condensed';font-weight:600;font-size:20px;line-height:1;color:var(--ink)}
-.stat .l{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-top:1px;white-space:nowrap}
+/* header stat blocks — matched to the logistics board: big Barlow numbers in border-separated columns, right-aligned */
+.stats{display:flex;align-items:stretch;gap:0;margin-left:auto;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
+.stats::-webkit-scrollbar{display:none}
+.stat{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 22px;border-left:1px solid var(--line);text-align:left;background:none;border-radius:0;min-width:0}
+.stat:first-child{border-left:none}
+.stat .v{font-family:'Barlow Condensed';font-weight:600;font-size:32px;line-height:1;color:var(--ink)}
+.stat .l{white-space:nowrap;color:var(--faint);font-size:14px;text-transform:uppercase;letter-spacing:.09em;font-weight:600}
 .ladder{margin-top:6px}
 /* mobile fixes (ported from the parallel chat) — override inherited dispatcher ≤820px rules */
 @media(max-width:820px){
@@ -266,3 +268,9 @@
 .declchip{display:inline-flex;align-items:center;gap:3px;background:var(--card);border:1px solid var(--line2);border-radius:999px;padding:1px 4px 1px 10px;margin:3px 5px 0 0;font-weight:600;color:var(--ink);font-size:13px}
 .declundo{border:none;background:var(--paper);color:var(--dim);border-radius:50%;width:19px;height:19px;line-height:1;cursor:pointer;font-size:13px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .declundo:hover{background:var(--hazard-bg);color:var(--hazard)}
+/* ===== horizon pagination (problem-days strip) ===== */
+.hzpager{display:flex;align-items:center;gap:12px;justify-content:center;margin:9px 0 2px}
+.hzpg{border:1.5px solid var(--line2);background:var(--card);color:var(--dim);border-radius:8px;padding:5px 12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Inter'}
+.hzpg:hover:not(:disabled){border-color:var(--ink);color:var(--ink)}
+.hzpg:disabled{opacity:.38;cursor:default}
+.hzpglbl{font-size:13.5px;color:var(--faint);font-weight:600;white-space:nowrap}
