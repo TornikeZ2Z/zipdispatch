@@ -225,13 +225,16 @@ function scanHorizon(fromIso, nDays){
 // buffer gap; if calls can't even clear the shortage, add date-moves until the shortage clears.
 function solvePlan(plan, declined){
   declined = declined || new Set();
+  const declCust=new Set();      // a refused CUSTOMER is off for good (any action, any code) -- you only talk to them once
+  plan.callPool.forEach(c=>{ if(declined.has(c.tail)&&c.customer)declCust.add(c.customer); });
+  plan.movePool.forEach(m=>{ if(declined.has(m.code)&&m.customer)declCust.add(m.customer); });
   const used = new Set();        // job codes consumed as tail or anchor
   const activeCalls=[], activeMoves=[];
   const needCover=plan.gapToCover, needBuffer=plan.gapToBuffer;
   let freed=0;
   for(const c of plan.callPool){
     if(freed>=needBuffer)break;
-    if(declined.has(c.tail))continue;
+    if(declined.has(c.tail)||declCust.has(c.customer))continue;
     if(used.has(c.tail)||used.has(c.after))continue;
     const purpose = freed<needCover ? 'cover' : 'buffer';
     activeCalls.push(Object.assign({purpose}, c)); used.add(c.tail); used.add(c.after); freed++;
@@ -240,7 +243,7 @@ function solvePlan(plan, declined){
     const spareLeft={};
     for(const m of plan.movePool){
       if(freed>=needCover)break;
-      if(declined.has(m.code))continue;
+      if(declined.has(m.code)||declCust.has(m.customer))continue;
       if(used.has(m.code))continue;
       const k=m.to; const cap=(spareLeft[k]!=null?spareLeft[k]:m.targetSpare);
       if(cap<1)continue;
@@ -253,8 +256,8 @@ function solvePlan(plan, declined){
            reachedBuffer: projectedRoutes<=plan.target,
            projectedRoutes,
            // remaining bench alternatives (for the cascade UI to know more exist)
-           moreCalls: plan.callPool.filter(c=>!activeCalls.find(a=>a.tail===c.tail) && !declined.has(c.tail)).length,
-           moreMoves: plan.movePool.filter(m=>!activeMoves.find(a=>a.code===m.code) && !declined.has(m.code)).length };
+           moreCalls: plan.callPool.filter(c=>!activeCalls.find(a=>a.tail===c.tail) && !declined.has(c.tail) && !declCust.has(c.customer)).length,
+           moreMoves: plan.movePool.filter(m=>!activeMoves.find(a=>a.code===m.code) && !declined.has(m.code) && !declCust.has(m.customer)).length };
 }
 
 
@@ -301,25 +304,28 @@ function timelineData(iso, changes){
 // declined = Set of keys 'slot<i>|call|<tail>' / 'slot<i>|move|<code>'. Recompute on every action.
 function resolveSlots(plan, declined){
   declined = declined || new Set();
+  const declCust=new Set();      // refused customer -> never suggest again (call OR move, any code)
+  plan.callPool.forEach(c=>{ if(declined.has(c.tail)&&c.customer)declCust.add(c.customer); });
+  plan.movePool.forEach(m=>{ if(declined.has(m.code)&&m.customer)declCust.add(m.customer); });
   const cover=plan.gapToCover, gap=Math.max(plan.gapToBuffer, plan.gapToCover);
   const used=new Set(); const slots=[];
   for(let i=0;i<gap;i++){
     const cand=[];
     for(const c of plan.callPool){
       if(used.has(c.tail)||used.has(c.after))continue;
-      if(declined.has(c.tail))continue;
+      if(declined.has(c.tail)||declCust.has(c.customer))continue;
       cand.push({kind:'call', key:'call|'+c.tail, rec:c});
     }
     for(const m of plan.movePool){
       if(used.has(m.code))continue;
-      if(declined.has(m.code))continue;
+      if(declined.has(m.code)||declCust.has(m.customer))continue;
       cand.push({kind:'move', key:'move|'+m.code, rec:m});
     }
     const cur=cand[0]||null;
     if(cur){ if(cur.kind==='call'){used.add(cur.rec.tail);used.add(cur.rec.after);} else used.add(cur.rec.code); }
     slots.push({index:i, must:i<cover, current:cur, altCount:Math.max(0,cand.length-1), exhausted:!cur});
   }
-  return {slots, cover, gap};
+  return {slots, cover, gap, declinedCusts:[...declCust]};
 }
 
 if(typeof module!=='undefined'){ Object.assign(module.exports, {CLEAN, coreAvailOn, dayLoad, detectChains, optimizeStandard, cleanupPlan, scanHorizon, cleanWindow, jobByCode, slotOnTarget, buildMovePool, solvePlan, timelineData, resolveSlots, nearbyDays, allProblemDays}); }
