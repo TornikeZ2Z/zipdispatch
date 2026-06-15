@@ -223,9 +223,9 @@ function scanHorizon(fromIso, nDays){
 // Given a plan + a set of declined ids, return the recommended non-conflicting active set.
 // Strategy: free crews with calls first (cheaper than moving a customer's date), up to the
 // buffer gap; if calls can't even clear the shortage, add date-moves until the shortage clears.
-function solvePlan(plan, declined){
+function solvePlan(plan, declined, hardCust){
   declined = declined || new Set();
-  const declCust=new Set();      // a refused CUSTOMER is off for good (any action, any code) -- you only talk to them once
+  const declCust=new Set(hardCust?[...hardCust]:[]);      // a refused CUSTOMER is off for good (any action, any code) -- you only talk to them once
   plan.callPool.forEach(c=>{ if(declined.has(c.tail)&&c.customer)declCust.add(c.customer); });
   plan.movePool.forEach(m=>{ if(declined.has(m.code)&&m.customer)declCust.add(m.customer); });
   const used = new Set();        // job codes consumed as tail or anchor
@@ -302,9 +302,9 @@ function timelineData(iso, changes){
 
 // Per-crew-slot ordered options for the resolve flow + decline cascade.
 // declined = Set of keys 'slot<i>|call|<tail>' / 'slot<i>|move|<code>'. Recompute on every action.
-function resolveSlots(plan, declined){
+function resolveSlots(plan, declined, hardCust){
   declined = declined || new Set();
-  const declCust=new Set();      // refused customer -> never suggest again (call OR move, any code)
+  const declCust=new Set(hardCust?[...hardCust]:[]);   // captured-at-decline names (bulletproof) + refused customer -> never suggest again (call OR move, any code)
   plan.callPool.forEach(c=>{ if(declined.has(c.tail)&&c.customer)declCust.add(c.customer); });
   plan.movePool.forEach(m=>{ if(declined.has(m.code)&&m.customer)declCust.add(m.customer); });
   const cover=plan.gapToCover, gap=Math.max(plan.gapToBuffer, plan.gapToCover);
