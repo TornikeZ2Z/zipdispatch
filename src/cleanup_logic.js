@@ -231,7 +231,7 @@ function solvePlan(plan, declined){
   let freed=0;
   for(const c of plan.callPool){
     if(freed>=needBuffer)break;
-    if(declined.has('call|'+c.tail))continue;
+    if(declined.has(c.tail))continue;
     if(used.has(c.tail)||used.has(c.after))continue;
     const purpose = freed<needCover ? 'cover' : 'buffer';
     activeCalls.push(Object.assign({purpose}, c)); used.add(c.tail); used.add(c.after); freed++;
@@ -240,7 +240,7 @@ function solvePlan(plan, declined){
     const spareLeft={};
     for(const m of plan.movePool){
       if(freed>=needCover)break;
-      if(declined.has('move|'+m.code))continue;
+      if(declined.has(m.code))continue;
       if(used.has(m.code))continue;
       const k=m.to; const cap=(spareLeft[k]!=null?spareLeft[k]:m.targetSpare);
       if(cap<1)continue;
@@ -253,8 +253,8 @@ function solvePlan(plan, declined){
            reachedBuffer: projectedRoutes<=plan.target,
            projectedRoutes,
            // remaining bench alternatives (for the cascade UI to know more exist)
-           moreCalls: plan.callPool.filter(c=>!activeCalls.find(a=>a.tail===c.tail) && !declined.has('call|'+c.tail)).length,
-           moreMoves: plan.movePool.filter(m=>!activeMoves.find(a=>a.code===m.code) && !declined.has('move|'+m.code)).length };
+           moreCalls: plan.callPool.filter(c=>!activeCalls.find(a=>a.tail===c.tail) && !declined.has(c.tail)).length,
+           moreMoves: plan.movePool.filter(m=>!activeMoves.find(a=>a.code===m.code) && !declined.has(m.code)).length };
 }
 
 
@@ -307,12 +307,12 @@ function resolveSlots(plan, declined){
     const cand=[];
     for(const c of plan.callPool){
       if(used.has(c.tail)||used.has(c.after))continue;
-      if(declined.has('slot'+i+'|call|'+c.tail))continue;
+      if(declined.has(c.tail))continue;
       cand.push({kind:'call', key:'call|'+c.tail, rec:c});
     }
     for(const m of plan.movePool){
       if(used.has(m.code))continue;
-      if(declined.has('slot'+i+'|move|'+m.code))continue;
+      if(declined.has(m.code))continue;
       cand.push({kind:'move', key:'move|'+m.code, rec:m});
     }
     const cur=cand[0]||null;
