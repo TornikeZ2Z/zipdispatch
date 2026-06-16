@@ -965,7 +965,7 @@ let currentDay=(function(){
   return DATA.days&&DATA.days[iso]?iso:(ds.find(d=>d>=iso)||ds[ds.length-1]);
 })();
 DATA.jobs=(DATA.days&&DATA.days[currentDay])||DATA.jobs||[];
-const STATES = __STATES__;
+const STATES = null;
 const RENTAL26_CF = 1700, RENTAL20_CF = 1100;
 function truckActiveOn(t,day){if(!t||!t.rented||!t.rentStart)return true;return day>=t.rentStart&&(!t.rentEnd||day<=t.rentEnd);}
 
