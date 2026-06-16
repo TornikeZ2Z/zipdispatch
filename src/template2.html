@@ -2947,6 +2947,11 @@ function truckToken(r){
   if(!v)return '?';
   return v.kind==='fleet'?String(v.t.n).replace('#',''):('RENTAL'+(/26/.test(v.sz)?'26':'20'));
 }
+/* ===== calendar write helpers (final-face, no history block) ===== */
+function upsertField(desc,label,value){desc=desc==null?'':String(desc);value=value==null?'':String(value);const lines=desc.split('\n');const rx=new RegExp('^\\s*'+label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*:','i');let found=false;for(let i=0;i<lines.length;i++){if(rx.test(lines[i])){lines[i]=label+': '+value;found=true;break;}}if(!found)lines.push(label+': '+value);return lines.join('\n');}
+function setForemanGuest(attendees,newEmail,foremanEmails){const set=new Set((foremanEmails||[]).map(e=>String(e).toLowerCase()));let att=(attendees||[]).slice().filter(a=>{const e=(a.email||'').toLowerCase();if(!e)return true;if(set.has(e))return false;return true;});if(newEmail){const ne=newEmail.toLowerCase();if(!att.some(a=>(a.email||'').toLowerCase()===ne))att.push({email:newEmail});}return att;}
+function foremanEmailSet(){return (DATA.foremen||[]).map(f=>(f.email||'')).filter(Boolean);}
+function leadCustomerOf(l){if(!l||!l.after)return '';const day=(l.start||'').slice(0,10);const j=(DATA.days[day]||[]).find(x=>x.code===l.after);return (j&&j.customer)||'';}
 function typeEmojiMT(mt){return /long/i.test(mt||'')?'🛣️':'📦';}
 function typeEmojiJT(jt){jt=String(jt||'');if(/straight/i.test(jt))return '🚚';if(/regular/i.test(jt))return '🚛';if(/labor/i.test(jt))return '💪';if(/estimate/i.test(jt))return '📋';if(/flat/i.test(jt))return '💵';if(/box/i.test(jt))return '📦';return '';}
 function typeChip(v,cls,small){v=String(v||'').trim();if(!v)return '';const e=cls==='tmove'?typeEmojiMT(v):typeEmojiJT(v);return '<span class="chip '+cls+(small?' sm':'')+'">'+(e?e+' ':'')+esc(v)+'</span>';}
@@ -3834,7 +3839,7 @@ async function _pushCalendarUpdates(){
         +'<div class="gprow"><span>🚚 Truck</span><div>'+(p.tSame
             ?'<b>'+esc(p.newT)+'</b> <i class="gqt">already on the event</i>'
             :(p.oldT!=='—'?'<span class="gold">'+esc(p.oldT)+'</span> becomes <b>'+esc(p.newT)+'</b>':'<b>'+esc(p.newT)+'</b> written into the title'))+'</div></div>'
-        +'<div class="gqt" style="margin-top:6px">The event keeps all its original notes — a short ZipDispatch summary (foreman · vehicles · base) is added at the end.</div>'
+                +'<div class="gqt" style="margin-top:6px">📝 Writes to the event: <span class="mono">Truck #: '+esc(p.newT)+'</span>'+(p.l.after?', <span class="mono">After Job Code: '+esc(p.l.after)+'</span>, <span class="mono">After Customer Name: '+esc(leadCustomerOf(p.l))+'</span>':'')+', title <span class="mono">/#'+esc(p.r.foreman.nick)+'#'+esc(truckToken(p.r))+'#</span>. No booking fields touched.</div>'
         +'</div>';}).join('')+'</div>'
       +'<div class="gqt" style="margin-top:10px">✅ Only these future events change · 🔒 past events are never touched · ✉️ Google notifies newly invited guests.</div>');
     const foot=document.createElement('button');
@@ -3848,7 +3853,7 @@ async function _pushCalendarUpdates(){
           if(p.create){
             const l=p.l;
             const iso=s=>s.replace(' ','T')+':00';
-            const desc='[ZipDispatch draft]\nJob Code: '+l.code+'\nTotal CF: '+l.cf+'\nCrew Size: '+l.crew+'\nACT Time: '+l.actH+'\nTruck Quantity: '+(l.trucksQ||1)+'\nVan Quantity: '+(l.vansQ||0)+(l.packing?'\nPacking: '+l.packing:'')+'\nMoving Type: '+l.movingType+'\nJob Type: '+l.jobType+(l.after?'\nAfter Job Code: '+l.after:'')+'\nMoving From: '+l.pickupAddr+'\nMoving To: '+l.deliveryAddr+'\n\n[ZipDispatch] foreman '+p.newF+' · '+routeVehText(p.r)+' · '+p.r.base+' base';
+            const desc='Job Code: '+l.code+'\nCustomer Name: '+(l.customer||'')+'\nTotal CF: '+l.cf+'\nCrew Size: '+l.crew+'\nACT Time: '+l.actH+'\nTruck Quantity: '+(l.trucksQ||1)+'\nVan Quantity: '+(l.vansQ||0)+'\nTruck #: '+p.newT+(l.packing?'\nPacking Estimate: '+l.packing:'')+'\nMoving Type: '+l.movingType+'\nJob Type: '+l.jobType+(l.after?'\nAfter Job Code: '+l.after+'\nAfter Customer Name: '+leadCustomerOf(l):'')+'\nMoving From: '+l.pickupAddr+'\nMoving To: '+l.deliveryAddr;
             const body={
               summary:'('+(l.stateFrom||'')+'-'+(l.stateTo||'')+') '+(l.customer||l.code)+' /#'+p.newF+'#'+p.newT+'#',
               description:desc,
@@ -3862,14 +3867,10 @@ async function _pushCalendarUpdates(){
             continue;
           }
           const ev=await gapiFetch(evPath(p.l.eventId));
-          const vehTxt=routeVehText(p.r);
-          const blk=ZD_A+'\nForeman: '+p.r.foreman.name+' ('+p.r.foreman.nick+')\nVehicles: '+vehTxt+'\nBase: '+p.r.base+'\nUpdated: '+new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+'\n'+ZD_B;
-          const body={summary:newTitle(ev.summary,p.r.foreman.nick,truckToken(p.r)),description:upsertZDBlock(ev.description,blk)};
-          if(p.r.foreman.email){
-            const att=(ev.attendees||[]).slice();
-            if(!att.some(x=>(x.email||'').toLowerCase()===p.r.foreman.email.toLowerCase()))att.push({email:p.r.foreman.email});
-            body.attendees=att;
-          }
+          let desc=ev.description||'';
+          desc=upsertField(desc,'Truck #',truckToken(p.r));
+          if(p.l.after){desc=upsertField(desc,'After Job Code',p.l.after);desc=upsertField(desc,'After Customer Name',leadCustomerOf(p.l));}
+          const body={summary:newTitle(ev.summary,p.r.foreman.nick,truckToken(p.r)),description:desc,attendees:setForemanGuest(ev.attendees,p.r.foreman.email,foremanEmailSet())};
           await gapiFetch(evPath(p.l.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify(body)});
           p.l._synced=true;p.l.mf=p.r.foreman.nick;p.l.mt=truckToken(p.r);p.r._calSynced=true;
           res.push('✅ '+p.l.code+' — '+p.r.foreman.nick+' assigned'+(p.r.foreman.email?', invite sent':'')+', truck '+truckToken(p.r));
