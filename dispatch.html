@@ -454,6 +454,8 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .lbh span{font-size:12px;color:var(--faint);font-weight:600}
 .lbrow{display:flex;align-items:center}
 .lbrow.dim{opacity:.62}
+.lbrow.dim:has(.lbpop){opacity:1}
+.lbrow.rentedm{opacity:1!important}
 .lbrow.truck b{font-weight:700;min-width:26px}
 .lbst{font-size:12px;color:var(--faint);min-width:26px}
 .lbbar{flex:1;height:7px;background:var(--line);border-radius:4px;overflow:hidden}
@@ -3071,7 +3073,7 @@ function renderFleetStrip(){
       const pct=tk.cf>0?Math.min(100,Math.round(cf/tk.cf*100)):0;
       const used=using.length>0;
       const hold=H[tk.n];
-      return '<div class="lbrow truck'+(used?'':' dim')+(tk.rented?' rentedm':'')+'" data-t="'+esc(tk.n)+'" data-r="'+(used?esc(using[0].id):'')+'" title="'+esc((tk.type==='Van'?'Van ':'Truck ')+tk.n+' · '+tk.cf.toLocaleString()+' CF · cab '+tk.maxCrew+(tk.rented?' · rented':'')+(used?' — click to open '+using[0].id+' on the map':' — spare today'))+'">'
+      return '<div class="lbrow truck'+(used||tk.rented?'':' dim')+(tk.rented?' rentedm':'')+'" data-t="'+esc(tk.n)+'" data-r="'+(used?esc(using[0].id):'')+'" title="'+esc((tk.type==='Van'?'Van ':'Truck ')+tk.n+' · '+tk.cf.toLocaleString()+' CF · cab '+tk.maxCrew+(tk.rented?' · rented':'')+(used?' — click to open '+using[0].id+' on the map':' — spare today'))+'">'
         +'<b class="tkn'+(used?' on':'')+'">'+esc(String(tk.n).replace('#',''))+'</b>'
         +'<div class="lbmain"><div class="lbtop"><span class="lbbar"><i style="width:'+pct+'%"></i></span><em>'+(used?pct+'%':'—')+'</em></div>'
         +'<div class="lbsub">'+esc(tk.state)+(tk.type==='Van'?' van':'')+' · '+tk.cf.toLocaleString()+' CF'+(hold?' · <span class="pairtag">🔗'+esc(nickOf(hold))+'</span>':'')+(used?' · <b>'+using.map(r=>r.id).join(' ')+'</b>':' · spare')+'</div></div>'
@@ -3151,13 +3153,18 @@ function renderFleetStrip(){
     else truckMenu(btn,btn.dataset.t);
   }));
 }
+function confirmDo(title,html,onYes){
+  const m=gModal(title,'<div class="gsub">'+html+'</div><div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button id="cfdno" style="border:1.5px solid var(--line2);background:var(--card);color:var(--ink);font-family:Inter;font-weight:600;font-size:15px;padding:8px 14px;border-radius:10px;cursor:pointer">Cancel</button><button class="gapply" id="cfdyes">Confirm</button></div>');
+  m.querySelector('#cfdno').addEventListener('click',function(){m.classList.remove('show');});
+  m.querySelector('#cfdyes').addEventListener('click',function(){m.classList.remove('show');try{onYes();}catch(e){}});
+}
 function lbPopover(btn,items){
   document.querySelectorAll('.lbpop').forEach(p=>p.remove());
   const pop=document.createElement('div');pop.className='lbpop';
   items.forEach(it=>{
     if(!it)return;
     const b=document.createElement('button');b.innerHTML=it.label;
-    b.addEventListener('click',()=>{pop.remove();it.fn();});
+    b.addEventListener('click',()=>{pop.remove();if(it.confirm){confirmDo(it.confirm.title,it.confirm.msg,it.fn);}else{it.fn();}});
     pop.appendChild(b);
   });
   btn.closest('.lbrow').appendChild(pop);
@@ -3169,7 +3176,7 @@ function foreMenu(btn,name){
   const auto=AUTO_OFF.has(name);
   lbPopover(btn,[
     auto?{label:'📋 Off per the sheet — edit Crew Day Offs to change',fn:()=>{}}:
-    {label:off?('✓ Mark <b>back on</b> for '+fmtDayLong(currentDay)):('🚫 Mark <b>day off</b> for '+fmtDayLong(currentDay)),fn:()=>{
+    {label:off?('✓ Mark <b>back on</b> for '+fmtDayLong(currentDay)):('🚫 Mark <b>day off</b> for '+fmtDayLong(currentDay)),confirm:{title:(off?'Put back on?':'Mark day off?'),msg:(off?('Put <b>'+esc(f.name)+'</b> back on for '+fmtDayLong(currentDay)+'. The board re-plans with them available.'):('Mark <b>'+esc(f.name)+'</b> <b>off</b> for '+fmtDayLong(currentDay)+'? Routes using them get re-planned and a day-off is written to the sheet.'))},fn:()=>{
       applyWithDiff(null,()=>{off?DAYOFF.delete(name):DAYOFF.add(name);});
       dayOffToSheet(f,!off);
     }},
@@ -3180,10 +3187,12 @@ function truckMenu(btn,tn){
   const tk=DATA.trucks.find(k=>k.n===tn);
   const H=DATA.holders=DATA.holders||{};
   lbPopover(btn,[
-    {label:H[tn]?('🔗 Paired with <b>'+esc((DATA.foremen.find(f=>f.name===H[tn])||{name:H[tn]}).name)+'</b> — clear pairing'):'🔗 Pair with a foreman…',
+    {label:H[tn]?('🔗 Paired with <b>'+esc((DATA.foremen.find(f=>f.name===H[tn])||{name:H[tn]}).name)+'</b> — clear pairing'):'🔗 Pair with a foreman…',confirm:H[tn]?{title:'Clear pairing?',msg:'Unpair this truck and foreman? Both go back to the normal pool.'}:null,
      fn:()=>{ if(H[tn]){delete H[tn];holderToSheet(tn,null);rebuildRoutes();render();} else pairForemanModal(tk); }},
-    tk.rented?{label:'🗑 Remove — rental returned',fn:()=>{
-      tk.status='Returned';
+    tk.rented?{label:'🗑 Remove — rental returned',confirm:{title:'Mark rental returned?',msg:'Mark <b>'+esc(tn)+'</b> returned today and remove it from the board? This writes its return date to the sheet.'},fn:()=>{
+      const _today=new Date().toISOString().slice(0,10);
+      tk.status='Returned';tk.returnedDate=_today;
+      if(GTOKEN)shUpdateCellByMatch('Rented Trucks',function(row){return String(row['Truck N']).trim()===String(tn).trim();},'Returned Date',_today).catch(function(){});
       setTimeout(saveDayState,0);
       if(GTOKEN)shUpdateCellByMatch('Rented Trucks',row=>String(row['Truck N']).trim()===String(tn).trim(),'Status','Returned').then(()=>sheetSaved(tn+' marked returned')).catch(e=>sheetSaveFailed('truck removal',e));
       else toast(tn+' removed from the board. Connect the calendar button to also save it to the sheet.');
@@ -3402,6 +3411,7 @@ function addTruckModal(opts){
   const prov3=p=>((p||'').replace(/[^A-Za-z]/g,'').toUpperCase().slice(0,3)||'RNT');
   const nameUsed=nm=>DATA.trucks.some(k=>String(k.n).toLowerCase()===String(nm).toLowerCase());
   const uniqueName=base=>{if(!nameUsed(base))return base;let i=2;while(nameUsed(base+'-'+i))i++;return base+'-'+i;};
+  const nextRentalIdx=()=>{let mx=0;DATA.trucks.forEach(k=>{const mm=/\((\d+)\)\s*$/.exec(String(k.n));if(mm)mx=Math.max(mx,+mm[1]);});return mx+1;};
   const m=gModal('Add a rented truck',
     '<div class="gsub">'+(opts?'This rental will be assigned straight to <b>'+esc(opts.rid)+'</b>. ':'')+'Active only between its rental dates \u2014 the engine uses it whenever it fits. Saved to the <b>Rented Trucks</b> tab.</div>'
     +(GTOKEN?'':'<div class="ajerr" style="display:block;margin:8px 0">\u26a0 Not connected \u2014 the truck will live only on this board. Press <b>\ud83d\uddd3 Connect Calendar</b> once and adds will save to the sheet.</div>')
@@ -3425,7 +3435,7 @@ function addTruckModal(opts){
     +'</div><div style="margin-top:16px"><button class="gapply" id="atok">Add truck</button></div>');
   const provEl=m.querySelector('#atprov'),otherWrap=m.querySelector('#atotherwrap'),otherEl=m.querySelector('#atother'),cfEl=m.querySelector('#atcf'),prev=m.querySelector('#atpreview'),lblEl=m.querySelector('#atlbl');
   const curProv=()=>provEl.value==='Other'?((otherEl.value||'').trim()||'Other'):provEl.value;
-  const refreshName=()=>{const custom=(lblEl.value||'').trim();prev.textContent=custom||uniqueName(prov3(curProv())+'-'+ftOf(cfEl.value));};
+  const refreshName=()=>{const custom=(lblEl.value||'').trim();prev.textContent=custom||(prov3(curProv())+'-'+ftOf(cfEl.value)+' ('+nextRentalIdx()+')');};
   provEl.addEventListener('change',()=>{otherWrap.style.display=provEl.value==='Other'?'':'none';refreshName();});
   [otherEl,cfEl,lblEl].forEach(el=>el.addEventListener('input',()=>{cfEl.style.borderColor='';refreshName();}));
   refreshName();
@@ -3443,7 +3453,7 @@ function addTruckModal(opts){
     const fee=parseFloat(m.querySelector('#atfee').value);
     const one=parseFloat(m.querySelector('#atone').value);
     const pm=parseFloat(m.querySelector('#atpm').value);
-    const lbl=uniqueName((lblEl.value||'').trim()||(prov3(prov)+'-'+ftOf(cf)));
+    const lbl=uniqueName((lblEl.value||'').trim()||(prov3(prov)+'-'+ftOf(cf)+' ('+nextRentalIdx()+')'));
     const tk={n:lbl,status:'Active',cf,maxCrew:crew,state:base,type:ty,model:'rental \u00b7 '+prov,reg:'rental',rented:true,_appAdded:true,
       rentStart:rs,rentEnd:re_,fuel,dayFee:isFinite(fee)?fee:null,oneFee:isFinite(one)?one:null,perMile:isFinite(pm)?pm:null,provider:prov};
     DATA.trucks.push(tk);
@@ -3798,8 +3808,7 @@ document.addEventListener('click',e=>{
   const ub=e.target.closest('.uncfbtn');
   if(ub){unconfirmRoute(ub.dataset.r);return;}
   const ca=e.target.closest('#confall');
-  if(ca){let n=0;routes.forEach(r=>{if(!r.confirmed&&r.foreman&&!((r.short||0)>0)){r.pinForeman=r.foreman.name;r.pinTrucks=(r.vehicles||[]).map(v=>v.kind==='fleet'?v.t.n:null);r.confirmed=true;n++;}});
-    if(n){saveDayState();render();updateCalBtn();toastUndo('✔ '+n+' routes confirmed',()=>{routes.forEach(r=>r.confirmed=false);saveDayState();render();updateCalBtn();});}return;}
+  if(ca){const ready=routes.filter(r=>!r.confirmed&&r.foreman&&!((r.short||0)>0)&&!isDraftRoute(r));if(!ready.length)return;const _list=ready.slice(0,8).map(r=>r.id+' → '+esc(r.foreman.name)+' + '+esc(truckRefs(r)||'—')).join('<br>')+(ready.length>8?'<br>…and '+(ready.length-8)+' more':'');confirmDo('Confirm all '+ready.length+' route'+(ready.length>1?'s':'')+'?','This locks the foreman + truck on '+ready.length+' route'+(ready.length>1?'s':'')+' for '+fmtDayLong(currentDay)+'. Locked routes drop out of other days’ planning and get written to the calendar on Update:<br><br>'+_list,function(){let n=0;routes.forEach(r=>{if(!r.confirmed&&r.foreman&&!((r.short||0)>0)&&!isDraftRoute(r)){r.pinForeman=r.foreman.name;r.pinTrucks=(r.vehicles||[]).map(v=>v.kind==='fleet'?v.t.n:null);r.confirmed=true;n++;}});if(n){saveDayState();render();updateCalBtn();toastUndo('✔ '+n+' routes confirmed',()=>{routes.forEach(r=>r.confirmed=false);saveDayState();render();updateCalBtn();});}});return;}
 });
 function updateCalBtn(){
   const b=document.getElementById('calpush');
@@ -4418,7 +4427,7 @@ if(restoreDayState(currentDay,true))render();
 document.getElementById('resetov').addEventListener('click',()=>{
   const n=manualChangeCount();
   if(!n)return;
-  const _m=gModal('Reset the board?','<div class="gsub">This undoes all '+n+' change'+(n>1?'s':'')+' on this day - pinned foremen and trucks, base overrides, manual re-chains, day-off toggles, confirmations, excluded jobs, and foreman/truck pairings - and puts the board back to the original engine suggestions.<br><br><b>Rented trucks you added stay.</b> This only changes the board.</div><div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button id="rstno" style="border:1.5px solid var(--line2);background:var(--card);color:var(--ink);font-family:Inter;font-weight:600;font-size:15px;padding:8px 14px;border-radius:10px;cursor:pointer">Keep changes</button><button class="gapply" id="rstyes">Yes, reset the board</button></div>');
+  const _m=gModal('Reset the board?','<div class="gsub">This undoes <b>'+(function(){var b=[],pf=0,pt=0,bo=0;routes.forEach(function(r){if(r.pinForeman)pf++;if(r.pinTrucks&&r.pinTrucks.some(Boolean))pt++;if(r.baseOverride)bo++;});if(pf)b.push(pf+" pinned foreman"+(pf>1?"s":""));if(pt)b.push(pt+" pinned truck"+(pt>1?"s":""));if(bo)b.push(bo+" base override"+(bo>1?"s":""));if(manualChains.length)b.push(manualChains.length+" manual re-chain"+(manualChains.length>1?"s":""));if(DAYOFF.size)b.push(DAYOFF.size+" day-off"+(DAYOFF.size>1?"s":""));if(EXCL.size)b.push(EXCL.size+" excluded job"+(EXCL.size>1?"s":""));var hp=Object.keys(DATA.holders||{}).length;if(hp)b.push(hp+" pairing"+(hp>1?"s":""));return b.length?b.join(", "):"your changes";})()+'</b> and puts the board back to the original engine suggestions.<br><br><b>Rented trucks you added stay.</b> This only changes the board.</div><div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button id="rstno" style="border:1.5px solid var(--line2);background:var(--card);color:var(--ink);font-family:Inter;font-weight:600;font-size:15px;padding:8px 14px;border-radius:10px;cursor:pointer">Keep changes</button><button class="gapply" id="rstyes">Yes, reset the board</button></div>');
   _m.querySelector('#rstno').addEventListener('click',()=>_m.classList.remove('show'));
   _m.querySelector('#rstyes').addEventListener('click',()=>{
   _m.classList.remove('show');
