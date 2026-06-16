@@ -1177,6 +1177,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   <div class="stats" id="stats"></div>
   <div id="rfwrap">
     <button id="calbtn" class="calbtn">🗓 Connect Calendar</button>
+    <button id="rfbtn" class="calbtn" title="Pull the latest jobs from Google Calendar">↻ Refresh</button>
     <span id="rfstamp"></span>
   </div>
 </header>
@@ -2965,6 +2966,132 @@ async function syncFromSheet(){
 }
 $('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet().catch(function(){}).then(function(){showUpdateSummary();}); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. Calendar write-back stays parked until verified.</div>');}); });
 $('fromDate').addEventListener('change',()=>{SELECTED=null;HZPAGE=0;boot();});
+
+/* ===== calendar job import (ported from the dispatcher) ===== */
+const CAL_PAST_DAYS=60,CAL_FUTURE_DAYS=200;
+function durH(s){
+  if(s==null||s==='')return null;
+  const p=String(s).trim().split(':');
+  if(p.length>=2)return Math.round((+p[0]+(+p[1])/60)*100)/100;
+  const n=parseFloat(s);return isNaN(n)?null:(n<1?n*24:n);
+}
+function numV(s){if(s==null)return 0;const n=parseFloat(String(s).replace(/[$,]/g,''));return isNaN(n)?0:n;}
+function r5js(d){const m=Math.round((d.getHours()*60+d.getMinutes())/5)*5;const o=new Date(d);o.setHours(0,0,0,0);o.setMinutes(m);return o;}
+function isoD(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function isoDT(d){return isoD(d)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function calDescText(s){
+  s=String(s||'');
+  if(/<[a-z!\/]/i.test(s)){
+    s=s.replace(/<br\s*\/?>/gi,'\n')
+       .replace(/<\/(div|p|li|tr|h[1-6])>/gi,'\n')
+       .replace(/<li[^>]*>/gi,'\n')
+       .replace(/<[^>]+>/g,'');
+  }
+  return s.replace(/&nbsp;/gi,' ').replace(/\u00A0/g,' ')
+          .replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+          .replace(/&#39;|&apos;/gi,"'").replace(/&quot;/gi,'"');
+}
+function parseLabels(desc){
+  const o={};
+  calDescText(desc).split(/\r?\n/).forEach(line=>{
+    const m=line.match(/^\s*([A-Za-z][A-Za-z0-9 \/#%-]{1,40})\s*:\s*(.*)$/);
+    if(m){const k=m[1].trim().toLowerCase();if(o[k]===undefined)o[k]=m[2].trim();}
+  });
+  return o;
+}
+function wallClock(dt){ // '2026-06-20T09:00:00-04:00' → local Date at 09:00 regardless of machine TZ
+  const m=String(dt||'').match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if(!m)return null;
+  return new Date(+m[1],+m[2]-1,+m[3],+(m[4]||8),+(m[5]||0));
+}
+function zipFromAddr(s){const m=String(s||'').match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b\d{5}\b)/);return m?m[1]:null;}
+function parseCalEvent(ev){
+  parseCalEvent.why='';
+  if(!ev||!ev.start||!(ev.start.dateTime||ev.start.date)){parseCalEvent.why='no start date/time on the event';return null;}
+  if(/\bON\s*HOLD\b/i.test(String(ev.summary||''))&&!(ev.id&&FORCE.has(ev.id))){parseCalEvent.why='marked ON HOLD in the title';return null;}
+  const L=parseLabels(ev.description);
+  const G=k=>L[k.toLowerCase()]!==undefined?L[k.toLowerCase()]:'';
+  const code=G('Job Code').trim();
+  if(!code){parseCalEvent.why='no "Job Code:" line in the event description'+(ev.description?'':' (description is empty)');return null;}
+  const pickupAddr=G('Moving From')||ev.location||'';
+  const _zip=zipFromAddr(pickupAddr);
+  const pz=zgeoJS(_zip);
+  if(!pz){parseCalEvent.why=_zip?('pickup zip '+_zip+' is not in the zip database'):'no zip code found in "Moving From" or the event location';return null;}
+  const dz=zgeoJS(zipFromAddr(G('Moving To')));
+  let start=wallClock(ev.start.dateTime||ev.start.date);
+  let end=ev.end?wallClock(ev.end.dateTime||ev.end.date):null;
+  if(!end)end=new Date(start.getTime()+4*36e5);
+  start=r5js(start);end=r5js(end);
+  let actH=durH(G('ACT Time'));
+  const tripDays=(function(){const raw=String(G('Estimated Trip Days')||G('Trip Days')||'');if(/same\s*day/i.test(raw))return 1;const v=parseFloat(raw.replace(/[^0-9.]/g,''));return isFinite(v)&&v>0?v:null;})();
+  if(actH==null)actH=Math.max((end-start)/36e5,2);
+  // window semantics: start==end → crew must be there sharp; span that differs from ACT → arrival window [start..end]
+  const _rawSpanH=(end-start)/36e5;
+  const _strict=_rawSpanH===0;
+  const _win=(!_strict&&_rawSpanH>0&&isoD(end)===isoD(start)&&Math.abs(_rawSpanH-(actH||0))>0.49)?new Date(end):null;
+  if(isoD(end)!==isoD(start))end=new Date(start.getTime()+actH*36e5);
+  if(end<=start)end=new Date(start.getTime()+Math.max(actH,2)*36e5);
+  if((_strict||_win)&&actH)end=new Date(start.getTime()+Math.max(actH,2)*36e5);
+  const toks=String(ev.summary||'').split('#');
+  const jt=G('Job Type').trim();
+  return {
+    eventId:ev.id,code,
+    after:G('After Job Code').trim()||null,
+    first:true,base:null,pickup:pz,delivery:dz,
+    pickupAddr,deliveryAddr:G('Moving To'),
+    cityFrom:pz.city,cityTo:dz?dz.city:((G('Moving To')||'?').split(',').slice(-3,-2)[0]||'?').trim(),
+    stateFrom:pz.state,stateTo:dz?dz.state:'',
+    cf:numV(G('Total CF')),
+    crew:Math.max(numV(G('Crew Size')),numV(G('Crew Size at Pickup')),numV(G('Crew Size for Chain Moving')),2),
+    trucksQ:numV(G('Truck Quantity')),vansQ:numV(G('Van Quantity')),
+    movingType:G('Moving Type').trim(),jobType:jt||null,
+    straight:/straight/i.test(jt)?true:(/regular/i.test(jt)?false:/straight/i.test(String(ev.description||''))),
+    packing:numV(G('Packing Estimate')),
+    customer:G('Customer Name').trim(),
+    start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,tripDays,
+    piano:String(ev.summary||'').includes('🎹'),
+    rescheduled:String(ev.summary||'').toUpperCase().includes('RESCHEDULED'),
+    actH,mf:toks.length>=3?(toks[1].trim()||null):null,mt:toks.length>=4?(toks[2].trim()||null):null
+  };
+}
+async function calImport(){
+  if(!GTOKEN)return;
+  const t0=new Date(Date.now()-CAL_PAST_DAYS*86400000),t1=new Date(Date.now()+CAL_FUTURE_DAYS*86400000);
+  let pageToken=null,items=[];
+  do{
+    const j=await gapiFetch('calendars/'+encodeURIComponent(GCAL_ID)+'/events?timeMin='+encodeURIComponent(t0.toISOString())+'&timeMax='+encodeURIComponent(t1.toISOString())+'&maxResults=2500&singleEvents=false'+(pageToken?'&pageToken='+pageToken:''));
+    items=items.concat(j.items||[]); pageToken=j.nextPageToken;
+  }while(pageToken&&items.length<10000);
+  const days={}; let ok=0;
+  for(const ev of items){
+    if(ev.status==='cancelled')continue;
+    const job=parseCalEvent(ev); if(!job)continue;
+    const day=job.start.slice(0,10);
+    job.idx=(days[day]=days[day]||[]).length; days[day].push(job); ok++;
+  }
+  DATA.days=days;
+  DATA.source='Google Calendar (live)';
+  DATA.pulled=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+  return {ok:ok,days:Object.keys(days).length,events:items.length};
+}
+function pullAll(){
+  return calImport().then(function(){ return syncFromSheet(); }).then(function(){
+    renderHorizon();
+    var fs=WINDOW.find(function(d){return d.status==='short';})||WINDOW.find(function(d){return d.status==='tight';})||WINDOW[0];
+    if(fs){SELECTED=fs.iso;renderHorizon();renderDay(SELECTED);}
+    else { var dd=$('daydetail'); if(dd)dd.innerHTML='<div class="pickprompt">No calendar jobs found in this date range. Pick another start date above.</div>'; }
+    updateCalBtns();
+    var last=Object.keys(DATA.days).sort().slice(-1)[0];
+    $('rfstamp').textContent=last?('jobs through '+last):'no calendar jobs found';
+  }).catch(function(e){
+    var dd=$('daydetail'); if(dd)dd.innerHTML='<div class="pickprompt">Could not pull the calendar \u2014 '+((e&&e.message)||'error')+'</div>';
+    $('rfstamp').textContent='';
+  });
+}
+$('rfbtn')&&$('rfbtn').addEventListener('click',function(){
+  if(GTOKEN){ $('rfstamp').textContent='Refreshing\u2026'; pullAll(); }
+  else { ensureGToken(function(){ updateCalBtns(); $('rfstamp').textContent='Refreshing\u2026'; pullAll(); }); }
+});
 function boot(){
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   $('rfstamp').textContent='jobs through '+Object.keys(DATA.days).sort().slice(-1)[0]+' \u00b7 '+DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length+' backup crews held';
@@ -2973,7 +3100,7 @@ function boot(){
   const fs=WINDOW.find(d=>d.status==='short')||WINDOW.find(d=>d.status==='tight')||WINDOW[0];
   if(fs){SELECTED=fs.iso;renderHorizon();renderDay(SELECTED);}
   else $('daydetail').innerHTML='<div class="pickprompt">No calendar days in this range. Pick another start date above.</div>';
-  if(GTOKEN)syncFromSheet();
+  if(GTOKEN&&!boot._pulled){boot._pulled=1;pullAll();}else if(GTOKEN){syncFromSheet();}
 }
 boot();
 </script>
