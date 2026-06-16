@@ -2172,7 +2172,10 @@ function gModal(title,html,footer){
 const GCAL_ID='contact@ziptozipmoving.com';
 const GCAL_CLIENT_ID='712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com';
 let GTOKEN=null,GTOKEXP=0,_tokenClient=null;
-try{const _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.exp>Date.now()+60000){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
+const GSCOPE_VER='cal+sheets-1';
+var _shWarned=false;
+function sheetWarnOnce(e){if(_shWarned)return;const m=String((e&&e.message)||e||'');if(/403|permission/i.test(m)){_shWarned=true;try{gModal('Reconnect needed to save','<div class="gsub">You are connected to Calendar, but saving to the Google Sheet needs the Sheets permission. Click <b>Update Calendar</b> (or Connect) once and approve Google Sheets access, then your decisions and rentals will save.</div>');}catch(_){}}}
+try{const _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.exp>Date.now()+60000&&_g.scope===GSCOPE_VER){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
 function gcalReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
 function ensureGToken(cb){
   if(GTOKEN&&Date.now()<GTOKEXP-60000)return cb();
@@ -2180,11 +2183,11 @@ function ensureGToken(cb){
   _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:()=>{}});
   _tokenClient.callback=resp=>{
     if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);
-      try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP}));localStorage.setItem('zd_gconn','1');}catch(e){}
+      try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP,scope:GSCOPE_VER}));localStorage.setItem('zd_gconn',GSCOPE_VER);}catch(e){}
       updateCalBtns();cb();}
     else gModal('Sign-in failed',esc((resp&&resp.error)||'no token returned'));
   };
-  _tokenClient.requestAccessToken({prompt:(GTOKEN||localStorage.getItem('zd_gconn'))?'':'consent'});
+  _tokenClient.requestAccessToken({prompt:(GTOKEN||localStorage.getItem('zd_gconn')===GSCOPE_VER)?'':'consent'});
 }
 async function gapiFetch(path,opts){
   const r=await fetch('https://www.googleapis.com/calendar/v3/'+path,Object.assign({},opts,{headers:Object.assign({Authorization:'Bearer '+GTOKEN,'Content-Type':'application/json'},(opts&&opts.headers)||{})}));
@@ -2898,7 +2901,7 @@ function sheetExcluded(iso){
 function logDecision(iso,code,customer,kind,action,detail){
   SHEET_RES[iso]=SHEET_RES[iso]||{};
   if(action==='reopened')delete SHEET_RES[iso][code]; else SHEET_RES[iso][code]={customer:customer,kind:kind,action:action,detail:detail||''};
-  if(GTOKEN){ shAppendRow(LOGTAB,{'Timestamp':new Date().toISOString(),'Date':iso,'Job Code':code,'Customer':customer||'','Kind':kind||'','Action':action,'Detail':detail||'','By':SHEET_DEV}).catch(()=>{}); }
+  if(GTOKEN){ shAppendRow(LOGTAB,{'Timestamp':new Date().toISOString(),'Date':iso,'Job Code':code,'Customer':customer||'','Kind':kind||'','Action':action,'Detail':detail||'','By':SHEET_DEV}).catch(sheetWarnOnce); }
 }
 /* ===== live roster from the sheet (matches dispatcher's rebuildFromTabs) + rental tab bootstrap ===== */
 function numVcu(x){const v=parseFloat(String(x==null?'':x).replace(/[^0-9.\-]/g,''));return isNaN(v)?0:v;}
@@ -2922,11 +2925,20 @@ function crewToForemen(rows){
   return out;
 }
 async function shEnsureTab(name,headers){
-  try{const v=await shValues(name); if(v&&v.length)return;}catch(e){}
-  try{await shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});}catch(e){}
-  try{await shFetch('/values/'+encodeURIComponent("'"+name+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[headers]})});}catch(e){}
+  let existing=null;
+  try{existing=await shValues(name);}catch(e){existing=null;}
+  if(existing===null){
+    try{await shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});}catch(e){}
+    try{await shFetch('/values/'+encodeURIComponent("'"+name+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[headers]})});}catch(e){}
+    return;
+  }
+  const head=(existing[0]||[]).slice();
+  const missing=headers.filter(function(h){return head.indexOf(h)<0;});
+  if(missing.length){ const nh=head.concat(missing);
+    try{await shFetch('/values/'+encodeURIComponent("'"+name+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[nh]})});}catch(e){}
+  }
 }
-const RENTED_HEADERS=['Status','Truck N','CF','Max Crew Size','Base','Type','Provider','Daily Rate','Daily Fee $','One-Time Fee $','Per Mile $','Rental Start','Rental End','Fuel','Notes'];
+const RENTED_HEADERS=['Status','Truck N','CF','Max Crew Size','Base','Type','Truck Full Size','Truck Box Size','Provider','Daily Rate','Daily Fee $','One-Time Fee $','Per Mile $','Rental Start','Rental End','Fuel','Notes'];
 async function syncFromSheet(){
   if(!GTOKEN)return;
   try{ const v=await shValues('Crew Day Offs');
