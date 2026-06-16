@@ -792,6 +792,9 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .ctrls select{font-size:13.5px;padding:6px 9px;min-width:155px;max-width:300px}
 .ctrls optgroup{font-weight:800;color:var(--dim)}
 .ctrls optgroup option{font-weight:500;color:var(--ink)}
+.synclist{margin-top:8px;max-height:340px;overflow:auto;border:1px solid var(--line2);border-radius:8px}
+.syncrow{padding:8px 11px;border-bottom:1px solid var(--line2);font-size:14px;line-height:1.4}
+.syncrow:last-child{border-bottom:0}
 .gsizes{display:flex;gap:7px}
 .gsizes button{border:1.5px solid var(--line2);background:var(--card);border-radius:8px;font-family:'Inter';font-weight:600;font-size:14px;padding:7px 9px;cursor:pointer}
 .gsizes button.on{border-color:var(--fleet);background:var(--fleet-bg)}
@@ -2883,11 +2886,12 @@ function toastUndo(msg,fn){
   n.classList.add('show');
   clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),10000);
 }
-function toast(msg){
+function toast(msg,onclick){
   let n=document.getElementById('locknote');
   if(!n){n=document.createElement('div');n.id='locknote';document.body.appendChild(n);}
   n.innerHTML=msg;n.classList.add('show');
-  clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),4500);
+  n.onclick=onclick||null;n.style.cursor=onclick?'pointer':'';
+  clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),onclick?9000:4500);
 }
 function truckRefs(r){
   return r.vehicles.map(v=>v.kind==='fleet'?v.t.n.replace('#',''):(v.kind==='rental'?((v.sz||'').includes('26')?'ENT26':'ENT20'):'TBD')).join(',');
@@ -3993,6 +3997,7 @@ function removeJobByEventId(id){
   }
   return null;
 }
+var LAST_SYNC=null;
 async function calSyncCore(){
   const since=CAL_SYNC_ISO||DATA.pulledISO||new Date(Date.now()-86400000).toISOString();
   let pageToken=null,items=[];
@@ -4004,7 +4009,7 @@ async function calSyncCore(){
   for(const ev of items){
     if(ev.status==='cancelled'){
       const was=removeJobByEventId(ev.id);
-      if(was){del++;lines.push('🗑 removed — '+(ev.summary||ev.id)+' ('+was.day+')');}
+      if(was){del++;lines.push('🗑 '+(was.old&&was.old.customer||ev.summary||ev.id)+' — removed ('+was.day+')');}
       continue;
     }
     const job=parseCalEvent(ev);
@@ -4017,15 +4022,24 @@ async function calSyncCore(){
     job.idx=(DATA.days[day]=DATA.days[day]||[]).length;
     if(was&&was.old&&was.old._synced)job._synced=true; // a push we just made stays acknowledged
     DATA.days[day].push(job);
-    if(was){upd++;lines.push('🔁 updated — '+job.code+(was.day!==day?' · moved '+was.day+' → '+day:'')+' ('+day+')');}
-    else{add++;lines.push('🆕 new — '+job.code+' ('+day+')');}
+    if(was){upd++;const _o=was.old||{};const _ch=[];if(was.day!==day)_ch.push('moved '+was.day+' → '+day);if(_o.start&&job.start&&_o.start!==job.start)_ch.push('time '+tm(_o.start)+' → '+tm(job.start));if((_o.crew||0)!==(job.crew||0))_ch.push('crew '+(_o.crew||'?')+' → '+(job.crew||'?'));if((_o.cf||0)!==(job.cf||0))_ch.push('CF '+(_o.cf||0).toLocaleString()+' → '+(job.cf||0).toLocaleString());if((_o.trucksQ||0)!==(job.trucksQ||0))_ch.push('trucks '+(_o.trucksQ||'?')+' → '+(job.trucksQ||'?'));if((_o.mf||'')!==(job.mf||''))_ch.push('pickup changed');if((_o.deliveryAddr||_o.mt||'')!==(job.deliveryAddr||job.mt||''))_ch.push('dropoff changed');lines.push('🔁 '+(job.customer||job.code)+' — '+(_ch.length?_ch.join(', '):'details updated')+' ('+day+')');}
+    else{add++;lines.push('🆕 '+(job.customer||job.code)+' — new ('+day+')');}
   }
   CAL_SYNC_ISO=new Date().toISOString();
   DATA.jobs=DATA.days[currentDay]||[];
   computeAutoOff();rebuildRoutes();render();populateDays();updateHDate();
   const st=document.getElementById('rfstamp');
   if(st)st.textContent='cal sync: '+new Date().toTimeString().slice(0,5)+' · sheet pull: '+(DATA.pulled||'—');
+  LAST_SYNC={lines:lines.slice(),add,upd,del,skip,at:Date.now()};
   return {items,add,upd,del,skip,lines,since};
+}
+function showSyncChanges(s){
+  s=s||LAST_SYNC;
+  if(!s){toast('No recent calendar sync to show yet.');return;}
+  const rows=s.lines||[];
+  const head='<div class="gsub">Pulled from Google Calendar'+(s.at?(' · '+new Date(s.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})):'')+' — '+(s.add||0)+' new · '+(s.upd||0)+' updated · '+(s.del||0)+' removed'+((s.skip||0)?(' · '+s.skip+' skipped'):'')+'.</div>';
+  const list=rows.length?('<div class="synclist">'+rows.map(function(t){return '<div class="syncrow">'+esc(t)+'</div>';}).join('')+'</div>'):'<div class="syncrow">No detailed changes were recorded.</div>';
+  gModal('What changed in the calendar',head+list);
 }
 const CAL_PAST_DAYS=60,CAL_FUTURE_DAYS=200;
 let CAL_FULL_DONE=false;
@@ -4083,7 +4097,7 @@ window.addEventListener('focus',()=>{
   if(Date.now()-LAST_FOCUS_SYNC<45000)return;
   LAST_FOCUS_SYNC=Date.now();
   Promise.resolve().then(()=>calSyncCore()).then(s=>{
-    if(s&&((s.upd||0)+(s.add||0)+(s.del||0))>0)toast('🔄 Calendar edits pulled in — '+(s.upd||0)+' updated'+(s.add?' · '+s.add+' new':'')+(s.del?' · '+s.del+' removed':''));
+    if(s&&((s.upd||0)+(s.add||0)+(s.del||0))>0)toast('🔄 Calendar edits pulled in — '+(s.upd||0)+' updated'+(s.add?' · '+s.add+' new':'')+(s.del?' · '+s.del+' removed':'')+' · <u>see what changed</u>',function(){showSyncChanges(s);});
   }).catch(()=>{});
 });
 function setJobEnabled(key,on,meta){
@@ -4497,7 +4511,7 @@ function connectCalendarFlow(){ensureGToken(async()=>{
       setTimeout(()=>m.classList.remove('show'),2600);
     } else {
       const s=await calSyncCore();
-      toast('Synced: '+s.add+' new · '+s.upd+' updated · '+s.del+' removed.');
+      toast('Synced: '+s.add+' new · '+s.upd+' updated · '+s.del+' removed.'+(((s.add||0)+(s.upd||0)+(s.del||0))?' · <u>see what changed</u>':''),((s.add||0)+(s.upd||0)+(s.del||0))?function(){showSyncChanges(s);}:null);
     }
   }catch(e){gModal('Calendar import failed',esc(e.message));}
   updateCalBtn();
