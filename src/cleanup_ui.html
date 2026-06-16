@@ -656,6 +656,65 @@ function bindDay(iso){
   root.querySelectorAll('#cltl .tlsep[data-b]').forEach(sep=>sep.addEventListener('click',()=>{ const b=sep.dataset.b; if(COLLAPSED.has(b))COLLAPSED.delete(b); else COLLAPSED.add(b); root.querySelectorAll('#cltl .tlrow[data-base="'+b+'"]').forEach(r=>{r.style.display=COLLAPSED.has(b)?'none':'';}); const c=sep.querySelector('.tlcaret'); if(c)c.textContent=COLLAPSED.has(b)?'\u25b8':'\u25be'; }));
   const up=$('updcal'); if(up)up.addEventListener('click',()=>{ if(!up.disabled)showUpdateSummary(); });
 }
+/* ===== calendar write-back (cleanup): re-chain + date move, final-face ===== */
+function upsertField(desc,label,value){desc=desc==null?'':String(desc);value=value==null?'':String(value);const lines=desc.split('\n');const rx=new RegExp('^\\s*'+label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*:','i');let found=false;for(let i=0;i<lines.length;i++){if(rx.test(lines[i])){lines[i]=label+': '+value;found=true;break;}}if(!found)lines.push(label+': '+value);return lines.join('\n');}
+function setForemanGuest(attendees,newEmail,foremanEmails){const set=new Set((foremanEmails||[]).map(e=>String(e).toLowerCase()));let att=(attendees||[]).slice().filter(a=>{const e=(a.email||'').toLowerCase();if(!e)return true;if(set.has(e))return false;return true;});if(newEmail){const ne=newEmail.toLowerCase();if(!att.some(a=>(a.email||'').toLowerCase()===ne))att.push({email:newEmail});}return att;}
+function foremanEmailSet(){return (DATA.foremen||[]).map(f=>(f.email||'')).filter(Boolean);}
+function emailForNick(nick){const f=(DATA.foremen||[]).find(x=>(x.nick||'').toLowerCase()===String(nick||'').toLowerCase());return (f&&f.email)||'';}
+function parseTitleTag(title){const p=String(title||'').split('#');return p.length>=3?{nick:p[1],truck:p[2]}:{nick:'',truck:''};}
+function newTitle(oldTitle,nick,truckTok){const p=String(oldTitle||'').split('#');if(p.length>=3){p[1]=nick;p[2]=truckTok;return p.join('#');}return String(oldTitle||'')+' #'+nick+'#'+truckTok+'#';}
+function calActions(){
+  const out=[]; if(!CURPLAN)return out;
+  const chg=CURCHANGES||{};
+  Object.keys(chg).forEach(function(code){
+    const c=chg[code]; const j=jobByCode(code); if(!j||!j.eventId)return;
+    if(c.kind==='call'){
+      const lead=c.after; const lj=lead?jobByCode(lead):null;
+      const rec=((CURPLAN.callPool||[]).find(function(x){return x.tail===code;}))||{};
+      const arrive=rec.askArriveMs!=null?rec.askArriveMs:rec.arriveMs;
+      out.push({kind:'rechain',code:code,eventId:j.eventId,customer:j.customer||c.customer,
+        leadCode:lead,leadCustomer:(lj&&lj.customer)||'',leadEventId:(lj&&lj.eventId)||null,newStartMs:arrive});
+    } else if(c.kind==='move'){
+      out.push({kind:'date',code:code,eventId:j.eventId,customer:j.customer,toDay:c.to});
+    }
+  });
+  return out;
+}
+async function executeCalWrites(){
+  const acts=calActions();
+  if(!acts.length){gModal('Nothing to write','<div class="gsub">No confirmed changes on this day yet.</div>');return;}
+  let ok=0,fail=0;const errs=[];
+  const pad=n=>String(n).padStart(2,'0');
+  const fmtLocal=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00';
+  for(const a of acts){
+    try{
+      const ev=await gapiFetch(evPath(a.eventId));
+      const tz=(ev.start&&ev.start.timeZone)||'America/New_York';
+      const durMs=(Date.parse(ev.end&&ev.end.dateTime)-Date.parse(ev.start&&ev.start.dateTime))||3*3600000;
+      if(a.kind==='rechain'){
+        let leadNick='',leadTruck='';
+        if(a.leadEventId){try{const lev=await gapiFetch(evPath(a.leadEventId));const tg=parseTitleTag(lev.summary);leadNick=tg.nick;leadTruck=tg.truck;}catch(e){}}
+        let desc=ev.description||'';
+        if(a.leadCode)desc=upsertField(desc,'After Job Code',a.leadCode);
+        desc=upsertField(desc,'After Customer Name',a.leadCustomer||'');
+        if(leadTruck)desc=upsertField(desc,'Truck #',leadTruck);
+        desc=upsertField(desc,'Support Chained','Yes');
+        const body={description:desc};
+        if(leadNick)body.summary=newTitle(ev.summary,leadNick,leadTruck);
+        body.attendees=setForemanGuest(ev.attendees,emailForNick(leadNick),foremanEmailSet());
+        if(a.newStartMs!=null){const day=String(ev.start.dateTime||'').slice(0,10)||(SELECTED||CURPLAN.iso);const sd=day+'T'+fmtMs(a.newStartMs)+':00';body.start={dateTime:sd,timeZone:tz};body.end={dateTime:fmtLocal(new Date(Date.parse(sd)+durMs)),timeZone:tz};}
+        await gapiFetch(evPath(a.eventId),{method:'PATCH',body:JSON.stringify(body)});
+      } else {
+        const clock=(ev.start.dateTime||'').slice(11,16)||'09:00';
+        const sdt=a.toDay+'T'+clock+':00';
+        await gapiFetch(evPath(a.eventId),{method:'PATCH',body:JSON.stringify({start:{dateTime:sdt,timeZone:tz},end:{dateTime:fmtLocal(new Date(Date.parse(sdt)+durMs)),timeZone:tz}})});
+      }
+      ok++;
+    }catch(e){fail++;errs.push(a.code+': '+e.message);}
+  }
+  $('gmodalhost').innerHTML='';
+  gModal('Calendar updated','<div class="gsub">\u2705 '+ok+' change'+(ok!==1?'s':'')+' written'+(fail?' \u00b7 \u26a0 '+fail+' failed':'')+'.</div>'+(fail?'<div class="gqt">'+esc(errs.slice(0,4).join(' \u00b7 '))+'</div>':'')+'<div class="gqt">Press Update Calendar to re-pull and see them reflected here.</div>');
+}
 function showUpdateSummary(){
   const iso=SELECTED; const chg=CURCHANGES||{}; const ents=Object.keys(chg);
   if(!ents.length){gModal('Nothing confirmed yet','<div class="gsub">Mark the calls you\u2019ve agreed and the dates you\u2019ve moved as <b>confirmed</b> first \u2014 then this shows the summary of what will change.</div>');return;}
@@ -667,7 +726,7 @@ function showUpdateSummary(){
   html+='<div class="sumnet">Net effect: frees <b>'+ents.length+'</b> crew-day'+(ents.length>1?'s':'')+' on this date.</div>';
   var box=gModal('Update summary \u2014 '+ents.length+' change'+(ents.length>1?'s':''), html, '<button class="cb" id="sumcancel">Cancel</button> <button class="cb yes" id="sumconfirm">Confirm \u0026 update calendar</button>');
   box.querySelector('#sumcancel').onclick=function(){$('gmodalhost').innerHTML='';};
-  box.querySelector('#sumconfirm').onclick=function(){$('gmodalhost').innerHTML='';gModal('Calendar write-back is paused','<div class="gsub">\u2705 Your '+ents.length+' change'+(ents.length>1?'s are':' is')+' confirmed and saved here. The actual calendar write is intentionally paused until we verify it end-to-end \u2014 it\u2019ll push automatically once we switch it on.</div>');};
+  box.querySelector('#sumconfirm').onclick=function(){$('gmodalhost').innerHTML='';ensureGToken(function(){executeCalWrites();});};
 }
 
 function plan_buffer(){return (typeof CLEAN!=='undefined'&&CLEAN.buffer)||2;}
