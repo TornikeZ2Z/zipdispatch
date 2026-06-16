@@ -2014,7 +2014,7 @@ function miniCardHTML(r,mis){
 function assignCtrlsHTML(r){
   if(currentDay<TODAY_ISO)return '';
   if(r.confirmed)return '<div class="confbox">✔ <b>CONFIRMED</b> — '+esc(r.foreman?r.foreman.name:'')+' + '+esc(truckRefs(r)||'—')+' locked for this route. Hidden from every other route\'s dropdowns.<button class="uncfbtn" data-r="'+r.id+'">change</button></div>';
-  if(!canEdit())return '<div class="ronote">🔒 assignments lock in the day before — open this day again on '+new Date(Date.parse(currentDay+'T12:00')-86400000).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})+' to adjust it</div>';
+  if(!canEdit())return '<div class="ronote">🔒 not open for assignment yet — open this day again on '+new Date(Date.parse(currentDay+'T12:00')-(EDIT_WINDOW_DAYS-1)*86400000).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})+' to adjust it</div>';
   const RO=!canEdit();
   const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
   const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
@@ -2045,7 +2045,7 @@ function assignCtrlsHTML(r){
   const tnSel='<div class="ctrlgrp"><label>Trucks</label><select data-act="tn"'+(RO?' disabled':'')+' data-r="'+r.id+'" title="Number of Trucks the sales team sold this job with — override if the load really needs fewer or more">'
     +'<option value="auto"'+(r.trucksOverride==null?' selected':'')+'>sales: '+r.trucksNeeded+'</option>'
     +[1,2,3].map(n=>'<option value="'+n+'"'+(r.trucksOverride===n?' selected':'')+'>'+n+' truck'+(n>1?'s':'')+'</option>').join('')+'</select></div>';
-  return (RO?'<div class="ronote">🔒 read-only — assignments are made for today &amp; tomorrow only</div>':'')+'<div class="ctrls"><div class="ctrlrow">'
+  return (RO?'<div class="ronote">🔒 read-only — assignments are made for today and the next 3 days only</div>':'')+'<div class="ctrls"><div class="ctrlrow">'
     +'<div class="ctrlgrp"><label>Base</label>'+baseSel+'</div>'
     +'<div class="ctrlgrp"><label>Foreman</label>'+fSel+'</div>'
     +tnSel+tSels+cfHtml
@@ -2786,8 +2786,10 @@ let CHANGED={};
 function vehRefs(r){return r.vehicles.map(v=>v.kind==='fleet'?v.t.n:(v.kind==='rental'?('R'+((v.sz||'').includes('26')?'26':'20')):'SHORT')).join('+');}
 function takeSnap(){const s={};routes.forEach(r=>{s[r.legs[0].code]={f:r.foreman?r.foreman.name:null,b:r.base,v:vehRefs(r)};});return s;}
 const ZD_KEY='zd_state_v1';
+var EDIT_WINDOW_DAYS=4; // editable + pushable window: today plus the next 3 days
 function tomorrowISO(){return new Date(new Date(TODAY_ISO+'T12:00').getTime()+86400000).toISOString().slice(0,10);}
-function canEdit(d){d=d||currentDay;return d>=TODAY_ISO&&d<=tomorrowISO();}
+function editEndISO(){return new Date(new Date(TODAY_ISO+'T12:00').getTime()+(EDIT_WINDOW_DAYS-1)*86400000).toISOString().slice(0,10);}
+function canEdit(d){d=d||currentDay;return d>=TODAY_ISO&&d<=editEndISO();}
 function canChain(d){d=d||currentDay;return d>=TODAY_ISO;} // chain / detach allowed on any non-past day; only calendar push is limited to today+tomorrow
 function chainApply(fn){
   if(!canChain()){toast('🔒 Past day — review mode; chaining is disabled.');return;}
@@ -2871,7 +2873,7 @@ function showRestoreBar(day,n,dn){
   b.querySelector('.rbx').addEventListener('click',()=>{b.style.display='none';});
 }
 function applyWithDiff(editedRid,fn){
-  if(!canEdit()){toast('🔒 This day is read-only — manual changes are for today & tomorrow only.');return;}
+  if(!canEdit()){toast('🔒 This day is read-only — manual changes are for today and the next 3 days only.');return;}
   const snap=takeSnap();CHANGED={};
   fn();render();
   const msgs=[];
@@ -3249,7 +3251,7 @@ function addJobModal(){
     +'<div class="ajf full"><label>Delivery <i>(optional — leave empty for a single-stop drop-off or labor visit)</i></label><input id="ajda" placeholder="street, city, ST zip"><div class="ajhint" id="ajdah"></div></div>'
     +'<div class="ajf"><label>Estimated CF <em>*</em> <i>(sizes the truck)</i></label><input id="ajcf" type="number" value="300"></div>'
     +'<div class="ajf"><label>Crew needed <em>*</em> <i>(a bigger crew can roll if they\'re close)</i></label><input id="ajcr" type="number" value="2"></div>'
-    +'<div class="ajf"><label>Date <em>*</em></label><input id="ajdt" type="date" min="'+TODAY_ISO+'" max="'+tomorrowISO()+'" value="'+(canEdit()?currentDay:TODAY_ISO)+'"></div>'
+    +'<div class="ajf"><label>Date <em>*</em></label><input id="ajdt" type="date" min="'+TODAY_ISO+'" max="'+editEndISO()+'" value="'+(canEdit()?currentDay:TODAY_ISO)+'"></div>'
     +'<div class="ajf"><label>Start <em>*</em></label><div class="ajrow"><input id="ajst" type="time" value="13:00"><label class="ajasap"><input type="checkbox" id="ajasap"> ASAP</label></div></div>'
     +'</div>'
     +'<details class="ajmore"><summary>More details (optional)</summary><div class="ajform2">'
@@ -3288,7 +3290,7 @@ function addJobModal(){
     const cf=+m.querySelector('#ajcf').value||0;
     if(cf<=0)return err('Estimated CF is required — it decides which truck fits.');
     const day=m.querySelector('#ajdt').value;
-    if(!canEdit(day))return err('Jobs can only be added for today or tomorrow.');
+    if(!canEdit(day))return err('Jobs can only be added for today and the next 3 days.');
     const asap=m.querySelector('#ajasap').checked;
     const stv=asap?'09:00':(m.querySelector('#ajst').value||'13:00');
     const jt=m.querySelector('#ajjt').value;
@@ -3830,7 +3832,7 @@ function updateCalBtn(){
   if(!canEdit()){
     b.textContent='🗓 Update calendar';
     b.disabled=true;
-    b.title=(currentDay<TODAY_ISO?'Past day — review mode; nothing gets written back to the calendar.':'Calendar write-back works for today & tomorrow only — assignments further out aren\'t final yet, so pushing them would just create churn.');
+    b.title=(currentDay<TODAY_ISO?'Past day — review mode; nothing gets written back to the calendar.':'Calendar write-back works for today and the next 3 days only — assignments further out aren\'t final yet, so pushing them would just create churn.');
     return;
   }
   const _unc=routes.filter(r=>!r.confirmed&&!isDraftRoute(r)).length;
@@ -3853,7 +3855,7 @@ async function pushCalendarUpdates(...__a){
   return _pushCalendarUpdates(...__a);
 }
 async function _pushCalendarUpdates(){
-  if(!canEdit())return toast('🗓 calendar write-back is for today & tomorrow only');
+  if(!canEdit())return toast('🗓 calendar write-back is for today and the next 3 days only');
   const pend=pendingCalChanges();
   if(!pend.length)return;
   ensureGToken(async()=>{
