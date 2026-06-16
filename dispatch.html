@@ -453,7 +453,7 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .lbh{display:flex;align-items:baseline;justify-content:space-between;font-size:13.5px;font-weight:700;margin:12px 0 5px;color:var(--ink)}
 .lbh span{font-size:12px;color:var(--faint);font-weight:600}
 .lbrow{display:flex;align-items:center}
-.lbrow.dim{opacity:.45}
+.lbrow.dim{opacity:.62}
 .lbrow.truck b{font-weight:700;min-width:26px}
 .lbst{font-size:12px;color:var(--faint);min-width:26px}
 .lbbar{flex:1;height:7px;background:var(--line);border-radius:4px;overflow:hidden}
@@ -769,6 +769,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .lbtop em b{color:var(--fleet)}
 .lbsub{font-size:14px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
 .lbsub b{color:var(--fleet);font-weight:700}
+.lbheld,.pairtag{display:inline-flex!important;align-items:center;gap:2px;background:var(--fleet)!important;color:#fff!important;border-radius:5px;padding:0 6px;font-size:11px;font-weight:700;vertical-align:middle;line-height:1.5}
 .lbbar{flex:1;height:10px;background:var(--line);border-radius:5px;overflow:hidden}
 .lbbar i{display:block;height:100%;background:var(--fleet);border-radius:5px}
 .lbrow em{min-width:38px;text-align:right;font-size:14px}
@@ -786,7 +787,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .lbh[data-sec]{cursor:pointer;user-select:none}
 .gform{display:grid;grid-template-columns:130px 1fr;gap:9px 12px;align-items:center;margin-top:12px}
 .gform label{font-size:14px;font-weight:600;color:var(--dim)}
-.gform input,.gselect{border:1.5px solid var(--line2);border-radius:8px;padding:8px 10px;font-family:'Inter';font-size:15px;width:100%}
+.gform input,.gselect{border:1.5px solid var(--line2);border-radius:8px;padding:8px 10px;font-family:'Inter';font-size:15px;width:100%;background:var(--card);color:var(--ink);font-weight:600}
 .gsizes{display:flex;gap:7px}
 .gsizes button{border:1.5px solid var(--line2);background:var(--card);border-radius:8px;font-family:'Inter';font-weight:600;font-size:14px;padding:7px 9px;cursor:pointer}
 .gsizes button.on{border-color:var(--fleet);background:var(--fleet-bg)}
@@ -903,7 +904,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   <div id="rfwrap">
     <div class="rfrowbtns">
       <button id="addjob" title="A sudden new job or an extra A→B trip — add it and get instant placement advice">＋ Add job</button><button id="calpush" title="Write today's assignments back to the Google Calendar events" disabled>🗓 Update calendar</button><button id="confall" style="display:none"></button>
-      <button id="resetov" style="display:none">Reset changes</button>
+      <button id="resetov">Reset changes</button>
       <button id="bellbtn" style="display:none" title="Sync &amp; import notices — nothing here ever changes your board by itself">🔔<span id="bellct"></span></button>
       <button id="refreshbtn" title="One refresh for everything: crew/trucks/day-offs/rentals from the sheet + job changes from the calendar">↻ Refresh</button>
     </div>
@@ -1614,7 +1615,7 @@ function renderFilters(){
 function manualChangeCount(){
   let n=0;
   routes.forEach(r=>{if(r.baseOverride)n++;if(r.pinForeman)n++;if(r.pinTrucks&&r.pinTrucks.some(Boolean))n++;});
-  n+=manualChains.length+AUTOOFFLIST.size+DAYOFF.size;
+  n+=manualChains.length+AUTOOFFLIST.size+DAYOFF.size+EXCL.size+FORCE.size+Object.keys(DATA.holders||{}).length;
   return n;
 }
 function updateResetBtn(){
@@ -3060,7 +3061,7 @@ function renderFleetStrip(){
       return '<div class="lbrow truck'+(used?'':' dim')+(tk.rented?' rentedm':'')+'" data-t="'+esc(tk.n)+'" data-r="'+(used?esc(using[0].id):'')+'" title="'+esc((tk.type==='Van'?'Van ':'Truck ')+tk.n+' · '+tk.cf.toLocaleString()+' CF · cab '+tk.maxCrew+(tk.rented?' · rented':'')+(used?' — click to open '+using[0].id+' on the map':' — spare today'))+'">'
         +'<b class="tkn'+(used?' on':'')+'">'+esc(String(tk.n).replace('#',''))+'</b>'
         +'<div class="lbmain"><div class="lbtop"><span class="lbbar"><i style="width:'+pct+'%"></i></span><em>'+(used?pct+'%':'—')+'</em></div>'
-        +'<div class="lbsub">'+esc(tk.state)+(tk.type==='Van'?' van':'')+' · '+tk.cf.toLocaleString()+' CF'+(hold?' · 🔗'+esc(nickOf(hold)):'')+(used?' · <b>'+using.map(r=>r.id).join(' ')+'</b>':' · spare')+'</div></div>'
+        +'<div class="lbsub">'+esc(tk.state)+(tk.type==='Van'?' van':'')+' · '+tk.cf.toLocaleString()+' CF'+(hold?' · <span class="pairtag">🔗'+esc(nickOf(hold))+'</span>':'')+(used?' · <b>'+using.map(r=>r.id).join(' ')+'</b>':' · spare')+'</div></div>'
         +'<button class="lbdots" data-menu="truck" data-t="'+esc(tk.n)+'">⋯</button></div>';
     }).join('');
     {const _sh=routes.reduce((s,r)=>s+(r.short||0),0);
@@ -4384,12 +4385,18 @@ if(restoreDayState(currentDay,true))render();
 document.getElementById('resetov').addEventListener('click',()=>{
   const n=manualChangeCount();
   if(!n)return;
-  routes.forEach(r=>{r.baseOverride=null;r.pinForeman=null;r.pinTrucks=[];});
+  const _m=gModal('Reset the board?','<div class="gsub">This undoes all '+n+' change'+(n>1?'s':'')+' on this day - pinned foremen and trucks, base overrides, manual re-chains, day-off toggles, confirmations, excluded jobs, and foreman/truck pairings - and puts the board back to the original engine suggestions.<br><br><b>Rented trucks you added stay.</b> This only changes the board.</div><div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button id="rstno" style="border:1.5px solid var(--line2);background:var(--card);color:var(--ink);font-family:Inter;font-weight:600;font-size:15px;padding:8px 14px;border-radius:10px;cursor:pointer">Keep changes</button><button class="gapply" id="rstyes">Yes, reset the board</button></div>');
+  _m.querySelector('#rstno').addEventListener('click',()=>_m.classList.remove('show'));
+  _m.querySelector('#rstyes').addEventListener('click',()=>{
+  _m.classList.remove('show');
+  routes.forEach(r=>{r.baseOverride=null;r.pinForeman=null;r.pinTrucks=[];r.trucksOverride=null;r.confirmed=false;});
+  EXCL.clear();FORCE.clear();persistToggles();DATA.holders={};
   manualChains=[];AUTOOFFLIST.clear();DAYOFF.clear();CHANGED={};
-  const z=loadZD();if(z.days){delete z.days[currentDay];saveZD(z);}
+  const z=loadZD();if(z.days){delete z.days[currentDay];}z.holders={};saveZD(z);
   const rb=document.getElementById('restorebar');if(rb)rb.style.display='none';
   rebuildRoutes();render();
   toast('Reset complete — '+n+' manual change'+(n>1?'s':'')+' undone (pins, base overrides, re-chains, day-off toggles). The board is back to pure engine suggestions.');
+});
 });
 function updateHDate(){
   const dt=new Date(currentDay+'T12:00');
