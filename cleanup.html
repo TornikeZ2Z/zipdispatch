@@ -3094,12 +3094,12 @@ $('rfbtn')&&$('rfbtn').addEventListener('click',function(){
 });
 function boot(){
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
-  $('rfstamp').textContent='jobs through '+Object.keys(DATA.days).sort().slice(-1)[0]+' \u00b7 '+DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length+' backup crews held';
+  {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
   renderHorizon();
   const fs=WINDOW.find(d=>d.status==='short')||WINDOW.find(d=>d.status==='tight')||WINDOW[0];
   if(fs){SELECTED=fs.iso;renderHorizon();renderDay(SELECTED);}
-  else $('daydetail').innerHTML='<div class="pickprompt">No calendar days in this range. Pick another start date above.</div>';
+  else $('daydetail').innerHTML='<div class="pickprompt">'+(!GTOKEN?'Connect Google Calendar (button above) to load your upcoming jobs.':(Object.keys(DATA.days).length?'No calendar days in this range. Pick another start date above.':'Loading jobs from Google Calendar…'))+'</div>';
   if(GTOKEN&&!boot._pulled){boot._pulled=1;pullAll();}else if(GTOKEN){syncFromSheet();}
 }
 boot();
