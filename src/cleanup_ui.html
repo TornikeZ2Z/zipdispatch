@@ -99,7 +99,7 @@ const GCAL_CLIENT_ID='712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleu
 let GTOKEN=null,GTOKEXP=0,_tokenClient=null;
 const GSCOPE_VER='cal+sheets-1';
 var _shWarned=false;
-function sheetWarnOnce(e){if(_shWarned)return;const m=String((e&&e.message)||e||'');if(/403|permission/i.test(m)){_shWarned=true;try{gModal('Reconnect needed to save','<div class="gsub">You are connected to Calendar, but saving to the Google Sheet needs the Sheets permission. Click <b>Update Calendar</b> (or Connect) once and approve Google Sheets access, then your decisions and rentals will save.</div>');}catch(_){}}}
+function sheetWarnOnce(e){if(_shWarned)return;_shWarned=true;const raw=String((e&&(e.body||e.message))||e||'');const off=/has not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(raw);const perm=/PERMISSION_DENIED|insufficient|invalid_scope|ACCESS_TOKEN_SCOPE/i.test(raw);let h;if(off){h='<div class="gsub">The <b>Google Sheets API</b> is turned off for this app\u2019s Google Cloud project, so nothing can be read from or written to the sheet. Open the link in the message below, click <b>Enable</b>, wait about a minute, then reconnect.</div>';}else if(perm){h='<div class="gsub">Connected to Calendar, but the Google <b>Sheets</b> permission was not granted. Click <b>Update Calendar</b> and approve Google Sheets access.</div>';}else{h='<div class="gsub">Reading or writing the Google Sheet failed.</div>';}h+='<div class="mono" style="margin-top:8px;white-space:pre-wrap;font-size:11px;opacity:.85">'+esc(raw).slice(0,600)+'</div>';try{gModal('Sheet access problem',h);}catch(_){}}
 try{const _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.exp>Date.now()+60000&&_g.scope===GSCOPE_VER){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
 function gcalReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
 function ensureGToken(cb){
@@ -796,9 +796,8 @@ function colA1(i){let s='';i++;while(i){s=String.fromCharCode(65+(i-1)%26)+s;i=M
 async function shFetch(path,opt){
   if(!GTOKEN)throw new Error('not connected');
   const r=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+path,Object.assign({headers:{'Authorization':'Bearer '+GTOKEN,'Content-Type':'application/json'}},opt||{}));
-  if(r.status===403)throw new Error('Google needs the Sheets permission \u2014 click Connect once to re-approve');
-  if(!r.ok)throw new Error('Sheets API HTTP '+r.status);
-  return r.json();
+  if(!r.ok){ let body=''; try{body=await r.text();}catch(_){} let msg=body; try{const j=JSON.parse(body); if(j&&j.error&&j.error.message)msg=j.error.message;}catch(_){} const e=new Error('Sheets API '+r.status+(msg?(' \u2014 '+msg):'')); e.status=r.status; e.body=msg; throw e; }
+  return r.status===204?null:r.json();
 }
 async function shValues(tab){return (await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+'?valueRenderOption=FORMATTED_VALUE')).values||[];}
 async function shAppendRow(tab,obj){
@@ -871,7 +870,7 @@ async function syncFromSheet(){
       const off=[]; for(let i=1;i<v.length;i++){const r=v[i]||[];const nm=(r[iN]||'').trim(),a=mdyToIso(r[iS]),b=mdyToIso(r[iE]||r[iS]);if(nm&&a)off.push([nm,a,b||a,(r[iT]||'').trim()]);}
       if(off.length){DATA.dayoffs=off;APD=null;}
     }
-  }catch(e){}
+  }catch(e){ sheetWarnOnce(e); }
   try{ const cv=await shValues('Crew Members'); const fm=crewToForemen(cv); if(fm.length){DATA.foremen=fm;APD=null;} }catch(e){}
   shEnsureTab('Rented Trucks',RENTED_HEADERS);
   try{ const v=await shValues(LOGTAB);
