@@ -2974,7 +2974,7 @@ async function shFetch(path,opt){
   if(!r.ok){ let body=''; try{body=await r.text();}catch(_){} let msg=body; try{const j=JSON.parse(body); if(j&&j.error&&j.error.message)msg=j.error.message;}catch(_){} const e=new Error('Sheets API '+r.status+(msg?(' — '+msg):'')); e.status=r.status; e.body=msg; throw e; }
   return r.status===204?null:r.json();
 }
-async function shValues(tab){return (await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+'?valueRenderOption=FORMATTED_VALUE')).values||[];}
+async function shValues(tab){try{return (await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+'?valueRenderOption=FORMATTED_VALUE')).values||[];}catch(e){if(/Unable to parse range|400/.test(String(e&&(e.body||e.message))))return [];throw e;}}
 async function shAppendRow(tab,obj){
   let vals;
   try{vals=await shValues(tab);}catch(e){vals=[];}
@@ -2990,7 +2990,7 @@ async function shAppendRow(tab,obj){
 }
 async function shUpdateCellByMatch(tab,match,setCol,setVal){
   const vals=await shValues(tab);
-  if(!vals.length)throw new Error(tab+' tab is empty');
+  if(!vals.length)return false;
   const header=vals[0];
   for(let i=1;i<vals.length;i++){
     const row=Object.fromEntries(header.map((h,j)=>[h,vals[i][j]||'']));
