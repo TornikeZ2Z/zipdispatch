@@ -2950,9 +2950,9 @@ async function syncFromSheet(){
       }
     }
   }catch(e){}
-  APD=null; renderHorizon(); if(SELECTED)renderDay(SELECTED);
+  APD=null; try{ renderHorizon(); if(SELECTED)renderDay(SELECTED); }catch(e){}
 }
-$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet().then(()=>showUpdateSummary()); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. Calendar write-back stays parked until verified.</div>');}); });
+$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet().catch(function(){}).then(function(){showUpdateSummary();}); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. Calendar write-back stays parked until verified.</div>');}); });
 $('fromDate').addEventListener('change',()=>{SELECTED=null;HZPAGE=0;boot();});
 function boot(){
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
