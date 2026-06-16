@@ -797,6 +797,13 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .synclist{margin-top:8px;max-height:340px;overflow:auto;border:1px solid var(--line2);border-radius:8px}
 .syncrow{padding:8px 11px;border-bottom:1px solid var(--line2);font-size:14px;line-height:1.4}
 .syncrow:last-child{border-bottom:0}
+.conflist{margin-top:11px;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+.confrow{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:14px}
+.confrow:last-child{border-bottom:0}
+.confrte{font-weight:800;color:var(--fleet);min-width:36px}
+.conffor{font-weight:600;flex:1;color:var(--ink)}
+.conftk{color:var(--dim);white-space:nowrap;font-size:13px}
+.confmore{justify-content:center;color:var(--dim);font-weight:600;font-style:italic}
 .gsizes{display:flex;gap:7px}
 .gsizes button{border:1.5px solid var(--line2);background:var(--card);border-radius:8px;font-family:'Inter';font-weight:600;font-size:14px;padding:7px 9px;cursor:pointer}
 .gsizes button.on{border-color:var(--fleet);background:var(--fleet-bg)}
@@ -3808,7 +3815,7 @@ document.addEventListener('click',e=>{
   const ub=e.target.closest('.uncfbtn');
   if(ub){unconfirmRoute(ub.dataset.r);return;}
   const ca=e.target.closest('#confall');
-  if(ca){const ready=routes.filter(r=>!r.confirmed&&r.foreman&&!((r.short||0)>0)&&!isDraftRoute(r));if(!ready.length)return;const _list=ready.slice(0,8).map(r=>r.id+' → '+esc(r.foreman.name)+' + '+esc(truckRefs(r)||'—')).join('<br>')+(ready.length>8?'<br>…and '+(ready.length-8)+' more':'');confirmDo('Confirm all '+ready.length+' route'+(ready.length>1?'s':'')+'?','This locks the foreman + truck on '+ready.length+' route'+(ready.length>1?'s':'')+' for '+fmtDayLong(currentDay)+'. Locked routes drop out of other days’ planning and get written to the calendar on Update:<br><br>'+_list,function(){let n=0;routes.forEach(r=>{if(!r.confirmed&&r.foreman&&!((r.short||0)>0)&&!isDraftRoute(r)){r.pinForeman=r.foreman.name;r.pinTrucks=(r.vehicles||[]).map(v=>v.kind==='fleet'?v.t.n:null);r.confirmed=true;n++;}});if(n){saveDayState();render();updateCalBtn();toastUndo('✔ '+n+' routes confirmed',()=>{routes.forEach(r=>r.confirmed=false);saveDayState();render();updateCalBtn();});}});return;}
+  if(ca){const ready=routes.filter(r=>!r.confirmed&&r.foreman&&!((r.short||0)>0)&&!isDraftRoute(r));if(!ready.length)return;const _tkLabel=r=>{const ts=(r.vehicles||[]).map(v=>{if(v.kind==='fleet'&&v.t)return v.t.n;if(v.kind==='rental')return 'rental'+(v.sz?' '+v.sz:'');return null;}).filter(Boolean);return ts.length?ts.join(', '):'truck TBD';};const _rows=ready.slice(0,10).map(r=>'<div class="confrow"><span class="confrte">'+esc(r.id)+'</span><span class="conffor">'+esc(r.foreman.name)+'</span><span class="conftk">\ud83d\ude9a '+esc(_tkLabel(r))+'</span></div>').join('');const _list='<div class="conflist">'+_rows+(ready.length>10?'<div class="confrow confmore">+ '+(ready.length-10)+' more route'+(ready.length-10>1?'s':'')+'</div>':'')+'</div>';confirmDo('Confirm all '+ready.length+' route'+(ready.length>1?'s':'')+'?','Locks each foreman and truck below to its route for <b>'+fmtDayLong(currentDay)+'</b>. Locked routes drop out of the other days’ planning and get written to Google Calendar when you press <b>Update</b>.'+_list,function(){let n=0;routes.forEach(r=>{if(!r.confirmed&&r.foreman&&!((r.short||0)>0)&&!isDraftRoute(r)){r.pinForeman=r.foreman.name;r.pinTrucks=(r.vehicles||[]).map(v=>v.kind==='fleet'?v.t.n:null);r.confirmed=true;n++;}});if(n){saveDayState();render();updateCalBtn();toastUndo('✔ '+n+' routes confirmed',()=>{routes.forEach(r=>r.confirmed=false);saveDayState();render();updateCalBtn();});}});return;}
 });
 function updateCalBtn(){
   const b=document.getElementById('calpush');
