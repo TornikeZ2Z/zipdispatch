@@ -2900,6 +2900,33 @@ function logDecision(iso,code,customer,kind,action,detail){
   if(action==='reopened')delete SHEET_RES[iso][code]; else SHEET_RES[iso][code]={customer:customer,kind:kind,action:action,detail:detail||''};
   if(GTOKEN){ shAppendRow(LOGTAB,{'Timestamp':new Date().toISOString(),'Date':iso,'Job Code':code,'Customer':customer||'','Kind':kind||'','Action':action,'Detail':detail||'','By':SHEET_DEV}).catch(()=>{}); }
 }
+/* ===== live roster from the sheet (matches dispatcher's rebuildFromTabs) + rental tab bootstrap ===== */
+function numVcu(x){const v=parseFloat(String(x==null?'':x).replace(/[^0-9.\-]/g,''));return isNaN(v)?0:v;}
+function crewToForemen(rows){
+  if(!rows||!rows.length)return [];
+  const h=rows[0]; const idx=n=>h.indexOf(n); const out=[];
+  for(let i=1;i<rows.length;i++){const r=rows[i]||[]; const get=n=>{const k=idx(n);return k<0?'':(r[k]||'');};
+    if(!/orman/.test(String(get('Main Role'))))continue;
+    const st=String(get('Status')||'').trim(); if(st!=='Active'&&st!=='Potential')continue;
+    const ni=c=>{const v=parseFloat(get(c));return isNaN(v)?0:Math.round(v);};
+    out.push({name:((get('First Name')||'').trim()+' '+(get('Last Name')||'').trim()).trim(),
+      nick:(get('Nickname')||'').trim()||(get('First Name')||'').trim(),status:st,
+      base:(get('Base Location')||'').trim(),
+      states:String(get('List of States they can work')||'').split(',').map(s=>s.trim()).filter(Boolean),
+      bigJob:ni('Can do Big Job'),ldPickup:ni('Long Distance Pickiup'),packSell:ni('Can sell Packing'),
+      stacking:ni('Stacking'),multiTruck:ni('More Then 1 Truck Job'),piano:ni('Piano')===1,
+      driver:ni('Truck Driving')===1,canLD:ni('Can do Long Distance')===1,
+      email:(get('Primary Email')||'').trim()||null,
+      hourly:numVcu(get('Local Moving Hourly Rate')),daily:numVcu(get('Long Distance Daily Rate'))});
+  }
+  return out;
+}
+async function shEnsureTab(name,headers){
+  try{const v=await shValues(name); if(v&&v.length)return;}catch(e){}
+  try{await shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});}catch(e){}
+  try{await shFetch('/values/'+encodeURIComponent("'"+name+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[headers]})});}catch(e){}
+}
+const RENTED_HEADERS=['Status','Truck N','CF','Max Crew Size','Base','Type','Provider','Daily Rate','Daily Fee $','One-Time Fee $','Per Mile $','Rental Start','Rental End','Fuel','Notes'];
 async function syncFromSheet(){
   if(!GTOKEN)return;
   try{ const v=await shValues('Crew Day Offs');
@@ -2908,6 +2935,8 @@ async function syncFromSheet(){
       if(off.length){DATA.dayoffs=off;APD=null;}
     }
   }catch(e){}
+  try{ const cv=await shValues('Crew Members'); const fm=crewToForemen(cv); if(fm.length){DATA.foremen=fm;APD=null;} }catch(e){}
+  shEnsureTab('Rented Trucks',RENTED_HEADERS);
   try{ const v=await shValues(LOGTAB);
     if(v&&v.length>1){ const h=v[0],cD=h.indexOf('Date'),cC=h.indexOf('Job Code'),cU=h.indexOf('Customer'),cK=h.indexOf('Kind'),cA=h.indexOf('Action'),cT=h.indexOf('Detail');
       SHEET_RES={};
