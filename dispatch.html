@@ -972,7 +972,7 @@ let currentDay=(function(){
   const ds=Object.keys(DATA.days||{}).sort();
   const tom=new Date(Date.now()+86400000);
   const iso=tom.getFullYear()+'-'+String(tom.getMonth()+1).padStart(2,'0')+'-'+String(tom.getDate()).padStart(2,'0');
-  return DATA.days&&DATA.days[iso]?iso:(ds.find(d=>d>=iso)||ds[ds.length-1]);
+  return DATA.days&&DATA.days[iso]?iso:(ds.find(d=>d>=iso)||ds[ds.length-1]||iso);
 })();
 DATA.jobs=(DATA.days&&DATA.days[currentDay])||DATA.jobs||[];
 const STATES = null;
@@ -2892,7 +2892,7 @@ function toast(msg,onclick){
   let n=document.getElementById('locknote');
   if(!n){n=document.createElement('div');n.id='locknote';document.body.appendChild(n);}
   n.innerHTML=msg;n.classList.add('show');
-  n.onclick=onclick||null;n.style.cursor=onclick?'pointer':'';
+  n.onclick=onclick||null;n.style.cursor=onclick?'pointer':'';n.style.pointerEvents=onclick?'auto':'none';
   clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),onclick?9000:4500);
 }
 function truckRefs(r){
@@ -4089,7 +4089,7 @@ async function calFullImport(){
   CAL_SYNC_ISO=new Date().toISOString();
   CAL_FULL_DONE=true;
   const ds=Object.keys(days).sort();
-  if(!DATA.days[currentDay])currentDay=ds.find(d=>d>=currentDay)||ds[ds.length-1];
+  {const _tom=new Date(Date.now()+86400000);const _ti=_tom.getFullYear()+'-'+String(_tom.getMonth()+1).padStart(2,'0')+'-'+String(_tom.getDate()).padStart(2,'0');currentDay=DATA.days[_ti]?_ti:(ds.find(d=>d>=_ti)||_ti);}
   DATA.jobs=DATA.days[currentDay]||[];
   manualChains=[];AUTOOFFLIST.clear();DAYOFF.clear();CHANGED={};highlighted=null;mapMode='single';
   document.querySelector('.layout').classList.remove('mapon');
@@ -4512,18 +4512,15 @@ document.getElementById('mapcard').addEventListener('click',e=>{
 });
 function connectCalendarFlow(){ensureGToken(async()=>{
   updateGcalUI();
-  try{
-    if(!CAL_FULL_DONE){
-      const m=gModal('Loading jobs from Google Calendar','<div class="ts">Importing every job event ('+CAL_PAST_DAYS+' days back → '+CAL_FUTURE_DAYS+' days ahead)…</div>');
-      const s=await calFullImport();
-      m.querySelector('.gbody').innerHTML='<div class="gsub">✅ Jobs are now 100% from the calendar: <b>'+s.ok+' jobs across '+s.days+' days</b>'+(s.kept?' · '+s.kept+' day'+(s.kept>1?'s':'')+' of history kept':'')+'.</div>'+skipReport()+'<div class="gqt">From here, ⟳ Sync pulls only what changes. Crew, trucks, day-offs &amp; rentals still come from the sheet (↻ Refresh).</div>';
-      setTimeout(()=>m.classList.remove('show'),2600);
-    } else {
-      const s=await calSyncCore();
-      toast('Synced: '+s.add+' new · '+s.upd+' updated · '+s.del+' removed.'+(((s.add||0)+(s.upd||0)+(s.del||0))?' · <u>see what changed</u>':''),((s.add||0)+(s.upd||0)+(s.del||0))?function(){showSyncChanges(s);}:null);
-    }
-  }catch(e){gModal('Calendar import failed',esc(e.message));}
+  try{ await liveRefresh(); }
+  catch(e){ try{gModal('Calendar import failed',esc(e.message));}catch(_){} }
   updateCalBtn();
+  setTimeout(function(){
+    if(CAL_SKIPPED&&CAL_SKIPPED.length){
+      const sm=gModal('Calendar events not imported — '+CAL_SKIPPED.length,'<div class="gsub">These exist in Google Calendar but could not be read as jobs yet — each line says what is missing. Fix it in the calendar and press ↻ Refresh, or import anyway.</div>'+skipReport(false));
+      sm.querySelectorAll('.skforce').forEach(b=>b.addEventListener('click',()=>{sm.classList.remove('show');forceImportEvent(b.dataset.eid);}));
+    }
+  },1800);
 });}
 document.getElementById('alljobsbtn').addEventListener('click',()=>setViewMode(VIEWMODE==='table'?'board':'table'));
 document.getElementById('timelinebtn').addEventListener('click',()=>setViewMode(VIEWMODE==='timeline'?'board':'timeline'));
