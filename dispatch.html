@@ -788,6 +788,10 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .gform{display:grid;grid-template-columns:130px 1fr;gap:9px 12px;align-items:center;margin-top:12px}
 .gform label{font-size:14px;font-weight:600;color:var(--dim)}
 .gform input,.gselect{border:1.5px solid var(--line2);border-radius:8px;padding:8px 10px;font-family:'Inter';font-size:15px;width:100%;background:var(--card);color:var(--ink);font-weight:600}
+.atname{display:flex;align-items:center;gap:9px;margin:2px 0 14px;flex-wrap:wrap}.atnl{font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}.atnh{font-size:12px;color:var(--faint)}.atform input.gselect{font-weight:500}
+.ctrls select{font-size:13.5px;padding:6px 9px;min-width:155px;max-width:300px}
+.ctrls optgroup{font-weight:800;color:var(--dim)}
+.ctrls optgroup option{font-weight:500;color:var(--ink)}
 .gsizes{display:flex;gap:7px}
 .gsizes button{border:1.5px solid var(--line2);background:var(--card);border-radius:8px;font-family:'Inter';font-weight:600;font-size:14px;padding:7px 9px;cursor:pointer}
 .gsizes button.on{border-color:var(--fleet);background:var(--fleet-bg)}
@@ -2002,14 +2006,19 @@ function assignCtrlsHTML(r){
   const RO=!canEdit();
   const _fp=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0].pickup;
   const _bmi=b=>{if(!_fp)return null;const rm=cachedRoadMi(DATA.bases[b],_fp);return Math.round(rm!=null?rm:hav(_fp,DATA.bases[b])*1.15);};
-  const baseSel='<select data-act="base"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.baseOverride?' selected':'')+'>suggestion: '+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' miles':'')+'</option>'
-    +Object.keys(DATA.bases).sort((x,y)=>(_bmi(x)??9e9)-(_bmi(y)??9e9)).map(b=>'<option value="'+b+'"'+(r.baseOverride===b?' selected':'')+'>'+b+(_bmi(b)!==null?' · ~'+_bmi(b)+' mi to 1st pickup':'')+'</option>').join('')+'</select>';
+  const _fOn={},_tOn={},_bN={};
+  routes.forEach(q=>{const bb=q.base||q.nearestBase;if(bb)_bN[bb]=(_bN[bb]||0)+1;if(q.id===r.id)return;const ql=[...q.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0))[0];const tag=q.id+(ql&&ql.start?' '+tm(ql.start):'')+(ql&&ql.customer?' '+ql.customer:'');if(q.foreman)(_fOn[q.foreman.name]=_fOn[q.foreman.name]||[]).push(tag);(q.vehicles||[]).forEach(v=>{if(v.kind==='fleet'&&v.t)(_tOn[v.t.n]=_tOn[v.t.n]||[]).push(tag);});});
+  const fBusy=nm=>{const a=_fOn[nm];return a&&a.length?(' — on '+a[0]+(a.length>1?' +'+(a.length-1)+' more':'')):'';};
+  const tBusy=tn=>{const a=_tOn[tn];return a&&a.length?(' — on '+a[0]+(a.length>1?' +'+(a.length-1)+' more':'')):'';};
+  const bCount=b=>{const c=_bN[b]||0;return ' — '+c+' job'+(c===1?'':'s');};
+  const baseSel='<select data-act="base"'+(RO?' disabled':'')+' data-r="'+r.id+'"><optgroup label="✦ SUGGESTED"><option value="auto"'+(!r.baseOverride?' selected':'')+'>'+r.nearestBase+(_bmi(r.nearestBase)!==null?' · ~'+_bmi(r.nearestBase)+' mi':'')+bCount(r.nearestBase)+'</option></optgroup><optgroup label="All bases — nearest first">'
+    +Object.keys(DATA.bases).sort((x,y)=>(_bmi(x)??9e9)-(_bmi(y)??9e9)).map(b=>'<option value="'+b+'"'+(r.baseOverride===b?' selected':'')+'>'+b+(_bmi(b)!==null?' · ~'+_bmi(b)+' mi':'')+bCount(b)+'</option>').join('')+'</optgroup></select>';
   const _confF=new Set(routes.filter(q=>q.confirmed&&q.id!==r.id&&q.pinForeman).map(q=>q.pinForeman));
   const _confT=new Set(routes.filter(q=>q.confirmed&&q.id!==r.id).flatMap(q=>(q.pinTrucks||[]).filter(Boolean)));
   const _cfOK=r.foreman&&!((r.short||0)>0);
   const cfHtml='<div class="ctrlgrp cfwrap"><label>&nbsp;</label><button class="cfbtn" data-r="'+r.id+'"'+(_cfOK?'':' disabled')+' title="'+(_cfOK?'Lock this foreman + truck to this route — reserved, hidden from other routes, required before the calendar can be updated':'Assign a foreman and cover every truck slot first — incomplete routes can\'t be confirmed')+'">✔ Confirm</button></div>';
-  const fSel='<select data-act="foreman"'+(RO?' disabled':'')+' data-r="'+r.id+'"><option value="auto"'+(!r.pinForeman?' selected':'')+'>suggestion'+((!r.pinForeman&&r.foreman)?': '+esc(r.foreman.name):'')+'</option>'
-    +DATA.foremen.filter(x=>x.status!=='Cancelled'&&!_confF.has(x.name)).sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')</option>').join('')+'</select>';
+  const fSel='<select data-act="foreman"'+(RO?' disabled':'')+' data-r="'+r.id+'"><optgroup label="✦ SUGGESTED"><option value="auto"'+(!r.pinForeman?' selected':'')+'>'+(r.foreman?esc(r.foreman.name):'auto')+'</option></optgroup><optgroup label="All foremen">'
+    +DATA.foremen.filter(x=>x.status!=='Cancelled'&&!_confF.has(x.name)).sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')'+esc(fBusy(x.name))+'</option>').join('')+'</optgroup></select>';
   const slotsSpec=r._slotsSpec||['Truck'];
   const truckOpts=DATA.trucks.filter(k=>k.status==='Active'&&!_confT.has(k.n)).sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true}));
   const tSels=slotsSpec.map((ty,i)=>{
@@ -2017,8 +2026,8 @@ function assignCtrlsHTML(r){
     const cur=r.vehicles&&r.vehicles[i]?(r.vehicles[i].kind==='fleet'?r.vehicles[i].t.n:(r.vehicles[i].kind==='rental'?('rental '+r.vehicles[i].sz):'⚠ none free — add a rental')):'—';
     const lbl=slotsSpec.length>1?(ty==='Van'?'Van':'Truck '+(slotsSpec.filter((x,j)=>x==='Truck'&&j<=i).length)):'Truck';
     return '<div class="ctrlgrp"><label>'+lbl+'</label><select data-act="truck"'+(RO?' disabled':'')+' data-slot="'+i+'" data-r="'+r.id+'">'
-      +'<option value="auto"'+(!pin?' selected':'')+'>suggestion: '+esc(cur)+'</option>'
-      +truckOpts.map(k=>'<option value="'+esc(k.n)+'"'+(pin===k.n?' selected':'')+'>'+esc(k.n)+(isRentalTruck(k)?' (rented)':'')+' · '+k.cf.toLocaleString()+' CF · crew '+k.maxCrew+' · '+esc(k.state)+'</option>').join('')
+      +'<optgroup label="✦ SUGGESTED"><option value="auto"'+(!pin?' selected':'')+'>'+esc(cur)+'</option></optgroup><optgroup label="All trucks">'
+      +truckOpts.map(k=>'<option value="'+esc(k.n)+'"'+(pin===k.n?' selected':'')+'>'+esc(k.n)+(isRentalTruck(k)?' (rented)':'')+' · '+k.cf.toLocaleString()+' CF · crew '+k.maxCrew+' · '+esc(k.state)+esc(tBusy(k.n))+'</option>').join('')+'</optgroup>'
       +'</select></div>';
   }).join('');
   const tnSel='<div class="ctrlgrp"><label>Trucks</label><select data-act="tn"'+(RO?' disabled':'')+' data-r="'+r.id+'" title="Number of Trucks the sales team sold this job with — override if the load really needs fewer or more">'
@@ -3385,54 +3394,64 @@ function applyPlacement(job,opt){
 }
 function addTruckModal(opts){
   opts=opts&&opts.rid?opts:null;
-  const defCF=opts&&opts.sz?(/26/.test(opts.sz)?1700:(/van/i.test(opts.sz)?557:1100)):1100;
+  const ftOf=cf=>{cf=+cf||0;return cf<450?'VAN':cf<650?'12FT':cf<900?'16FT':cf<1300?'20FT':cf<1500?'24FT':'26FT';};
+  const prov3=p=>((p||'').replace(/[^A-Za-z]/g,'').toUpperCase().slice(0,3)||'RNT');
+  const nameUsed=nm=>DATA.trucks.some(k=>String(k.n).toLowerCase()===String(nm).toLowerCase());
+  const uniqueName=base=>{if(!nameUsed(base))return base;let i=2;while(nameUsed(base+'-'+i))i++;return base+'-'+i;};
   const m=gModal('Add a rented truck',
-    '<div class="gsub">'+(opts?'This rental will be assigned straight to <b>'+esc(opts.rid)+'</b>. ':'')+'Active only between its rental dates — the engine uses it whenever it fits. Saved to the <b>Rented Trucks</b> tab of the team sheet.</div>'
-    +(GTOKEN?'':'<div class="ajerr" style="display:block;margin:8px 0">⚠ Not connected — the truck will live only on this board. Press <b>🗓 Connect Calendar</b> once and adds will save to the sheet for the whole team.</div>')
+    '<div class="gsub">'+(opts?'This rental will be assigned straight to <b>'+esc(opts.rid)+'</b>. ':'')+'Active only between its rental dates \u2014 the engine uses it whenever it fits. Saved to the <b>Rented Trucks</b> tab.</div>'
+    +(GTOKEN?'':'<div class="ajerr" style="display:block;margin:8px 0">\u26a0 Not connected \u2014 the truck will live only on this board. Press <b>\ud83d\uddd3 Connect Calendar</b> once and adds will save to the sheet.</div>')
+    +'<div class="atname"><span class="atnl">Name</span><span class="pairtag" id="atpreview" style="font-size:14px;padding:2px 10px">\u2014</span><span class="atnh">auto from provider + size, kept unique</span></div>'
     +'<div class="gform2 atform">'
-    +'<div><label>Provider</label><select id="atprov" class="gselect"><option>Enterprise</option><option>Penske</option><option>U-Haul</option><option>Budget</option><option>Home Depot</option><option>Other</option></select></div>'
+    +'<div><label>Provider</label><select id="atprov" class="gselect"><option>Enterprise</option><option>U-Haul</option><option value="Other">Other\u2026</option></select></div>'
+    +'<div id="atotherwrap" style="display:none"><label>Provider name</label><input id="atother" class="gselect" placeholder="type provider"></div>'
     +'<div><label>Type</label><select id="attype" class="gselect"><option>Truck</option><option>Van</option></select></div>'
-    +'<div><label>Size — CF capacity</label><input id="atcf" type="number" value="'+defCF+'" min="100" step="50"></div>'
-    +'<div><label>Max crew in cab</label><input id="atcrew" type="number" value="3" min="1" max="8"></div>'
-    +'<div><label>Rental start</label><input id="atstart" type="date" value="'+esc(currentDay)+'"></div>'
-    +'<div><label>Rental end <i>(blank = open-ended)</i></label><input id="atend" type="date"></div>'
+    +'<div><label>Size \u2014 CF capacity</label><input id="atcf" class="gselect" type="number" placeholder="e.g. 1000" min="100" step="50"></div>'
+    +'<div><label>Max crew in cab</label><input id="atcrew" class="gselect" type="number" value="3" min="1" max="8"></div>'
+    +'<div><label>Rental start</label><input id="atstart" class="gselect" type="date" value="'+esc(currentDay)+'"></div>'
+    +'<div><label>Rental end <i>(blank = open-ended)</i></label><input id="atend" class="gselect" type="date"></div>'
     +'<div><label>Base</label><select id="atbase" class="gselect">'+Object.keys(DATA.bases).map(b=>'<option'+(b===((opts&&opts.base)||'NJ')?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'
-    +'<div><label>Fuel</label><select id="atfuel" class="gselect"><option>Diesel</option><option>Gasoline</option><option value="">—</option></select></div>'
-    +'<div class="atfees full"><span class="atfl">Fees <i>— fill either, both, or neither</i></span><div class="atfrow">'
-    +'<div><label>Daily fee $</label><input id="atfee" type="number" step="0.01" min="0" placeholder="per day"></div>'
-    +'<div><label>One-time fee $</label><input id="atone" type="number" step="0.01" min="0" placeholder="whole rental"></div>'
-    +'<div><label>Charge per mile $</label><input id="atpm" type="number" step="0.01" min="0" placeholder="blank = none"></div>'
+    +'<div><label>Fuel</label><select id="atfuel" class="gselect"><option>Diesel</option><option>Gasoline</option><option value="">\u2014</option></select></div>'
+    +'<div class="atfees full"><span class="atfl">Fees <i>\u2014 fill either, both, or neither</i></span><div class="atfrow">'
+    +'<div><label>Daily fee $</label><input id="atfee" class="gselect" type="number" step="0.01" min="0" placeholder="per day"></div>'
+    +'<div><label>One-time fee $</label><input id="atone" class="gselect" type="number" step="0.01" min="0" placeholder="whole rental"></div>'
+    +'<div><label>Charge per mile $</label><input id="atpm" class="gselect" type="number" step="0.01" min="0" placeholder="blank = none"></div>'
     +'</div></div>'
-    +'<div class="full"><label>Plate / label <i>(optional)</i></label><input id="atlbl" placeholder="auto: R'+RENTSEQ+'-Enterprise-'+defCF+'"></div>'
+    +'<div class="full"><label>Custom name <i>(optional \u2014 overrides the auto name)</i></label><input id="atlbl" class="gselect" placeholder="leave blank to use the name above"></div>'
     +'</div><div style="margin-top:16px"><button class="gapply" id="atok">Add truck</button></div>');
-  m.querySelector('#atstart').addEventListener('change',e=>{
-    const en=m.querySelector('#atend');if(en.value&&en.value<e.target.value)en.value=e.target.value;
-  });
+  const provEl=m.querySelector('#atprov'),otherWrap=m.querySelector('#atotherwrap'),otherEl=m.querySelector('#atother'),cfEl=m.querySelector('#atcf'),prev=m.querySelector('#atpreview'),lblEl=m.querySelector('#atlbl');
+  const curProv=()=>provEl.value==='Other'?((otherEl.value||'').trim()||'Other'):provEl.value;
+  const refreshName=()=>{const custom=(lblEl.value||'').trim();prev.textContent=custom||uniqueName(prov3(curProv())+'-'+ftOf(cfEl.value));};
+  provEl.addEventListener('change',()=>{otherWrap.style.display=provEl.value==='Other'?'':'none';refreshName();});
+  [otherEl,cfEl,lblEl].forEach(el=>el.addEventListener('input',()=>{cfEl.style.borderColor='';refreshName();}));
+  refreshName();
+  m.querySelector('#atstart').addEventListener('change',e=>{const en=m.querySelector('#atend');if(en.value&&en.value<e.target.value)en.value=e.target.value;});
   m.querySelector('#atok').addEventListener('click',()=>{
-    const prov=m.querySelector('#atprov').value;
-    const cf=+m.querySelector('#atcf').value||1100;
+    const prov=curProv();
+    const cf=+cfEl.value||0;
+    if(!cf){cfEl.focus();cfEl.style.borderColor='var(--hazard)';toast('Enter the truck CF capacity first.');return;}
     const base=m.querySelector('#atbase').value;
     const crew=+m.querySelector('#atcrew').value||3;
     const ty=m.querySelector('#attype').value;
-    let rs=m.querySelector('#atstart').value||currentDay, re_=m.querySelector('#atend').value||null;
+    let rs=m.querySelector('#atstart').value||currentDay,re_=m.querySelector('#atend').value||null;
     if(re_&&re_<rs)re_=rs;
     const fuel=m.querySelector('#atfuel').value||null;
     const fee=parseFloat(m.querySelector('#atfee').value);
     const one=parseFloat(m.querySelector('#atone').value);
     const pm=parseFloat(m.querySelector('#atpm').value);
-    const lbl=(m.querySelector('#atlbl').value||'').trim()||('R'+(RENTSEQ++)+'-'+prov+'-'+cf);
-    const tk={n:lbl,status:'Active',cf,maxCrew:crew,state:base,type:ty,model:'rental · '+prov,reg:'rental',rented:true,_appAdded:true,
+    const lbl=uniqueName((lblEl.value||'').trim()||(prov3(prov)+'-'+ftOf(cf)));
+    const tk={n:lbl,status:'Active',cf,maxCrew:crew,state:base,type:ty,model:'rental \u00b7 '+prov,reg:'rental',rented:true,_appAdded:true,
       rentStart:rs,rentEnd:re_,fuel,dayFee:isFinite(fee)?fee:null,oneFee:isFinite(one)?one:null,perMile:isFinite(pm)?pm:null,provider:prov};
     DATA.trucks.push(tk);
     saveDayState();
-    if(GTOKEN)shAppendRow('Rented Trucks',{'Status':'Active','Truck N':lbl,'CF':cf,'Max Crew Size':crew,'Base':base,'Type':ty,'Provider':prov,'Rental Start':rs,'Rental End':re_||'','Fuel':fuel||'','Daily Fee $':isFinite(fee)?fee:'','One-Time Fee $':isFinite(one)?one:'','Per Mile $':isFinite(pm)?pm:'','Note':SHEET_WRITE_NOTE+' '+mdy(TODAY_ISO)}).then(()=>sheetSaved(lbl+' added')).catch(e=>sheetSaveFailed('truck add',e));
+    if(GTOKEN)shAppendRow('Rented Trucks',{'Status':'Active','Truck N':lbl,'CF':cf,'Max Crew Size':crew,'Base':base,'Type':ty,'Provider':prov,'Rental Start':rs,'Rental End':re_||'','Fuel':fuel||'','Daily Fee $':isFinite(fee)?fee:'','One-Time Fee $':isFinite(one)?one:'','Per Mile $':isFinite(pm)?pm:'','Note':SHEET_WRITE_NOTE}).then(()=>sheetSaved(lbl+' saved to Rented Trucks')).catch(e=>sheetSaveFailed('rental',e));
     else toast(lbl+' added to the board. Connect the calendar to also save it to the sheet.');
     m.classList.remove('show');
     if(opts){
       const r=routes.find(x=>x.id===opts.rid);
       if(r){const slot=(r.vehicles||[]).findIndex(v=>v.kind==='short');
         applyWithDiff(r.id,()=>{r.pinTrucks=r.pinTrucks||[];r.pinTrucks[slot>=0?slot:0]=lbl;});
-        toast('🚚 '+lbl+' rented '+rs+(re_?(re_!==rs?' → '+re_:''):' → open-ended')+' and assigned to '+opts.rid);
+        toast('\ud83d\ude9a '+lbl+' rented '+rs+(re_?(re_!==rs?' \u2192 '+re_:''):' \u2192 open-ended')+' and assigned to '+opts.rid);
         return;}
     }
     rebuildRoutes();render();
