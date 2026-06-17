@@ -80,7 +80,7 @@ header .date{color:var(--dim);font-size:16px}
 .sw{display:inline-block;width:22px;height:0;border-top:3px solid;border-radius:2px}
 .sw.dash{border-top-style:dashed}
 
-.mapcard{position:absolute;left:14px;top:14px;z-index:800;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:12px;padding:15px 19px;width:clamp(560px,52vw,940px);box-shadow:0 4px 16px rgba(0,0,0,.09);max-height:calc(100% - 28px);display:flex;flex-direction:column}
+.mapcard{position:absolute;left:14px;top:14px;z-index:1200;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:12px;padding:15px 19px;width:clamp(560px,52vw,940px);box-shadow:0 4px 16px rgba(0,0,0,.09);max-height:calc(100% - 28px);display:flex;flex-direction:column}
 .mchead{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .mcbtns{display:flex;gap:6px;flex-shrink:0}
 .mcmin,.mcx{background:var(--paper);border:1.5px solid var(--line2);border-radius:8px;font-family:'Inter';font-weight:700;cursor:pointer;color:var(--ink);font-size:14.5px;padding:4px 10px;line-height:1.2}
@@ -2011,7 +2011,7 @@ function cleanupPlan(iso, horizon){
   const load=dayLoad(iso); const opt=load._opt;
   const callPool=opt.calls.map(c=>Object.assign({}, c, {window:c.window||cleanWindow(c.arriveMs, iso),
       discount:c.discount||((c.linkMin<=CLEAN.tightLinkMin||c.linkMi<=CLEAN.tightLinkMi)?CLEAN.discountTight:CLEAN.discountLoose)}));
-  const movePool=buildMovePool(iso, opt, nearbyDays(iso, 2), new Set(callPool.map(c=>c.tail))); // max +/-2 day move
+  const movePool=buildMovePool(iso, opt, nearbyDays(iso, 3), new Set(callPool.map(c=>c.tail))); // max +3 days (never earlier than original, never past)
   const gapToBuffer=Math.max(0, load.routes-load.target);
   const gapToCover =Math.max(0, load.routes-load.availableCore);
   return { iso, availableCore:load.availableCore, coreOff:load.coreOff, target:load.target,
@@ -2245,7 +2245,7 @@ function windowStart(){return $('fromDate').value||TODAY_ISO;}
 let LMAP=null, LAYER=null;
 function initMap(){
   if(LMAP)return;
-  LMAP=L.map('map',{zoomControl:false,attributionControl:true}).setView([40.7,-74.3],8);L.control.zoom({position:'topright'}).addTo(LMAP);
+  LMAP=L.map('map',{zoomControl:false,attributionControl:true}).setView([40.7,-74.3],8);L.control.zoom({position:'bottomright'}).addTo(LMAP);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(LMAP);
   LAYER=L.layerGroup().addTo(LMAP);
 }
@@ -2380,7 +2380,9 @@ function sKey(iso,slot,kind,id){return iso+'|slot'+slot+'|'+kind+'|'+id;}
 function lKey(iso,slot,tail){return iso+'|slot'+slot+'|'+tail;}
 function declinedSetFor(iso){const s=new Set();Object.keys(STATUS).forEach(k=>{if(STATUS[k]==='declined'){const p=k.split('|');s.add(p.slice(3).join('|'));}});return s;}
 
-function sameSpot(l){ if(!l||!l.pickup||!l.delivery)return false; var pa=String(l.pickupAddr||'').trim().toLowerCase(), da=String(l.deliveryAddr||'').trim().toLowerCase(); if(pa&&da&&pa===da)return true; if(l.pickup.lat!=null&&l.delivery.lat!=null){return hav(l.pickup,l.delivery)<0.2;} return false; }
+function _normAddr(s){return String(s||'').toLowerCase().replace(/\b(apt|apartment|unit|suite|ste|fl|floor)\b.*$/,'').replace(/#.*$/,'').replace(/[.,]/g,' ').replace(/\bstreet\b/g,'st').replace(/\bavenue\b/g,'ave').replace(/\broad\b/g,'rd').replace(/\bboulevard\b/g,'blvd').replace(/\bdrive\b/g,'dr').replace(/\s+/g,' ').trim();}
+function sameSpot(l){ if(!l||!l.pickup||!l.delivery)return false; var pa=_normAddr(l.pickupAddr), da=_normAddr(l.deliveryAddr); if(pa&&da&&pa===da)return true; if(l.pickup.lat!=null&&l.delivery.lat!=null){return hav(l.pickup,l.delivery)<0.4;} return false; }
+function fmtLateWindow(m){ if(m==null||m<=0)return '0:00'; var lo=Math.ceil(m/30)*30, hi=lo+60; function hm(x){return Math.floor(x/60)+':'+String(Math.round(x%60)).padStart(2,'0');} return hm(lo)+'\u2013'+hm(hi); }
 function routeGeo(route){
   const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start)); const stops=[];
   sl.forEach(l=>{ const p=ptOf(l.pickup), d=ptOf(l.delivery);
@@ -2558,7 +2560,7 @@ function renderItineraryCU(r,items,seq,resolved){
           const dl=Date.parse(next.leg.winEnd||next.leg.start);
           const slack=Math.round((dl-eta)/60000);
           const lbl=next.leg.winEnd?('window until '+String(next.leg.winEnd).slice(11,16)):('scheduled '+fmtMs(sched));
-          note=slack>=0?(' \u00b7 ETA '+fmtMs(eta)+', '+lbl+' ('+slack+' min slack)'):(' \u00b7 ETA '+fmtMs(eta)+' \u2014 '+(-slack)+' min LATE vs '+lbl);
+          note=slack>=0?(' \u00b7 ETA '+fmtMs(eta)+', '+lbl+' ('+slack+' min slack)'):(' \u00b7 ETA '+fmtMs(eta)+' \u2014 ~'+fmtLateWindow(-slack)+' LATE vs '+lbl);
         }
         rows.push({t:fmtMs(cursor),txt:it.label+' \u00b7 '+min+' min'+note,travel:true,warn:note.includes('LATE')});
         cursor=sched!=null?Math.max(eta,sched):eta;
@@ -2687,9 +2689,9 @@ function dayJobOptions(td, selCode){
   return opts;
 }
 
-function renderSlot(iso, s, td, dupLeads){
+function renderSlot(iso, s, td, dupLeads, dispN){
   if(!s.current){
-    return '<div class="slot escal tmove"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span><b>No automated option left</b></div><div class="slotbody">Every call and date-move for this crew has been refused. Escalate: pay overtime, add an extra rental truck, or move a <i>different</i> job off this day.</div></div>';
+    return '';
   }
   const kind=s.current.kind, rec=s.current.rec;
   const id=sKey(iso,s.index,kind, kind==='call'?rec.tail:rec.code); SLOTCUST[id]=rec.customer||rec.tail||rec.code;
@@ -2714,7 +2716,7 @@ function renderSlot(iso, s, td, dupLeads){
     else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'">change</button></div>'; }
   }
   const casc=(stt==='todo'&&s.altCount>0)?'<div class="casc">If they refuse, '+s.altCount+' other option'+(s.altCount>1?'s':'')+' for this crew \u2192 tap Declined.</div>':'';
-  return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span>'+head+calSlotBtns(kind,rec)+'</div><div class="slotbody">'+body+casc+'</div></div>';
+  return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag step">'+(dispN||(s.index+1))+'</span>'+head+calSlotBtns(kind,rec)+'</div><div class="slotbody">'+body+casc+'</div></div>';
 }
 function routeBtn(id,rec,kind,full){RECS[id+'|r']={rec,kind,full:full||null};return '<button class="cb route" data-route="'+id+'|r">\ud83d\uddfa journey</button>';}
 function jobCust(td,code){let n=code;td.routes.forEach(r=>r.legs.forEach(l=>{if(l.code===code)n=l.customer||code;}));return n;}
@@ -2751,7 +2753,7 @@ function renderDay(iso){
     const confirmedLeads={};
     slots.slots.forEach(s=>{if(s.current&&s.current.kind==='call'){const id=sKey(iso,s.index,'call',s.current.rec.tail);if(STATUS[id]==='confirmed'){const lead=LEADS[lKey(iso,s.index,s.current.rec.tail)]||s.current.rec.after;confirmedLeads[lead]=(confirmedLeads[lead]||0)+1;}}});
     const dupLeads=new Set(Object.keys(confirmedLeads).filter(k=>confirmedLeads[k]>1));
-    slots.slots.forEach(s=>{h+=renderSlot(iso,s,td,dupLeads);});
+    var _dn=0; slots.slots.forEach(s=>{ if(!s.current)return; _dn++; h+=renderSlot(iso,s,td,dupLeads,_dn); }); if(_dn===0&&slots.slots.length){ h+='<div class="cmuted" style="padding:8px 2px;font-size:14px">No automatic call or move fits this day \u2014 handle manually.</div>'; }
     const anyConfirmed=slots.slots.some(s=>{if(!s.current)return false;const id=sKey(iso,s.index,s.current.kind,s.current.kind==='call'?s.current.rec.tail:s.current.rec.code);return STATUS[id]==='confirmed';});
     h+='<div class="calbar">'+(dupLeads.size?'<span class="dupwarn">\u26a0 Two re-chains share a lead \u2014 fix before updating.</span>':'')+'<button class="cb upd" id="updcal" '+((anyConfirmed&&!dupLeads.size)?'':'disabled')+'>\u2934 Update calendar</button><span class="cmuted">writes the confirmed changes to the calendar events</span></div>';
     if(slots.declinedCusts&&slots.declinedCusts.length){ h+='<div class="declog"><span class="decllbl">\u2715 Declined \u2014 won\u2019t suggest again (you\u2019ve already spoken to them):</span> '+slots.declinedCusts.map(function(c){return '<span class="declchip">'+esc(c)+'<button class="declundo" data-undocust="'+esc(c)+'" title="Undo \u2014 put this customer back as an option">\u21ba</button></span>';}).join('')+'</div>'; }
