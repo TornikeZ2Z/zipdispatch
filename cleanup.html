@@ -2380,6 +2380,7 @@ function sKey(iso,slot,kind,id){return iso+'|slot'+slot+'|'+kind+'|'+id;}
 function lKey(iso,slot,tail){return iso+'|slot'+slot+'|'+tail;}
 function declinedSetFor(iso){const s=new Set();Object.keys(STATUS).forEach(k=>{if(STATUS[k]==='declined'){const p=k.split('|');s.add(p.slice(3).join('|'));}});return s;}
 
+function sameSpot(l){ if(!l||!l.pickup||!l.delivery)return false; var pa=String(l.pickupAddr||'').trim().toLowerCase(), da=String(l.deliveryAddr||'').trim().toLowerCase(); if(pa&&da&&pa===da)return true; if(l.pickup.lat!=null&&l.delivery.lat!=null){return hav(l.pickup,l.delivery)<0.2;} return false; }
 function routeGeo(route){
   const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start)); const stops=[];
   sl.forEach(l=>{ const p=ptOf(l.pickup), d=ptOf(l.delivery);
@@ -2390,8 +2391,9 @@ function routeGeo(route){
 function routeSteps(route){
   const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
   const rows=[]; let prevDoneMs=null;
-  sl.forEach((l,i)=>{ const st=Date.parse(l.start); const act=(l.actH||schedH(l)||3);
+  sl.forEach((l,i)=>{ const st=Date.parse(l.start); const act=(l.actH||schedH(l)||3); const samePD=sameSpot(l);
     if(i>0&&prevDoneMs!=null) rows.push(step(fmtMs(prevDoneMs),'Reposition to <b>'+esc(l.customer||l.code)+'</b> \u00b7 '+esc(l.cityFrom||''),true));
+    if(samePD){ const dM=st+act*3600000; rows.push(step(fmtMs(st),'Work <b>'+esc(l.customer||l.code)+'</b> ~'+fmtH(act)+' at '+esc(l.cityFrom||'')+' \u00b7 pickup &amp; delivery same address \u00b7 done ~'+fmtMs(dM),false)); prevDoneMs=dM; return; }
     rows.push(step(fmtMs(st),'Arrive <b>'+esc(l.customer||l.code)+'</b> \u00b7 pickup '+esc(l.cityFrom||'')+' \u00b7 '+(l.cf||0).toLocaleString()+' CF',false));
     const loadMs=st+act*0.6*3600000;
     rows.push(step(fmtMs(loadMs),'Load ~'+(Math.round(act*0.6*10)/10)+'h, drive to '+esc(l.cityTo||'delivery'),true));
@@ -2467,6 +2469,12 @@ async function showRouteJourney(route, title, sub, hi){
       pts.push(a); prev=a; continue;
     }
     const inreg=_cd?true:INREGION(l.delivery);
+    if(sameSpot(l)){
+      items.push({type:'job',leg:l,jobN,from:a,to:null,inreg:true,samePD:true,fallback:0});
+      stopN++;stopMarker(a,stopN,'P',(hi&&hi.has(l.code))?'#E0552E':col,'<div class="tt">Stop '+stopN+' \u00b7 job #'+jobN+' \u00b7 pickup &amp; delivery (same address) \u00b7 '+tmCU(l.start)+'</div><div class="ts">'+esc(l.pickupAddr||l.cityFrom)+'</div>');
+      L.tooltip({permanent:true,direction:'top',offset:[0,-14],className:'placechip'}).setLatLng(a).setContent(esc((l.customer||l.cityFrom).split(' ')[0])+' \u00b7 '+esc(l.cityFrom)).addTo(LAYER);
+      pts.push(a); prev=a; continue;
+    }
     const cpts=curvePts(a,b,1,1);
     const w0=Math.max(4,Math.min(l.cf/300,8));
     const legCol=(hi&&hi.has(l.code))?'#E0552E':col;
@@ -2562,6 +2570,8 @@ function renderItineraryCU(r,items,seq,resolved){
       const arrive=cursor===null?sched:cursor;
       const workStart=Math.max(arrive,sched);
       totMi+=mi;totMin+=min;
+      const samePD=it.samePD||sameSpot(l);
+      if(samePD){ const doneS=workStart+act*3600000; rows.push({t:fmtMs(workStart),txt:'Job #'+it.jobN+' \u00b7 '+l.code+' \u00b7 '+l.cityFrom+' \u2014 work '+fmtH(act)+' (ACT \u00b7 load and unload, same address) \u00b7 done ~'+fmtMs(doneS),travel:false}); cursor=doneS; continue; }
       const loadMs=act*ACT_LOAD_SHARE*3600000;
       const unloadMs=act*(1-ACT_LOAD_SHARE)*3600000;
       const departP=workStart+loadMs;
