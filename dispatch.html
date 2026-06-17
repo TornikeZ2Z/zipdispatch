@@ -1317,7 +1317,7 @@ function tripAwayMap(dayIso){
   return {f:out,t:outT};
 }
 const AUTOOFFLIST=new Set();
-const CHAIN_RULES={maxDriveMin:45,maxCF:700,lateMin:30,maxJobs:3};
+const CHAIN_RULES={maxDriveMin:45,maxCF:700,lateMin:30,maxJobs:3,maxHomeHr:22};
 const ACT_LOAD_SHARE=0.6; // owner rule: ACT splits 60% loading at pickup / 40% unloading at delivery
 function detectAutoChains(rts){
   // Universal fit-based chaining (owner spec):
@@ -1325,7 +1325,7 @@ function detectAutoChains(rts){
   //  - every job in a chain <= 700 CF
   //  - drive between jobs <= 45 min
   //  - arrive at the next customer no later than booked start + 30 min (early = wait, work starts at booked time)
-  //  - smallest link distance wins
+  //  - lowest total route cost wins (empty drive INTO the job + empty drive home FROM it); never strand the crew far from base
   //  - up to 3 jobs per chain (3rd added on the next pass)
   //  - the whole chain finishes the same day
   const out=[];
@@ -1354,17 +1354,23 @@ function detectAutoChains(rts){
       if(driveMs>CHAIN_RULES.maxDriveMin*60000)continue;         // link drive cap
       const eta=at1+driveMs;
       if(eta>bt0+CHAIN_RULES.lateMin*60000)continue;             // on time, +30 min grace
-      // same-day rule: the chained crew must be DONE before midnight
-      {const _ws=Math.max(eta,bt0);
-       const _p2d=(lb.pickup&&lb.delivery)?hav(lb.pickup,lb.delivery)/35*3600000*1.15:0;
-       const _done=_ws+((lb.actH||schedH(lb))*3600000)+_p2d;
-       if(_done>Date.parse(String(lb.start).slice(0,10)+'T23:59'))continue;}
+      // same-day rule + total-route cost: the chained job becomes the route's LAST leg, so the crew
+      // returns home from ITS delivery to A's base. Score link-in + return-home, and never strand them.
+      const _ws=Math.max(eta,bt0);
+      const _p2d=(lb.pickup&&lb.delivery)?hav(lb.pickup,lb.delivery)/35*3600000*1.15:0;
+      const _done=_ws+((lb.actH||schedH(lb))*3600000)+_p2d;
+      if(_done>Date.parse(String(lb.start).slice(0,10)+'T23:59'))continue;
       if(Math.max(A.crew,B.crew)>6)continue;                     // one cab carries the crew
-      if(!best||linkMi<best.linkMi)best={A,linkMi,la};
+      const _bA=DATA.bases[A.base];
+      let _retMi=0; if(_bA&&lb.delivery){const _rrm=cachedRoadMi(lb.delivery,_bA);_retMi=(_rrm!=null?_rrm:hav(lb.delivery,_bA)*1.15);}
+      const _home=_done+_retMi/35*3600000;
+      if(_home>Date.parse(String(lb.start).slice(0,10)+'T'+String(CHAIN_RULES.maxHomeHr||22).padStart(2,'0')+':00'))continue; // home too late / stranded far from base
+      const _cost=linkMi+_retMi;
+      if(!best||_cost<best.cost)best={A,linkMi,la,cost:_cost,retMi:Math.round(_retMi),home:_home};
     }
     if(best){
       tailsTaken.add(best.A.id);
-      out.push({tail:lb.code,after:best.la.code,auto:true,linkMi:Math.round(best.linkMi)});
+      out.push({tail:lb.code,after:best.la.code,auto:true,linkMi:Math.round(best.linkMi),returnMi:best.retMi,cost:Math.round(best.cost)});
     }
   }
   return out;
