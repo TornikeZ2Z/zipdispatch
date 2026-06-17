@@ -1167,6 +1167,8 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .calbtns{display:inline-flex;gap:6px;margin-left:8px;vertical-align:middle}
 .cb.cal{text-decoration:none;font-size:12px;padding:3px 9px;background:#eef3fe;border:1px solid #c4d4f5;color:#1558d6;border-radius:7px;font-weight:600;line-height:1.4}
 .cb.cal:hover{background:#e0eafe}
+.calbtn.ghost{background:#fff;border:1px solid #D3D0C6;color:#B3362A;font-weight:600}
+.calbtn.ghost:hover{border-color:#B3362A}
 </style>
 </head>
 <body>
@@ -1180,7 +1182,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   </div>
   <div class="stats" id="stats"></div>
   <div id="rfwrap">
-    <button id="calbtn" class="calbtn">🗓 Connect Calendar</button>
+    <button id="resetcu" class="calbtn ghost" title="Undo this review session&#39;s on-screen changes - back to the loaded state" style="display:none">&#8634; Reset changes</button><button id="calbtn" class="calbtn">🗓 Connect Calendar</button>
     <button id="rfbtn" class="calbtn" title="Pull the latest jobs from Google Calendar">↻ Refresh</button>
     <span id="rfstamp"></span>
   </div>
@@ -1804,10 +1806,10 @@ function estRoutesOn(dayIso){
 // ============ CALENDAR CLEANUP ENGINE v3 (layer on engine_core) ============
 // Objective: keep a 2-route buffer when load allows. Tiered ladder:
 //   1) standard chaining  (PM jobs, free, route optimization — always)
-//   2) extra chaining     (AM jobs, customer call, $100 tight / $50 looser)
+//   2) extra chaining     (AM jobs, customer call, $50 same-day = no discount)
 //   3) day switch         (move date, chain-first, last resort for shortage)
 const CLEAN = { maxArrivalHr: 16, pmCutoffHr: 12, windowDays: 7, buffer: 2,
-                tightLinkMin: 15, tightLinkMi: 15, discountTight: 100, discountLoose: 50 };
+                tightLinkMin: 15, tightLinkMi: 15, discountTight: 50, discountLoose: 50 };
 
 function jobByCode(code){ for(const iso in DATA.days){const arr=DATA.days[iso]||[];for(const j of arr){if(j.code===code)return j;}} return null; }
 function shortName(c){ return c? String(c).trim().split(/\s+/)[0] : ''; }
@@ -2201,8 +2203,8 @@ async function gapiFetch(path,opts){
 }
 const evPath=id=>'calendars/'+encodeURIComponent(GCAL_ID)+'/events/'+encodeURIComponent(String(id).split('@')[0]);
 function calEditLink(eventId){if(!eventId)return '';try{return 'https://calendar.google.com/calendar/u/0/r/eventedit/'+btoa(String(eventId)+' '+GCAL_ID).replace(/=+$/,'');}catch(e){return 'https://calendar.google.com/calendar/u/0/r';}}
-function calOpenBtn(code,label){var j=jobByCode(code);var id=j&&j.eventId;var url=calEditLink(id);if(!url)return '';return '<a class="cb cal" href="'+url+'" target="_blank" rel="noopener" title="Open the Google Calendar event'+(j&&j.customer?(' \u2014 '+esc(j.customer)):'')+'" onclick="event.stopPropagation()">'+esc(label||'event')+'</a>';}
-function calSlotBtns(kind,rec){var myCode=kind==='call'?rec.tail:rec.code;var h=calOpenBtn(myCode,'\ud83d\udcc5 event');if(kind==='call'&&rec.after)h+=calOpenBtn(rec.after,'\ud83d\udcc5 lead');return h?(' <span class="calbtns">'+h+'</span>'):'';}
+function calOpenBtn(code){var j=jobByCode(code);var id=j&&j.eventId;var url=calEditLink(id);if(!url)return '';var nm=(j&&j.customer)||code;return '<a class="cb cal" href="'+url+'" target="_blank" rel="noopener" title="Open the Google Calendar event for '+esc(nm)+'" onclick="event.stopPropagation()">\ud83d\udcc5 '+esc(nm)+'</a>';}
+function calSlotBtns(kind,rec){var myCode=kind==='call'?rec.tail:rec.code;var h=calOpenBtn(myCode);if(kind==='call'&&rec.after)h+=calOpenBtn(rec.after);return h?(' <span class="calbtns">'+h+'</span>'):'';}
 function updateCalBtns(){
   const b=$('calbtn'); if(!b)return;
   if(GTOKEN){ b.className='calbtn upd'; b.innerHTML='⤴ Update Calendar'; }
@@ -2213,7 +2215,19 @@ function updateCalBtns(){
 function loadStatus(){try{return JSON.parse(localStorage.getItem('zc_status')||'{}');}catch(e){return {};}}
 function saveStatus(s){try{localStorage.setItem('zc_status',JSON.stringify(s));}catch(e){}}
 let STATUS=loadStatus();
-function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STATUS);}
+function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STATUS);if(typeof updateResetCU==='function')updateResetCU();}
+var SNAP0=null;
+function ensureSnap(){ if(SNAP0)return; try{SNAP0={status:JSON.parse(JSON.stringify(STATUS)),moves:JSON.parse(JSON.stringify(CONFIRMED_MOVES)),leads:JSON.parse(JSON.stringify(LEADS))};}catch(e){SNAP0={status:{},moves:{},leads:{}};} updateResetCU(); }
+function sessionChangeCount(){ if(!SNAP0)return 0; var n=0,a=SNAP0.status||{}; Object.keys(STATUS).forEach(function(k){if(STATUS[k]!==a[k])n++;}); Object.keys(a).forEach(function(k){if(!(k in STATUS))n++;}); return n; }
+function updateResetCU(){ var b=document.getElementById('resetcu'); if(!b)return; var n=sessionChangeCount(); if(SNAP0&&n>0){b.style.display='';b.textContent='\u21ba Reset changes ('+n+')';b.disabled=false;} else {b.style.display='none';} }
+function resetChanges(){ if(!SNAP0)return;
+  try{var base=SNAP0.status||{}; Object.keys(STATUS).forEach(function(k){ if(STATUS[k]===base[k])return; var p=k.split('|'); var iso=p[0]; var code=p.slice(3).join('|'); var cust=(typeof SLOTCUST!=='undefined'&&SLOTCUST[k])||''; if(typeof logDecision==='function')logDecision(iso,code,cust,'','reopened',''); });}catch(e){}
+  try{STATUS=JSON.parse(JSON.stringify(SNAP0.status));saveStatus(STATUS);}catch(e){}
+  try{CONFIRMED_MOVES=JSON.parse(JSON.stringify(SNAP0.moves));saveMoves();}catch(e){}
+  try{LEADS=JSON.parse(JSON.stringify(SNAP0.leads));saveLeads();}catch(e){}
+  SNAP0=null;
+  if(typeof SELECTED!=='undefined'&&SELECTED){renderDay(SELECTED);} if(typeof renderHorizon==='function')renderHorizon(); updateResetCU();
+}
 let WINDOW=[], SELECTED=null, RECS={}, CURPLAN=null, ACTIVE_ROUTE=null;
 let PROBONLY=false, BASEFILTER=new Set(), CURCHANGES={}, APD=null, COLLAPSED=new Set();
 let HZPAGE=0, _hzManual=false;
@@ -2380,8 +2394,36 @@ function routeSteps(route){
   });
   return rows.join('');
 }
+function buildRecRoute(rec, kind, td){
+  try{
+    var pad=function(n){return String(n).padStart(2,'0');};
+    var f=function(ms){var d=new Date(ms);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());};
+    if(kind==='call'){
+      var tail=jobByCode(rec.tail); if(!tail||!tail.pickup||!tail.delivery)return null;
+      var R=null; ((td&&td.routes)||[]).forEach(function(rt){ if(R)return; if((rt.legs||[]).some(function(l){return l.code===rec.after||l.customer===rec.anchorCustomer;}))R=rt; });
+      if(!R)return null;
+      var arrive=rec.askArriveMs!=null?rec.askArriveMs:rec.arriveMs;
+      var dur=((tail.actH||schedH(tail)||3)*3600000);
+      var appended=Object.assign({},tail,{start:arrive!=null?f(arrive):tail.start,end:arrive!=null?f(arrive+dur):tail.end,_chained:true});
+      return {route:Object.assign({},R,{legs:R.legs.concat([appended]),totalCF:(R.totalCF||0)+(tail.cf||0)}), hi:new Set([rec.tail])};
+    } else {
+      var j=jobByCode(rec.code); if(!j||!j.pickup||!j.delivery)return null;
+      var sl=rec.slot||{};
+      var startMs=Date.parse(rec.to+' '+String(j.start||'').slice(11))||Date.parse(rec.to+'T09:00');
+      var dur2=((j.actH||schedH(j)||3)*3600000);
+      var moved=Object.assign({},j,{start:f(startMs),end:f(startMs+dur2),_chained:true});
+      var td2=null; try{td2=timelineData(rec.to,{});}catch(e){}
+      if(!sl.fresh && (sl.anchorCode||sl.anchorCustomer) && td2){
+        var R2=null; (td2.routes||[]).forEach(function(rt){ if(R2)return; if((rt.legs||[]).some(function(l){return l.code===sl.anchorCode||l.customer===sl.anchorCustomer;}))R2=rt; });
+        if(R2)return {route:Object.assign({},R2,{legs:R2.legs.concat([moved]),totalCF:(R2.totalCF||0)+(j.cf||0)}), hi:new Set([rec.code])};
+      }
+      var bk=j.base||(DATA.bases?Object.keys(DATA.bases)[0]:'NJ');
+      return {route:{id:(j.customer||j.code)+' \u2014 moved',base:bk,crew:j.crew||2,totalCF:j.cf||0,legs:[moved]}, hi:new Set([rec.code])};
+    }
+  }catch(e){return null;}
+}
 let CUSEQ=0;
-async function showRouteJourney(route, title, sub){
+async function showRouteJourney(route, title, sub, hi){
   openMapPane(); if(LAYER)LAYER.clearLayers();
   CUSEQ++; const seq=CUSEQ;
   const r=route;
@@ -2392,10 +2434,10 @@ async function showRouteJourney(route, title, sub){
   const pts=basePt?[basePt]:[];
   const items=[];
   const estMin=(a,b)=>Math.max(5,Math.round(havArr(a,b)/35*60*1.15)+4);
-  function addTravel(from,to,label,kind){
+  function addTravel(from,to,label,kind,colOverride){
     if(havArr(from,to)<0.35)return null;
     const KC={topickup:'#1F6FD6',between:'#8A63D2',return:'#6B7280'};
-    const kcol=KC[kind]||TRAVEL;
+    const kcol=colOverride||KC[kind]||TRAVEL;
     const cpts=curvePts(from,to,-1,1.7);
     const casing=L.polyline(cpts,{color:'#FFFFFF',weight:6.5,opacity:0.92,lineCap:'round',interactive:false}).addTo(LAYER);
     const line=L.polyline(cpts,{color:kcol,weight:3,opacity:0.95,dashArray:'8 7',lineCap:'round',className:'flowline'}).addTo(LAYER);
@@ -2409,7 +2451,7 @@ async function showRouteJourney(route, title, sub){
     jobN++;
     const _cd=!!(l._carrier&&l.carrierDrop);
     const a=[l.pickup.lat,l.pickup.lon], b=_cd?[l.carrierDrop.lat,l.carrierDrop.lon]:[l.delivery.lat,l.delivery.lon];
-    if(prev)addTravel(prev,a,jobN===1?('Leave '+r.base+' base \u2192 job #1'):('Travel to job #'+jobN),jobN===1?'topickup':'between');
+    if(prev)addTravel(prev,a,jobN===1?('Leave '+r.base+' base \u2192 job #1'):('Travel to job #'+jobN),jobN===1?'topickup':'between',(hi&&hi.has(l.code))?'#E0552E':null);
     if(l._carrier&&!_cd){
       const it={type:'job',leg:l,jobN,from:a,to:null,carrier:true,inreg:false,fallback:0};
       items.push(it);
@@ -2420,11 +2462,12 @@ async function showRouteJourney(route, title, sub){
     const inreg=_cd?true:INREGION(l.delivery);
     const cpts=curvePts(a,b,1,1);
     const w0=Math.max(4,Math.min(l.cf/300,8));
+    const legCol=(hi&&hi.has(l.code))?'#E0552E':col;
     const casing=L.polyline(cpts,{color:'#FFFFFF',weight:w0+3.5,opacity:0.95,lineCap:'round',interactive:false}).addTo(LAYER);
-    const line=L.polyline(cpts,{color:col,weight:w0,opacity:0.95,dashArray:r.ldDeparture?'10 8':null,lineCap:'round'}).addTo(LAYER);
+    const line=L.polyline(cpts,{color:legCol,weight:w0,opacity:0.95,dashArray:r.ldDeparture?'10 8':null,lineCap:'round'}).addTo(LAYER);
     line.on('mouseover',()=>line.setStyle({weight:w0+2})); line.on('mouseout',()=>line.setStyle({weight:w0}));
     line.bindTooltip('<div class="tt">Job #'+jobN+' \u00b7 '+esc(l.code)+'</div><div class="ts">'+esc(l.cityFrom)+' \u2192 '+esc(l.cityTo)+' \u00b7 '+(l.cf||0).toLocaleString()+' CF \u00b7 ACT '+fmtH(l.actH||schedH(l))+'</div>',{sticky:true,className:'lpop',opacity:1});
-    arrowAt(cpts,col);
+    arrowAt(cpts,legCol);
     const it={type:'job',leg:l,jobN,from:a,to:b,inreg,line,casing,fallback:estMin(a,b),cdrop:_cd};
     items.push(it);
     stopN++;stopMarker(a,stopN,'P',col,'<div class="tt">Stop '+stopN+' \u00b7 job #'+jobN+' pickup \u00b7 '+tmCU(l.start)+'</div><div class="ts">'+esc(l.pickupAddr||l.cityFrom)+'</div>');
@@ -2637,10 +2680,10 @@ function renderSlot(iso, s, td, dupLeads){
   const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
   let head, body='';
   if(kind==='call'){
-    head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+' <span class="stag $">\u0024'+rec.discount+'</span>'+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
-    const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b>. Offer \u0024'+rec.discount+'.</div>';
-    const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning? We\u2019ll take \u0024'+rec.discount+' off for the flexibility.\u201d</div>';
-    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,rec,'call')+'</div>'; }
+    head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
+    const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b> \u2014 same-day flip, no discount needed.</div>';
+    const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning?\u201d</div>';
+    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,rec,'call',buildRecRoute(rec,'call',td))+'</div>'; }
     else if(stt==='accepted'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; body=desc+'<div class="leadrow"><label>Runs after (lead job):</label><select class="leadsel" data-lk="'+lk+'">'+dayJobOptions(td,lead)+'</select></div><div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-lk="'+lk+'">Confirm re-chain</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Client declined instead</button></div>'; }
     else if(stt==='confirmed'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; const dup=dupLeads.has(lead); body='<div class="confirmed'+(dup?' dup':'')+'">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.tail)+' arrives '+rec.window.text+', runs after <b>'+esc(jobCust(td,lead))+'</b>.'+(dup?' <span class="dupwarn">\u26a0 same lead as another re-chain \u2014 re-do this.</span>':'')+'<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
   } else {
@@ -2649,14 +2692,14 @@ function renderSlot(iso, s, td, dupLeads){
     head='<b><span class="tlbl move">\ud83d\udcc5 move date</span> '+esc(rec.customer||rec.code)+'</b> '+tag+' <span class="stag $">\u002450</span>';
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'. Offer \u002450 off for the date change.</div>';
     const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We\u2019ll take \u002450 off for changing the date.\u201d</div>';
-    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,sl,'move')+'</div>'; }
+    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,sl,'move',buildRecRoute(rec,'move',td))+'</div>'; }
     else if(stt==='accepted'){ body=desc+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'" data-mvto="'+rec.to+'" data-mvcust="'+esc(rec.customer||rec.code)+'" data-mvstart="'+((function(){var j=jobByCode(rec.code);return j?Date.parse(rec.to+' '+String(j.start).slice(11)):Date.parse(rec.to);})())+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Client declined instead</button></div>'; }
     else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'">change</button></div>'; }
   }
   const casc=(stt==='todo'&&s.altCount>0)?'<div class="casc">If they refuse, '+s.altCount+' other option'+(s.altCount>1?'s':'')+' for this crew \u2192 tap Declined.</div>':'';
   return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span>'+head+calSlotBtns(kind,rec)+'</div><div class="slotbody">'+body+casc+'</div></div>';
 }
-function routeBtn(id,rec,kind){RECS[id+'|r']={rec,kind};return '<button class="cb route" data-route="'+id+'|r">\ud83d\uddfa route</button>';}
+function routeBtn(id,rec,kind,full){RECS[id+'|r']={rec,kind,full:full||null};return '<button class="cb route" data-route="'+id+'|r">\ud83d\uddfa journey</button>';}
 function jobCust(td,code){let n=code;td.routes.forEach(r=>r.legs.forEach(l=>{if(l.code===code)n=l.customer||code;}));return n;}
 function parsePhone(j){ if(!j)return null; var d=j.description||j.notes||j.summary||j.desc||''; var m=String(d).match(/customer\s*mobile\s*[:\-]?\s*([+0-9()\s.\-]{7,})/i); var p=m?m[1]:(j.phone||j.mobile||j.tel||j.phoneNumber||null); return p?String(p).replace(/\s+/g,' ').trim():null; }
 
@@ -2707,7 +2750,7 @@ function renderDay(iso){
 
 function bindDay(iso){
   const root=$('daydetail');
-  root.querySelectorAll('.cb[data-act]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();
+  root.querySelectorAll('.cb[data-act]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();ensureSnap();
     const id=b.dataset.id, act=b.dataset.act;
     const _code=id.split('|').slice(3).join('|'), _kind=id.split('|')[2], _cust=SLOTCUST[id]||b.dataset.cust||b.dataset.mvcust||'';
     if(act==='accept'){ setStatus(id,'accepted'); logDecision(iso,_code,_cust,_kind,'accepted',''); }
@@ -2727,7 +2770,7 @@ function bindDay(iso){
     const rec=r.rec, kind=r.kind;
     const title=rec.customer||rec.tail||'Route';
     const sub=kind==='call'?('Chain after <b>'+esc(rec.anchorCustomer||'')+'</b> if they accept '+(rec.window?rec.window.text:'')+'.'):(rec.fresh?'Runs as its own crew on the new day.':'On the new day, after <b>'+esc(rec.anchorCustomer||'')+'</b>.');
-    showRoute(rec,kind,title,sub);
+    if(r.full&&r.full.route){showRouteJourney(r.full.route,title,(sub||'')+' <b style="color:#E0552E">Orange = the newly chained leg.</b>',r.full.hi);}else{showRoute(rec,kind,title,sub);}
   }));
   // click a route ROW (or any bar in it) -> show the whole route on the map
   root.querySelectorAll('.tlrow.clickable[data-rt]').forEach(row=>row.addEventListener('click',()=>{
@@ -2971,6 +3014,7 @@ async function syncFromSheet(){
   }catch(e){}
   APD=null; try{ renderHorizon(); if(SELECTED)renderDay(SELECTED); }catch(e){}
 }
+(function(){var _rb=document.getElementById('resetcu');if(_rb)_rb.addEventListener('click',function(){resetChanges();});})();
 $('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet().catch(function(){}).then(function(){showUpdateSummary();}); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. Calendar write-back stays parked until verified.</div>');}); });
 $('fromDate').addEventListener('change',()=>{SELECTED=null;HZPAGE=0;boot();});
 
