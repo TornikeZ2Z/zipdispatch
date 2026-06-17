@@ -756,7 +756,7 @@ function parseCalEvent(ev){
     eventId:ev.id,code,
     isPickup:String(ev.summary||'').includes('🛫'),isDelivery:String(ev.summary||'').includes('🛬'),
     fadRaw:(G('FAD (First Available Date)')||G('FAD')||'').trim(),deliveryTimeFrame:(G('Delivery Time Frame')||G('Delivery Timeframe')||'').trim(),salesRep:(G('Sales Rep 1')||G('Sales Rep')||'').trim(),
-    pickupZip:_zip,deliveryZip:zipFromAddr(G('Moving To')),
+    pickupZip:_zip,deliveryZip:zipFromAddr(G('Moving To')),organizerEmail:String((ev.organizer&&ev.organizer.email)||'').trim(),
     after:G('After Job Code').trim()||null,
     first:true,base:null,pickup:pz,delivery:dz,
     pickupAddr,deliveryAddr:G('Moving To'),
@@ -798,6 +798,16 @@ function midnight(d){const x=new Date(d); x.setHours(0,0,0,0); return x;}
 function ldDaysLeft(j){const d=j.fadDate; if(!d)return null; return Math.round((midnight(d)-midnight(new Date()))/86400000);}
 function fmtMDY(d){if(!d)return ''; return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+String(d.getFullYear()).slice(-2);}
 function stateZip(p,zip){return (((p&&p.state)||'')+(zip?(' '+zip):'')).trim();}
+function resolveForeman(j){
+  const fm=(typeof DATA!=='undefined'&&DATA.foremen)||[]; const n=s=>String(s||'').trim().toLowerCase();
+  if(j.mf){ const t=n(j.mf);
+    const f=fm.find(x=>n(x.nick)===t)||fm.find(x=>n(x.name).split(/\s+/)[0]===t);
+    return f?f.name:j.mf;
+  }
+  const e=n(j.organizerEmail);
+  if(e){ const f=fm.find(x=>n(x.email)===e); if(f)return f.name; }
+  return '';
+}
 async function calImport(){
   if(!GTOKEN)return {jobs:0,events:0};
   const t0=new Date(Date.now()-CAL_PAST_DAYS*86400000),t1=new Date(Date.now()+CAL_FUTURE_DAYS*86400000);
@@ -813,6 +823,7 @@ async function calImport(){
     if(job.isDelivery)continue;                 // pickups only — ignore the delivery leg
     job.fadDate=ldDeliveryDate(job);
     job.daysLeft=ldDaysLeft(job);
+    job.foreman=resolveForeman(job);
     jobs.push(job);
   }
   const today=midnight(new Date());
@@ -836,7 +847,7 @@ function renderFutureJobs(){
       +'<td>'+esc(j.deliveryTimeFrame||'')+'</td>'
       +'<td>'+esc(j.customer||'')+'</td>'
       +'<td>'+esc(j.salesRep||'')+'</td>'
-      +'<td>'+esc(j.mf||'')+'</td>'
+      +'<td>'+esc(j.foreman||'')+'</td>'
       +'<td class="num">'+(j.daysLeft==null?'':j.daysLeft)+'</td>'
       +'</tr>';
   host.innerHTML='<table class="ldtable"><thead><tr>'
