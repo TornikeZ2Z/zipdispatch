@@ -40,6 +40,7 @@ header .date{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width
 .stats{flex:0 1 auto;min-width:0;margin-left:auto;overflow-x:auto;justify-content:flex-start;scrollbar-width:none}
 .stats::-webkit-scrollbar{display:none}
 #rfwrap{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-left:4px}
+.rfrowbtns{display:flex;align-items:center;gap:8px}
 #rfstamp{font-size:13px;color:var(--faint);white-space:nowrap}
 @media (max-width:1100px){header{flex-wrap:wrap}header .date{max-width:none}}
 .brand{display:flex;flex-direction:column;gap:1px}
@@ -1182,8 +1183,8 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   </div>
   <div class="stats" id="stats"></div>
   <div id="rfwrap">
-    <button id="resetcu" class="calbtn ghost" title="Undo this review session&#39;s on-screen changes - back to the loaded state" style="display:none">&#8634; Reset changes</button><button id="calbtn" class="calbtn">🗓 Connect Calendar</button>
-    <button id="rfbtn" class="calbtn" title="Pull the latest jobs from Google Calendar">↻ Refresh</button>
+    <div class="rfrowbtns"><button id="resetcu" class="calbtn ghost" title="Undo this review session&#39;s on-screen changes - back to the loaded state" style="display:none">&#8634; Reset changes</button><button id="calbtn" class="calbtn">🗓 Connect Calendar</button>
+    <button id="rfbtn" class="calbtn" title="Pull the latest jobs from Google Calendar">↻ Refresh</button></div>
     <span id="rfstamp"></span>
   </div>
 </header>
@@ -2214,7 +2215,7 @@ function calOpenBtn(code){var j=jobByCode(code);var id=j&&j.eventId;var url=calE
 function calSlotBtns(kind,rec){var myCode=kind==='call'?rec.tail:rec.code;var h=calOpenBtn(myCode);if(kind==='call'&&rec.after)h+=calOpenBtn(rec.after);return h?(' <span class="calbtns">'+h+'</span>'):'';}
 function updateCalBtns(){
   const b=$('calbtn'); if(!b)return;
-  if(GTOKEN){ b.className='calbtn upd'; b.innerHTML='⤴ Update Calendar'; }
+  if(GTOKEN){ var _n=Object.keys(STATUS).filter(function(k){return STATUS[k]==='confirmed'&&(!SELECTED||k.indexOf(SELECTED+'|')===0);}).length; b.className='calbtn upd'; b.innerHTML='⤴ Update Calendar'+(_n?' ('+_n+')':''); b.title=_n?('Write the '+_n+' confirmed change'+(_n>1?'s':'')+' on this day to the calendar events'):'Connected — confirm changes below, then write them here'; }
   else { b.className='calbtn'; b.innerHTML='🗓 Connect Calendar'; }
 }
 
@@ -2222,7 +2223,7 @@ function updateCalBtns(){
 function loadStatus(){try{return JSON.parse(localStorage.getItem('zc_status')||'{}');}catch(e){return {};}}
 function saveStatus(s){try{localStorage.setItem('zc_status',JSON.stringify(s));}catch(e){}}
 let STATUS=loadStatus();
-function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STATUS);if(typeof updateResetCU==='function')updateResetCU();}
+function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STATUS);if(typeof updateResetCU==='function')updateResetCU();if(typeof updateCalBtns==='function')updateCalBtns();}
 var SNAP0=null;
 function ensureSnap(){ if(SNAP0)return; try{SNAP0={status:JSON.parse(JSON.stringify(STATUS)),moves:JSON.parse(JSON.stringify(CONFIRMED_MOVES)),leads:JSON.parse(JSON.stringify(LEADS))};}catch(e){SNAP0={status:{},moves:{},leads:{}};} updateResetCU(); }
 function sessionChangeCount(){ if(!SNAP0)return 0; var n=0,a=SNAP0.status||{}; Object.keys(STATUS).forEach(function(k){if(STATUS[k]!==a[k])n++;}); Object.keys(a).forEach(function(k){if(!(k in STATUS))n++;}); return n; }
@@ -2395,7 +2396,7 @@ function routeSteps(route){
   const rows=[]; let prevDoneMs=null;
   sl.forEach((l,i)=>{ const st=Date.parse(l.start); const act=(l.actH||schedH(l)||3); const samePD=sameSpot(l);
     if(i>0&&prevDoneMs!=null) rows.push(step(fmtMs(prevDoneMs),'Reposition to <b>'+esc(l.customer||l.code)+'</b> \u00b7 '+esc(l.cityFrom||''),true));
-    if(samePD){ const dM=st+act*3600000; rows.push(step(fmtMs(st),'Work <b>'+esc(l.customer||l.code)+'</b> ~'+fmtH(act)+' at '+esc(l.cityFrom||'')+' \u00b7 pickup &amp; delivery same address \u00b7 done ~'+fmtMs(dM),false)); prevDoneMs=dM; return; }
+    if(samePD){ const dM=st+act*3600000; rows.push(step(fmtMs(st),'Work <b>'+esc(l.customer||l.code)+'</b> ~'+fmtH(act)+' at '+esc(l.cityFrom||'')+' \u00b7 same address \u00b7 done ~'+fmtMs(dM),false)); prevDoneMs=dM; return; }
     rows.push(step(fmtMs(st),'Arrive <b>'+esc(l.customer||l.code)+'</b> \u00b7 pickup '+esc(l.cityFrom||'')+' \u00b7 '+(l.cf||0).toLocaleString()+' CF',false));
     const loadMs=st+act*0.6*3600000;
     rows.push(step(fmtMs(loadMs),'Load ~'+(Math.round(act*0.6*10)/10)+'h, drive to '+esc(l.cityTo||'delivery'),true));
@@ -2573,7 +2574,7 @@ function renderItineraryCU(r,items,seq,resolved){
       const workStart=Math.max(arrive,sched);
       totMi+=mi;totMin+=min;
       const samePD=it.samePD||sameSpot(l);
-      if(samePD){ const doneS=workStart+act*3600000; rows.push({t:fmtMs(workStart),txt:'Job #'+it.jobN+' \u00b7 '+l.code+' \u00b7 '+l.cityFrom+' \u2014 work '+fmtH(act)+' (ACT \u00b7 load and unload, same address) \u00b7 done ~'+fmtMs(doneS),travel:false}); cursor=doneS; continue; }
+      if(samePD){ const doneS=workStart+act*3600000; rows.push({t:fmtMs(workStart),txt:'Job #'+it.jobN+' \u00b7 '+l.code+' \u00b7 '+l.cityFrom+' \u2014 work '+fmtH(act)+' \u00b7 same address \u00b7 done ~'+fmtMs(doneS),travel:false}); cursor=doneS; continue; }
       const loadMs=act*ACT_LOAD_SHARE*3600000;
       const unloadMs=act*(1-ACT_LOAD_SHARE)*3600000;
       const departP=workStart+loadMs;
@@ -2732,7 +2733,7 @@ function renderDay(iso){
   const changes={};
   slots.slots.forEach(s=>{ if(!s.current)return; const k=s.current.kind, rec=s.current.rec; const id=sKey(iso,s.index,k,k==='call'?rec.tail:rec.code);
     if(STATUS[id]==='confirmed'){ if(k==='call') changes[rec.tail]={kind:'call', after:(LEADS[lKey(iso,s.index,rec.tail)]||rec.after), arriveMs:rec.arriveMs}; else changes[rec.code]={kind:'move', to:rec.to}; } });
-  CURCHANGES=changes;
+  CURCHANGES=changes; if(typeof updateCalBtns==='function')updateCalBtns();
   const td=timelineData(iso, changes);
   const distro=distroChecks(td); const incoming=incomingMoves(iso);
   const f=fmtDay(iso); const st=plan.status;
@@ -2750,6 +2751,7 @@ function renderDay(iso){
     else if(_nchg>0 && _post<=plan.availableCore){ h+='<div class="cres okwin">\u2713 Your '+_nchg+' change'+(_nchg>1?'s':'')+' clear'+(_nchg>1?'':'s')+' the shortage \u2014 now '+_post+'/'+plan.availableCore+' crews running.'+(_post>plan.target?(' Free '+(_post-plan.target)+' more to rebuild the buffer.'):'')+'</div>'; }
     h+='<div class="fixnote">Each step below frees one crew-day \u2014 work them top to bottom.</div>';
     h+='<div class="fixhead">'+(st==='short'?('Free '+plan.gapToCover+' crew'+(plan.gapToCover>1?'s':'')+' to clear the shortage'+(plan.gapToBuffer>plan.gapToCover?(' \u00b7 +'+(plan.gapToBuffer-plan.gapToCover)+' more rebuilds the buffer'):'')):('Optional \u2014 free up to '+plan.gapToBuffer+' crew'+(plan.gapToBuffer>1?'s':'')+' to rebuild the buffer'))+'</div>';
+    if(plan.status==='short'){ var _fut=[]; for(var _k=1;_k<=3;_k++){ var _fd=new Date(Date.parse(iso+'T12:00')+_k*86400000); var _fi=_fd.getFullYear()+'-'+String(_fd.getMonth()+1).padStart(2,'0')+'-'+String(_fd.getDate()).padStart(2,'0'); var _fe=horizon.find(function(x){return x.iso===_fi;}); if(_fe&&_fe.spare<1)_fut.push(_fe); } var _hasMove=slots.slots.some(function(s){return s.current&&s.current.kind==='move';}); if(!_hasMove&&_fut.length){ h+='<div class="distalert">\u26a0 <b>No date-move is possible from this day yet</b> \u2014 the next '+_fut.length+' day'+(_fut.length>1?'s':'')+' ('+_fut.map(function(e){var _ff=fmtDay(e.iso);return _ff.mon+' '+_ff.dn+' \u00b7 '+(e.status==='short'?'over '+Math.abs(e.spare):'full');}).join(', ')+') '+(_fut.length>1?'are':'is')+' also full, so there\u2019s nowhere to move a job into. Clear the shortage on '+(_fut.length>1?'those days':'that day')+' first \u2014 each crew you free there opens a slot to pull one of this day\u2019s jobs forward.</div>'; } }
     const confirmedLeads={};
     slots.slots.forEach(s=>{if(s.current&&s.current.kind==='call'){const id=sKey(iso,s.index,'call',s.current.rec.tail);if(STATUS[id]==='confirmed'){const lead=LEADS[lKey(iso,s.index,s.current.rec.tail)]||s.current.rec.after;confirmedLeads[lead]=(confirmedLeads[lead]||0)+1;}}});
     const dupLeads=new Set(Object.keys(confirmedLeads).filter(k=>confirmedLeads[k]>1));
@@ -2851,17 +2853,17 @@ async function executeCalWrites(){
         if(leadNick)body.summary=newTitle(ev.summary,leadNick,leadTruck);
         body.attendees=setForemanGuest(ev.attendees,emailForNick(leadNick),foremanEmailSet());
         if(a.newStartMs!=null){const day=String(ev.start.dateTime||'').slice(0,10)||(SELECTED||CURPLAN.iso);const sd=day+'T'+fmtMs(a.newStartMs)+':00';body.start={dateTime:sd,timeZone:tz};body.end={dateTime:fmtLocal(new Date(Date.parse(sd)+durMs)),timeZone:tz};}
-        await gapiFetch(evPath(a.eventId),{method:'PATCH',body:JSON.stringify(body)});
+        await gapiFetch(evPath(a.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify(body)});
       } else {
         const clock=(ev.start.dateTime||'').slice(11,16)||'09:00';
         const sdt=a.toDay+'T'+clock+':00';
-        await gapiFetch(evPath(a.eventId),{method:'PATCH',body:JSON.stringify({start:{dateTime:sdt,timeZone:tz},end:{dateTime:fmtLocal(new Date(Date.parse(sdt)+durMs)),timeZone:tz}})});
+        await gapiFetch(evPath(a.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify({start:{dateTime:sdt,timeZone:tz},end:{dateTime:fmtLocal(new Date(Date.parse(sdt)+durMs)),timeZone:tz}})});
       }
       ok++;
     }catch(e){fail++;errs.push(a.code+': '+e.message);}
   }
   $('gmodalhost').innerHTML='';
-  gModal('Calendar updated','<div class="gsub">\u2705 '+ok+' change'+(ok!==1?'s':'')+' written'+(fail?' \u00b7 \u26a0 '+fail+' failed':'')+'.</div>'+(fail?'<div class="gqt">'+esc(errs.slice(0,4).join(' \u00b7 '))+'</div>':'')+'<div class="gqt">Press Update Calendar to re-pull and see them reflected here.</div>');
+  gModal('Calendar updated','<div class="gsub">\u2705 '+ok+' change'+(ok!==1?'s':'')+' written'+(fail?' \u00b7 \u26a0 '+fail+' failed':'')+'.</div>'+(fail?'<div class="gqt">'+esc(errs.slice(0,4).join(' \u00b7 '))+(/40[13]/.test(errs.join(' '))?'<br>Sign-in may have expired or lacks calendar access \u2014 click <b>Connect Calendar</b>, then Update again.':'')+'</div>':'')+'<div class="gqt">Press Update Calendar to re-pull and see them reflected here.</div>');
 }
 function showUpdateSummary(){
   const iso=SELECTED; const chg=CURCHANGES||{}; const ents=Object.keys(chg);
