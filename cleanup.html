@@ -2257,7 +2257,7 @@ function calOpenBtn(code){var j=jobByCode(code);var id=j&&j.eventId;var url=calE
 function calSlotBtns(kind,rec){var myCode=kind==='call'?rec.tail:rec.code;var h=calOpenBtn(myCode);if(kind==='call'&&rec.after)h+=calOpenBtn(rec.after);return h?(' <span class="calbtns">'+h+'</span>'):'';}
 function updateCalBtns(){
   const b=$('calbtn'); if(!b)return;
-  if(GTOKEN){ var _n=Object.keys(STATUS).filter(function(k){return STATUS[k]==='confirmed'&&(!SELECTED||k.indexOf(SELECTED+'|')===0);}).length; b.className='calbtn upd'; b.innerHTML='⤴ Update Calendar'+(_n?' ('+_n+')':''); b.title=_n?('Write the '+_n+' confirmed change'+(_n>1?'s':'')+' on this day to the calendar events'):'Connected — confirm changes below, then write them here'; }
+  if(GTOKEN){ var _n=Object.keys(STATUS).filter(function(k){return STATUS[k]==='confirmed';}).length; b.className='calbtn upd'; b.innerHTML='⤴ Update Calendar'+(_n?' ('+_n+')':''); b.title=_n?('Write the '+_n+' confirmed change'+(_n>1?'s':'')+' on this day to the calendar events'):'Connected — confirm changes below, then write them here'; }
   else { b.className='calbtn'; b.innerHTML='🗓 Connect Calendar'; }
 }
 
@@ -3080,7 +3080,7 @@ async function syncFromSheet(){
   APD=null; try{ renderHorizon(); if(SELECTED)renderDay(SELECTED); }catch(e){}
 }
 (function(){var _rb=document.getElementById('resetcu');if(_rb)_rb.addEventListener('click',function(){resetChanges();});})();
-$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet().catch(function(){}).then(function(){showUpdateSummary();}); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. You can now write confirmed changes straight back to the calendar events.</div>');}); });
+$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ showUpdateSummary(); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. You can now write confirmed changes straight back to the calendar events.</div>');}); });
 $('fromDate').addEventListener('change',()=>{SELECTED=null;HZPAGE=0;boot();});
 
 /* ===== calendar job import (ported from the dispatcher) ===== */
@@ -3313,6 +3313,97 @@ $('dprev')&&$('dprev').addEventListener('click',function(){stepFrom(-1);});
 $('dnext')&&$('dnext').addEventListener('click',function(){stepFrom(1);});
 $('dbtn')&&$('dbtn').addEventListener('click',function(e){e.stopPropagation();_dpOpen=!_dpOpen;$('dpanel').classList.toggle('open',_dpOpen); if(_dpOpen){var c=$('dpanel').querySelector('.dprow.cur');if(c)c.scrollIntoView({block:'center'});}});
 document.addEventListener('click',function(e){ if(_dpOpen&&!e.target.closest('#daynav')){_dpOpen=false;var p=$('dpanel');if(p)p.classList.remove('open');} });
+
+/* ===== Update Calendar (robust): gather every confirmed change across all days from durable state ===== */
+function gatherConfirmed(){
+  var byIso={};
+  Object.keys(STATUS).forEach(function(k){
+    if(STATUS[k]!=='confirmed')return;
+    var p=k.split('|'); if(p.length<4)return;
+    var iso=p[0], slot=String(p[1]).replace(/^slot/,''), kind=p[2], code=p.slice(3).join('|');
+    if(!iso||!kind||!code)return;
+    (byIso[iso]=byIso[iso]||[]).push({iso:iso,slot:slot,kind:kind,code:code,key:k});
+  });
+  var out=[];
+  Object.keys(byIso).forEach(function(iso){
+    var hasCall=byIso[iso].some(function(x){return x.kind==='call';});
+    var plan=null;
+    if(hasCall){ try{ plan=cleanupPlan(iso, scanHorizon(windowStart(),7)); }catch(e){} }
+    byIso[iso].forEach(function(x){
+      var j=jobByCode(x.code); if(!j||!j.eventId)return;      // can't write without the calendar event
+      x.customer=(j&&j.customer)||x.code; x.eventId=j.eventId;
+      if(x.kind==='move'){
+        var cm=CONFIRMED_MOVES[x.code]; x.to=(cm&&cm.to)||null;
+        if(!x.to)return;
+        out.push(x);
+      } else if(x.kind==='call'){
+        x.after=LEADS[iso+'|slot'+x.slot+'|'+x.code]||null;
+        if(plan){ var rec=(plan.callPool||[]).find(function(r){return r.tail===x.code;}); if(rec){ if(x.arriveMs==null)x.arriveMs=(rec.askArriveMs!=null?rec.askArriveMs:rec.arriveMs); if(!x.after)x.after=rec.after; } }
+        if(!x.after)return;                                    // a re-chain needs a lead job
+        out.push(x);
+      }
+    });
+  });
+  out.sort(function(a,b){return a.iso<b.iso?-1:a.iso>b.iso?1:0;});
+  return out;
+}
+function showUpdateSummary(){
+  var acts=gatherConfirmed();
+  if(!acts.length){ gModal('Nothing confirmed yet','<div class="gsub">Nothing is queued to write. To push to the calendar: open a day with a shortage, pick a re-chain or a date-move, press <b>Accept</b>, then <b>Confirm</b> on it. Confirmed items show up here ready to write \u2014 accepted-but-not-confirmed ones don\u2019t.</div>'); return; }
+  var byIso={}; acts.forEach(function(a){(byIso[a.iso]=byIso[a.iso]||[]).push(a);});
+  var isos=Object.keys(byIso).sort();
+  var nm=function(c){var j=jobByCode(c);return esc((j&&j.customer)||c||'?');};
+  var html='<div class="gsub">Review before writing \u2014 <b>'+acts.length+'</b> confirmed change'+(acts.length>1?'s':'')+' across '+isos.length+' day'+(isos.length>1?'s':'')+':</div>';
+  isos.forEach(function(iso){
+    var f=fmtDay(iso), list=byIso[iso];
+    html+='<div class="sumsec"><h4>'+f.dow+' '+f.mon+' '+f.dn+' \u2014 '+list.length+'</h4><ul>';
+    list.forEach(function(a){
+      if(a.kind==='call') html+='<li>\ud83d\udcde '+nm(a.code)+' \u2192 runs after <b>'+nm(a.after)+'</b>'+(a.arriveMs!=null?(' ('+fmtMs(a.arriveMs)+')'):' (afternoon)')+'</li>';
+      else html+='<li>\ud83d\udcc5 '+nm(a.code)+' \u2192 <b>'+fmtDay(a.to).dow+' '+fmtDay(a.to).mon+' '+fmtDay(a.to).dn+'</b></li>';
+    });
+    html+='</ul></div>';
+  });
+  html+='<div class="sumnet">Net effect: frees <b>'+acts.length+'</b> crew-day'+(acts.length>1?'s':'')+'.</div>';
+  var box=gModal('Update summary \u2014 '+acts.length+' change'+(acts.length>1?'s':''), html, '<button class="cb" id="sumcancel">Cancel</button> <button class="cb yes" id="sumconfirm">Confirm \u0026 update calendar</button>');
+  box.querySelector('#sumcancel').onclick=function(){$('gmodalhost').innerHTML='';};
+  box.querySelector('#sumconfirm').onclick=function(){$('gmodalhost').innerHTML='';ensureGToken(function(){executeCalWrites();});};
+}
+async function executeCalWrites(){
+  var acts=gatherConfirmed();
+  if(!acts.length){gModal('Nothing to write','<div class="gsub">No confirmed changes to write yet.</div>');return;}
+  var ok=0,fail=0;var errs=[];
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var fmtLocal=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00';};
+  for(const a of acts){
+    try{
+      const ev=await gapiFetch(evPath(a.eventId));
+      const tz=(ev.start&&ev.start.timeZone)||'America/New_York';
+      const durMs=(Date.parse(ev.end&&ev.end.dateTime)-Date.parse(ev.start&&ev.start.dateTime))||3*3600000;
+      if(a.kind==='call'){
+        let leadNick='',leadTruck='';
+        const lj=jobByCode(a.after); const leadEventId=(lj&&lj.eventId)||null;
+        if(leadEventId){try{const lev=await gapiFetch(evPath(leadEventId));const tg=parseTitleTag(lev.summary);leadNick=tg.nick;leadTruck=tg.truck;}catch(e){}}
+        let desc=ev.description||'';
+        desc=upsertField(desc,'After Job Code',a.after);
+        desc=upsertField(desc,'After Customer Name',(lj&&lj.customer)||'');
+        if(leadTruck)desc=upsertField(desc,'Truck #',leadTruck);
+        desc=upsertField(desc,'Support Chained','Yes');
+        const body={description:desc};
+        if(leadNick)body.summary=newTitle(ev.summary,leadNick,leadTruck);
+        body.attendees=setForemanGuest(ev.attendees,emailForNick(leadNick),foremanEmailSet());
+        if(a.arriveMs!=null){const day=String(ev.start.dateTime||'').slice(0,10)||a.iso;const sd=day+'T'+fmtMs(a.arriveMs)+':00';body.start={dateTime:sd,timeZone:tz};body.end={dateTime:fmtLocal(new Date(Date.parse(sd)+durMs)),timeZone:tz};}
+        await gapiFetch(evPath(a.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify(body)});
+      } else {
+        const clock=(ev.start.dateTime||'').slice(11,16)||'09:00';
+        const sdt=a.to+'T'+clock+':00';
+        await gapiFetch(evPath(a.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify({start:{dateTime:sdt,timeZone:tz},end:{dateTime:fmtLocal(new Date(Date.parse(sdt)+durMs)),timeZone:tz}})});
+      }
+      ok++;
+    }catch(e){fail++;errs.push((a.customer||a.code)+': '+e.message);}
+  }
+  $('gmodalhost').innerHTML='';
+  gModal('Calendar updated','<div class="gsub">\u2705 '+ok+' change'+(ok!==1?'s':'')+' written'+(fail?' \u00b7 \u26a0 '+fail+' failed':'')+'.</div>'+(fail?'<div class="gqt">'+esc(errs.slice(0,5).join(' \u00b7 '))+(/40[13]/.test(errs.join(' '))?'<br>Sign-in may have expired or lacks calendar access \u2014 click <b>Connect Calendar</b>, then Update again.':'')+'</div>':'')+'<div class="gqt">Press \u21bb Refresh to re-pull and see them reflected here.</div>');
+}
 
 function boot(){
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
