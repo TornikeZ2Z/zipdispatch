@@ -3,48 +3,124 @@
 <title>Long Distance Planning · Zip To Zip</title>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-:root{--ink:#1a1f24;--dim:#6b7682;--line2:#e3e7eb;--bg:#f6f7f9;--accent:#1f7a3d;--amber:#fbd95b;--amberln:#e9c23f}
-*{box-sizing:border-box}
-body{margin:0;font-family:'Inter',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
-.wrap{max-width:1500px;margin:0 auto;padding:18px 22px 60px}
-h1{font-size:30px;font-weight:700;margin:6px 0 2px;letter-spacing:-.01em}
-.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 16px}
-.bar .ttl{font-size:14px;color:var(--dim);font-weight:600;margin-right:auto}
-.btn{font:inherit;font-weight:600;font-size:13.5px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:9px;padding:8px 13px;cursor:pointer}
-.btn:hover{border-color:#cfd5db}
-.btn.upd{background:#eaf6ee;border-color:#bfe2cb;color:#1f7a3d}
+:root{
+  --bg:#F7F6F2;--paper:#F7F6F2;--card:#FFFFFF;--ink:#1F2329;--dim:#646B73;--faint:#969CA3;
+  --line:#E6E4DC;--line2:#D3D0C6;
+  --fleet:#6E9220;--fleet-bg:#F3F8E4;--fleet-bd:#D3E3A6;
+  --rental:#B26B0B;--rental-bg:#FBF0DC;--rental-bd:#EDD6A8;
+  --hazard:#B3362A;--hazard-bg:#FBE9E6;--hazard-bd:#F0C7C0;
+  --travel:#6C5CE0;--travel-bg:#EFECFB;--travel-bd:#D6D0F5;
+  --straight:#FCE9A6;--straight-bd:#EBCF76;
+  --green:#1E7A3D;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.mono{font-family:'IBM Plex Mono',monospace}
+.wrap{max-width:1560px;margin:0 auto;padding:0 0 100px}
+header{display:flex;align-items:flex-start;gap:16px;padding:20px 28px 16px;flex-wrap:wrap}
+header h1{font-family:'Barlow Condensed';font-weight:600;font-size:31px;letter-spacing:.05em;text-transform:uppercase;line-height:1}
+header .sub{font-size:13.5px;color:var(--dim);margin-top:4px}
+header .hgrow{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;font-size:13.5px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:9px;padding:8px 14px;cursor:pointer}
+.btn:hover{border-color:#bdb9ac}
+.btn.upd{background:var(--fleet-bg);border-color:var(--fleet-bd);color:var(--fleet)}
 #rfstamp{font-size:12.5px;color:var(--dim)}
-.ldtable{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line2);border-radius:10px;overflow:hidden;font-size:14px}
-.ldtable th{background:var(--accent);color:#fff;text-align:left;font-weight:700;padding:11px 13px;white-space:nowrap}
-.ldtable td{padding:10px 13px;border-top:1px solid var(--line2);vertical-align:middle}
-.ldtable tbody tr.straight{background:var(--amber)}
-.ldtable tbody tr.straight td{border-top-color:var(--amberln)}
-.ldtable tbody tr.regular{background:#fff}
+.stats{display:flex;gap:36px;padding:6px 28px 16px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.stat .v{font-family:'Barlow Condensed';font-weight:600;font-size:30px;line-height:1}
+.stat .v.amber{color:var(--rental)} .stat .v.green{color:var(--fleet)} .stat .v.haz{color:var(--hazard)}
+.stat .k{font-size:11.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+.split{display:grid;grid-template-columns:1fr 392px;gap:18px;padding:18px 28px 0}
+@media(max-width:1100px){.split{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.cardhd{font-family:'Barlow Condensed';font-weight:600;font-size:18px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+#map{height:494px;width:100%}
+.leaflet-container{font-family:'Inter',sans-serif;font-size:14px}
+.leaflet-tile-pane{filter:saturate(.9)}
+.leaflet-control-zoom a{color:var(--ink)!important;border-color:var(--line2)!important}
+.leaflet-control-attribution{font-size:11px!important;background:rgba(255,255,255,.78)!important}
+.lpop .leaflet-popup-content{margin:11px 14px;line-height:1.5;font-size:14px}
+.omark{width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--dim);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.dmark{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--fleet);box-shadow:0 2px 6px rgba(0,0,0,.2);font-family:'Barlow Condensed';font-weight:600;font-size:12.5px;color:var(--ink)}
+.dmark.amber{border-color:var(--rental)}
+.consol{padding:13px 14px;max-height:494px;overflow:auto;display:flex;flex-direction:column;gap:11px}
+.consol .none{color:var(--dim);font-size:13.5px;padding:22px 6px;text-align:center;line-height:1.5}
+.cgroup{border:1px solid var(--line2);border-radius:12px;padding:12px 13px;background:var(--paper)}
+.cgroup .ch{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.cgroup .dest{font-family:'Barlow Condensed';font-weight:600;font-size:20px;color:var(--rental);letter-spacing:.02em;text-transform:uppercase}
+.cgroup .when{font-size:12.5px;color:var(--dim)}
+.cgroup .cf{margin-left:auto;font-family:'IBM Plex Mono';font-size:12.5px;color:var(--ink)}
+.cgroup .cfbar{height:6px;border-radius:4px;background:var(--line);margin:9px 0 11px;overflow:hidden}
+.cgroup .cfbar i{display:block;height:100%;background:var(--fleet)}
+.cgroup .cfbar i.over{background:var(--hazard)}
+.cgroup .leg{font-size:13.5px;color:var(--ink);display:flex;gap:9px;padding:3px 0;align-items:baseline}
+.cgroup .leg .lt{color:var(--dim);font-family:'IBM Plex Mono';font-size:11px;flex-shrink:0;min-width:54px}
+.cgroup .leg.anchor{font-weight:600}
+.cgroup .actions{margin-top:11px;display:flex;gap:8px}
+.cgroup button{font:inherit;font-weight:600;font-size:12.5px;border:1px solid var(--line2);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--ink)}
+.cgroup button.prim{background:var(--ink);color:#fff;border-color:var(--ink)}
+.cgroup button.prim:hover{background:#33383F}
+.tablewrap{padding:22px 28px 0}
+.tabhd{font-family:'Barlow Condensed';font-weight:600;font-size:23px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 12px;display:flex;align-items:center;gap:14px}
+.tabhd .lg{display:inline-flex;gap:14px;font-family:'Inter';font-size:12px;font-weight:600;color:var(--dim);text-transform:none;letter-spacing:0}
+.tabhd .lg i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:5px}
+.ldtable{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;font-size:14px}
+.ldtable thead th{position:sticky;top:0;background:var(--green);color:#fff;text-align:left;font-family:'Inter';font-weight:600;font-size:12px;letter-spacing:.03em;text-transform:uppercase;padding:11px 13px;white-space:nowrap;z-index:2}
+.ldtable td{padding:10px 13px;border-top:1px solid var(--line);vertical-align:middle}
+.ldtable tbody tr{cursor:pointer}
+.ldtable tbody tr.straight{background:var(--straight)}
+.ldtable tbody tr.straight td{border-top-color:var(--straight-bd)}
+.ldtable tbody tr.regular{background:var(--card)}
+.ldtable tbody tr:hover td{background:rgba(0,0,0,.045)}
+.ldtable tbody tr.sel td{box-shadow:inset 3px 0 0 var(--travel)}
 .ldtable td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:'IBM Plex Mono',monospace}
 .ldtable td.nowrap{white-space:nowrap}
-.ldtable td.assign a{color:#1558d6;text-decoration:underline;font-weight:600}
-.empty{padding:44px 16px;text-align:center;color:var(--dim);background:#fff;border:1px solid var(--line2);border-radius:10px}
+.ldtable td.assign a{color:#1558d6;text-decoration:none;font-weight:600;border:1px solid #c4d4f5;background:#eef3fe;padding:4px 11px;border-radius:8px}
+.ldtable td.assign a:hover{background:#e0eafe}
+.ldtable .dl{font-family:'IBM Plex Mono';font-weight:600}
+.ldtable .dl.soon{color:var(--hazard)}
+.ldtable .fade{color:var(--faint)}
+.empty{padding:50px 16px;text-align:center;color:var(--dim);background:var(--card);border:1px solid var(--line);border-radius:13px}
 .gmodal{position:fixed;inset:0;background:rgba(20,25,30,.46);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px}
 .gmodal.show{display:flex}
 .gbox{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:22px 24px;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.25)}
 .gx{position:absolute;top:12px;right:14px;border:0;background:none;font-size:18px;cursor:pointer;color:var(--dim)}
-.gh{font-size:19px;font-weight:700;margin:0 0 10px}
+.gh{font-size:19px;font-weight:700;margin:0 0 10px;font-family:'Barlow Condensed';letter-spacing:.02em;text-transform:uppercase}
 .gbody{font-size:14.5px;line-height:1.55}
 .gsub{font-size:14.5px;line-height:1.55;color:var(--ink)}
 .gfoot{margin-top:16px;display:flex;gap:10px;justify-content:flex-end}
-.mono{font-family:'IBM Plex Mono',monospace}
 </style></head><body>
 <div class="wrap">
-  <h1>Long Distance Planning</h1>
-  <div class="bar">
-    <span class="ttl">Future Jobs — pickups only · Straight = amber, Regular = white</span>
-    <button id="calbtn" class="btn">🗓 Connect Calendar</button>
-    <button id="rfbtn" class="btn" title="Pull the latest jobs from Google Calendar">↻ Refresh</button>
-    <span id="rfstamp"></span>
+  <header>
+    <div>
+      <h1>Long Distance Planning</h1>
+      <div class="sub">Pickups only &middot; straight runs in amber, regular in white</div>
+    </div>
+    <div class="hgrow">
+      <button id="calbtn" class="btn">Connect Calendar</button>
+      <button id="rfbtn" class="btn" title="Pull the latest from Google Calendar">Refresh</button>
+      <span id="rfstamp"></span>
+    </div>
+  </header>
+  <div class="stats">
+    <div class="stat"><div class="v" id="stPick">0</div><div class="k">Pickups</div></div>
+    <div class="stat"><div class="v amber" id="stStr">0</div><div class="k">Straight</div></div>
+    <div class="stat"><div class="v" id="stReg">0</div><div class="k">Regular</div></div>
+    <div class="stat"><div class="v green" id="stCon">0</div><div class="k">Consolidations</div></div>
   </div>
-  <div id="ldgrid"></div>
+  <div class="split">
+    <section class="card"><div class="cardhd">Route map</div><div id="map"></div></section>
+    <aside class="card"><div class="cardhd">Consolidation</div><div id="consol" class="consol"><div class="none">Connect to see suggestions.</div></div></aside>
+  </div>
+  <div class="tablewrap">
+    <div class="tabhd">Future Jobs <span class="lg"><span><i style="background:var(--straight);border:1px solid var(--straight-bd)"></i>Straight</span><span><i style="background:#fff;border:1px solid var(--line2)"></i>Regular</span></span></div>
+    <div id="ldgrid"><div class="empty">Connect Google Calendar to load upcoming long-distance jobs.</div></div>
+  </div>
 </div>
 <div id="gmodalhost"></div>
 <script>
@@ -895,39 +971,126 @@ async function calImport(){
              .sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
   return {jobs:LDJOBS.length,events:items.length};
 }
+/* ---- LD planning UI: map + consolidation ---- */
+let CONSOL=[];
+let LMAP=null,LROUTE_LAYER=null,LD_ROUTE_REFS={};
+function initMap(){
+  if(LMAP||typeof L==='undefined')return;
+  const el=$('map'); if(!el)return;
+  try{
+    LMAP=L.map('map',{zoomControl:true,attributionControl:true});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'\u00a9 OpenStreetMap \u00a9 CARTO'}).addTo(LMAP);
+    LMAP.setView([39.5,-83],5);
+    LROUTE_LAYER=L.layerGroup().addTo(LMAP);
+  }catch(e){LMAP=null;}
+}
+function drawRoutes(){
+  if(typeof L==='undefined')return; initMap(); if(!LMAP||!LROUTE_LAYER)return;
+  try{LROUTE_LAYER.clearLayers();}catch(e){} LD_ROUTE_REFS={}; const pts=[];
+  LDJOBS.forEach((j,idx)=>{
+    const a=j.pickup,b=j.delivery; if(!a||!b||a.lat==null||b.lat==null)return;
+    const col=j.straight?'#B26B0B':'#3B72B0'; const cpts=[[a.lat,a.lon],[b.lat,b.lon]];
+    try{
+      L.polyline(cpts,{color:'#fff',weight:6,opacity:.9,lineCap:'round',interactive:false}).addTo(LROUTE_LAYER);
+      const line=L.polyline(cpts,{color:col,weight:3,opacity:.92,dashArray:'8 7',lineCap:'round'}).addTo(LROUTE_LAYER);
+      line.on('click',()=>selectJob(idx,true));
+      L.marker([a.lat,a.lon],{interactive:false,icon:L.divIcon({className:'',html:'<div class="omark"></div>',iconSize:[13,13],iconAnchor:[7,7]})}).addTo(LROUTE_LAYER);
+      const dm=L.marker([b.lat,b.lon],{zIndexOffset:500,icon:L.divIcon({className:'',html:'<div class="dmark'+(j.straight?' amber':'')+'">'+esc(b.state||'')+'</div>',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(LROUTE_LAYER);
+      dm.bindPopup('<b>'+esc(j.customer||'')+'</b><br>'+esc(stateZip(a,j.pickupZip))+' \u2192 '+esc(stateZip(b,j.deliveryZip))+'<br>'+(j.cf||'?')+' CF \u00b7 '+(j.straight?'Straight':'Regular')+(j.fadDate?'<br>FAD '+fmtMDY(j.fadDate):''),{className:'lpop'});
+      dm.on('click',()=>selectJob(idx,false));
+      LD_ROUTE_REFS[idx]={line:line,dm:dm,b:[b.lat,b.lon]};
+    }catch(e){}
+    pts.push([a.lat,a.lon],[b.lat,b.lon]);
+  });
+  if(pts.length){try{LMAP.fitBounds(pts,{padding:[30,30]});}catch(e){}}
+  setTimeout(()=>{try{if(LMAP)LMAP.invalidateSize();}catch(e){}},220);
+}
+function selectJob(idx,fromMap){
+  document.querySelectorAll('.ldtable tbody tr.sel').forEach(tr=>tr.classList.remove('sel'));
+  const tr=document.querySelector('.ldtable tbody tr[data-idx="'+idx+'"]');
+  if(tr){tr.classList.add('sel'); if(fromMap&&tr.scrollIntoView)tr.scrollIntoView({block:'center',behavior:'smooth'});}
+  const ref=LD_ROUTE_REFS[idx]; if(!ref)return;
+  Object.keys(LD_ROUTE_REFS).forEach(k=>{try{LD_ROUTE_REFS[k].line.setStyle({weight:3,opacity:.92});}catch(e){}});
+  try{ref.line.setStyle({weight:5,opacity:1});}catch(e){}
+  if(!fromMap&&LMAP){try{ref.dm.openPopup();LMAP.panTo(ref.b);}catch(e){}}
+}
 function renderFutureJobs(){
   const host=$('ldgrid'); if(!host)return;
-  if(!LDJOBS.length){
-    host.innerHTML='<div class="empty">'+(!GTOKEN?'Connect Google Calendar above to load upcoming long-distance jobs.':'No upcoming pickups in the calendar window.')+'</div>';
-    return;
-  }
-  const row=j=>'<tr class="'+(j.straight?'straight':'regular')+'">'
-      +'<td class="assign"><a href="#" data-code="'+esc(j.code||'')+'">Assign</a></td>'
-      +'<td class="nowrap">'+esc(fmtMDY(parseLooseDate(String(j.start||'').slice(0,10))))+'</td>'
-      +'<td class="num">'+(j.cf||'')+'</td>'
-      +'<td class="nowrap">'+esc(stateZip(j.delivery,j.deliveryZip))+'</td>'
-      +'<td class="nowrap">'+esc(stateZip(j.pickup,j.pickupZip))+'</td>'
-      +'<td class="nowrap">'+esc(fmtMDY(j.fadDate))+'</td>'
-      +'<td>'+esc(j.deliveryTimeFrame||'')+'</td>'
-      +'<td>'+esc(j.customer||'')+'</td>'
-      +'<td>'+esc(j.salesRep||'')+'</td>'
-      +'<td>'+esc(j.foreman||'')+'</td>'
-      +'<td class="num">'+(j.daysLeft==null?'':j.daysLeft)+'</td>'
-      +'</tr>';
-  host.innerHTML='<table class="ldtable"><thead><tr>'
-    +'<th>Person</th><th>Date</th><th>CF</th><th>Delivery</th><th>Pickup</th><th>FAD</th><th>Timeframe</th><th>Customer</th><th>Sales Rep</th><th>Forman</th><th>Days Left</th>'
-    +'</tr></thead><tbody>'+LDJOBS.map(row).join('')+'</tbody></table>';
+  if(!LDJOBS.length){host.innerHTML='<div class="empty">'+(!GTOKEN?'Connect Google Calendar to load upcoming long-distance jobs.':'No upcoming pickups in the calendar window.')+'</div>';return;}
+  const row=(j,idx)=>'<tr class="'+(j.straight?'straight':'regular')+'" data-idx="'+idx+'">'
+    +'<td class="assign"><a href="#" data-code="'+esc(j.code||'')+'">Assign</a></td>'
+    +'<td class="nowrap mono">'+esc(fmtMDY(parseLooseDate(String(j.start||'').slice(0,10))))+'</td>'
+    +'<td class="num">'+(j.cf||'')+'</td>'
+    +'<td class="nowrap">'+esc(stateZip(j.delivery,j.deliveryZip))+'</td>'
+    +'<td class="nowrap">'+esc(stateZip(j.pickup,j.pickupZip))+'</td>'
+    +'<td class="nowrap mono">'+(j.fadDate?esc(fmtMDY(j.fadDate)):'<span class="fade">\u2014</span>')+'</td>'
+    +'<td>'+esc(j.deliveryTimeFrame||'')+'</td>'
+    +'<td>'+esc(j.customer||'')+'</td>'
+    +'<td>'+esc(j.salesRep||'')+'</td>'
+    +'<td>'+(j.foreman?esc(j.foreman):'<span class="fade">\u2014</span>')+'</td>'
+    +'<td class="num"><span class="dl'+(j.daysLeft!=null&&j.daysLeft<=2?' soon':'')+'">'+(j.daysLeft==null?'':j.daysLeft)+'</span></td></tr>';
+  host.innerHTML='<table class="ldtable"><thead><tr><th>Person</th><th>Date</th><th>CF</th><th>Delivery</th><th>Pickup</th><th>FAD</th><th>Timeframe</th><th>Customer</th><th>Sales Rep</th><th>Forman</th><th>Days Left</th></tr></thead><tbody>'+LDJOBS.map(row).join('')+'</tbody></table>';
+  host.querySelectorAll('tbody tr').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('a'))return;selectJob(+tr.getAttribute('data-idx'),false);}));
+}
+function truckCap(){const t=((typeof DATA!=='undefined'&&DATA.trucks)||[]).filter(x=>x.cf>0);const m=t.length?Math.max.apply(null,t.map(x=>x.cf)):0;return m>0?m:1800;}
+function tfWindowDays(j){const s=String(j.deliveryTimeFrame||'');const m=s.match(/(\d+)\s*(business\s*)?day/i);if(m)return Math.round(+m[1]*(m[2]?1.4:1));if(/-\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/.test(s))return 60;const n=s.match(/^\s*(\d{1,3})\s*$/);if(n)return +n[1];return 14;}
+function nearDest(anchor,r){const ad=anchor.delivery,rd=r.delivery;if(!ad||!rd||ad.lat==null||rd.lat==null)return false;if(rd.state&&ad.state&&rd.state===ad.state)return {why:'same state '+ad.state,mi:Math.round(hav(rd,ad))};const d=hav(rd,ad);if(d<=220)return {why:Math.round(d)+' mi from dest',mi:Math.round(d)};return false;}
+function computeConsol(){
+  CONSOL=[]; const today=midnight(new Date());
+  const straights=LDJOBS.filter(j=>j.straight&&j.delivery&&j.fadDate);
+  const regulars=LDJOBS.filter(j=>!j.straight&&j.delivery);
+  const cap=truckCap();
+  straights.forEach(S=>{
+    const Ds=midnight(S.fadDate); const cands=[];
+    regulars.forEach(R=>{
+      const fit=nearDest(S,R); if(!fit)return;
+      const rp=parseLooseDate(String(R.start||'').slice(0,10))||today;
+      const winEnd=new Date(midnight(rp).getTime()+tfWindowDays(R)*86400000);
+      const tfOK=Ds>=midnight(rp)&&Ds<=winEnd;
+      cands.push({R:R,fit:fit,tfOK:tfOK});
+    });
+    if(!cands.length)return;
+    cands.sort((a,b)=>(b.tfOK-a.tfOK)||(a.fit.mi-b.fit.mi));
+    const grp=[]; let cf=S.cf||0;
+    cands.forEach(c=>{if(cf+(c.R.cf||0)<=cap){grp.push(c);cf+=(c.R.cf||0);}});
+    if(grp.length)CONSOL.push({S:S,grp:grp,cf:cf,cap:cap});
+  });
+  CONSOL.sort((a,b)=>midnight(a.S.fadDate)-midnight(b.S.fadDate));
+}
+function renderConsol(){
+  const host=$('consol'); if(!host)return;
+  if(!GTOKEN){host.innerHTML='<div class="none">Connect to see consolidation suggestions.</div>';return;}
+  if(!CONSOL.length){host.innerHTML='<div class="none">No consolidation opportunities yet \u2014 no regular moves line up with a straight run by destination and timeframe.</div>';return;}
+  host.innerHTML=CONSOL.map((c,ci)=>{
+    const pct=Math.min(100,Math.round(c.cf/c.cap*100)),over=c.cf>c.cap;
+    const anchor='<div class="leg anchor"><span class="lt">'+esc(fmtMDY(c.S.fadDate))+'</span><span>\u2605 '+esc(c.S.customer||'')+' \u2014 '+esc(stateZip(c.S.pickup,c.S.pickupZip))+' \u2192 '+esc(stateZip(c.S.delivery,c.S.deliveryZip))+' \u00b7 '+(c.S.cf||0)+' CF</span></div>';
+    const legs=c.grp.map(g=>'<div class="leg"><span class="lt">'+(g.tfOK?'fits':'tight')+'</span><span>'+esc(g.R.customer||'')+' \u2014 '+esc(stateZip(g.R.pickup,g.R.pickupZip))+' \u2192 '+esc(stateZip(g.R.delivery,g.R.deliveryZip))+' \u00b7 '+(g.R.cf||0)+' CF</span></div>').join('');
+    return '<div class="cgroup"><div class="ch"><span class="dest">'+esc((c.S.delivery&&c.S.delivery.state)||'')+' run</span><span class="when">'+esc(fmtMDY(c.S.fadDate))+' \u00b7 '+(c.grp.length+1)+' jobs</span><span class="cf">'+c.cf+' / '+c.cap+' CF</span></div><div class="cfbar"><i class="'+(over?'over':'')+'" style="width:'+pct+'%"></i></div>'+anchor+legs+'<div class="actions"><button class="prim" data-consol="'+ci+'">Show route on map</button></div></div>';
+  }).join('');
+  host.querySelectorAll('button[data-consol]').forEach(b=>b.addEventListener('click',()=>showConsolRoute(+b.getAttribute('data-consol'))));
+}
+function showConsolRoute(ci){
+  const c=CONSOL[ci]; if(!c)return; drawRoutes(); if(typeof L==='undefined'||!LMAP||!LROUTE_LAYER)return;
+  const jobs=[c.S].concat(c.grp.map(g=>g.R)),dest=c.S.delivery,pts=[];
+  jobs.forEach(j=>{if(j.pickup&&dest){try{L.polyline([[j.pickup.lat,j.pickup.lon],[dest.lat,dest.lon]],{color:'#6C5CE0',weight:4,opacity:.95,lineCap:'round'}).addTo(LROUTE_LAYER);}catch(e){} pts.push([j.pickup.lat,j.pickup.lon]);}});
+  if(dest)pts.push([dest.lat,dest.lon]);
+  if(pts.length){try{LMAP.fitBounds(pts,{padding:[40,40]});}catch(e){}}
+}
+function updateStats(){
+  const p=LDJOBS.length,st=LDJOBS.filter(j=>j.straight).length;
+  const set=(id,v)=>{const e=$(id); if(e)e.textContent=v;};
+  set('stPick',p); set('stStr',st); set('stReg',p-st); set('stCon',CONSOL.length);
 }
 function pullAll(){
   $('rfstamp').textContent='Loading\u2026';
-  return calImport().then(r=>{ renderFutureJobs(); updateCalBtns(); if(_DEBUG)ldRenderDebug();
+  return calImport().then(r=>{ drawRoutes(); computeConsol(); renderFutureJobs(); renderConsol(); updateStats(); updateCalBtns(); if(_DEBUG)ldRenderDebug();
     $('rfstamp').textContent=LDJOBS.length?(LDJOBS.length+' pickups \u00b7 pulled '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})):'no upcoming pickups';
   }).catch(e=>{ const g=$('ldgrid'); if(g)g.innerHTML='<div class="empty">Could not pull the calendar \u2014 '+esc((e&&e.message)||'error')+'</div>'; $('rfstamp').textContent=''; });
 }
 function ldConnect(){ if(GTOKEN){pullAll();} else ensureGToken(()=>{updateCalBtns();pullAll();}); }
 $('calbtn').addEventListener('click',ldConnect);
 $('rfbtn').addEventListener('click',ldConnect);
-function boot(){ updateCalBtns(); renderFutureJobs(); if(GTOKEN&&!boot._pulled){boot._pulled=1;pullAll();} }
+function boot(){ initMap(); updateCalBtns(); renderFutureJobs(); renderConsol(); updateStats(); if(GTOKEN&&!boot._pulled){boot._pulled=1;pullAll();} }
 boot();
 
 </script>
