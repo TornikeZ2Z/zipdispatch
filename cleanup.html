@@ -2753,7 +2753,7 @@ function renderDay(iso){
     const dupLeads=new Set(Object.keys(confirmedLeads).filter(k=>confirmedLeads[k]>1));
     slots.slots.forEach(s=>{h+=renderSlot(iso,s,td,dupLeads);});
     const anyConfirmed=slots.slots.some(s=>{if(!s.current)return false;const id=sKey(iso,s.index,s.current.kind,s.current.kind==='call'?s.current.rec.tail:s.current.rec.code);return STATUS[id]==='confirmed';});
-    h+='<div class="calbar">'+(dupLeads.size?'<span class="dupwarn">\u26a0 Two re-chains share a lead \u2014 fix before updating.</span>':'')+'<button class="cb upd" id="updcal" '+((anyConfirmed&&!dupLeads.size)?'':'disabled')+'>\u2934 Update calendar</button><span class="cmuted">write-back parked \u2014 confirms saved here for now</span></div>';
+    h+='<div class="calbar">'+(dupLeads.size?'<span class="dupwarn">\u26a0 Two re-chains share a lead \u2014 fix before updating.</span>':'')+'<button class="cb upd" id="updcal" '+((anyConfirmed&&!dupLeads.size)?'':'disabled')+'>\u2934 Update calendar</button><span class="cmuted">writes the confirmed changes to the calendar events</span></div>';
     if(slots.declinedCusts&&slots.declinedCusts.length){ h+='<div class="declog"><span class="decllbl">\u2715 Declined \u2014 won\u2019t suggest again (you\u2019ve already spoken to them):</span> '+slots.declinedCusts.map(function(c){return '<span class="declchip">'+esc(c)+'<button class="declundo" data-undocust="'+esc(c)+'" title="Undo \u2014 put this customer back as an option">\u21ba</button></span>';}).join('')+'</div>'; }
   }
   h+='</div>';
@@ -2991,6 +2991,7 @@ function crewToForemen(rows){
   }
   return out;
 }
+function vehiclesToTrucks(rows){ if(!rows||!rows.length)return []; const h=rows[0]; const idx=function(n){return h.indexOf(n);}; const out=[]; for(let i=1;i<rows.length;i++){const r=rows[i]||[]; const get=function(n){const k=idx(n);return k<0?'':(r[k]||'');}; if(!String(get('Truck N')).trim())continue; out.push({n:String(get('Truck N')).trim(),status:String(get('Status')||'').trim(),cf:numVcu(get('CF')),maxCrew:numVcu(get('Max Crew Size')),state:String(get('List of States Truck can be used')||'').split(',')[0].trim(),type:String(get('Type')||'').trim(),model:String(get('Truck Full Size')||'').trim(),reg:String(get('Registered To')||'').trim()}); } return out; }
 async function shEnsureTab(name,headers){
   let existing=null;
   try{existing=await shValues(name);}catch(e){existing=null;}
@@ -3015,6 +3016,7 @@ async function syncFromSheet(){
     }
   }catch(e){ sheetWarnOnce(e); }
   try{ const cv=await shValues('Crew Members'); const fm=crewToForemen(cv); if(fm.length){DATA.foremen=fm;APD=null;} }catch(e){}
+  try{ const vv=await shValues('Vehicles'); const tk=vehiclesToTrucks(vv); if(tk.length){DATA.trucks=tk;} }catch(e){}
   shEnsureTab('Rented Trucks',RENTED_HEADERS);
   try{ const v=await shValues(LOGTAB);
     if(v&&v.length>1){ const h=v[0],cD=h.indexOf('Date'),cC=h.indexOf('Job Code'),cU=h.indexOf('Customer'),cK=h.indexOf('Kind'),cA=h.indexOf('Action'),cT=h.indexOf('Detail');
@@ -3032,7 +3034,7 @@ async function syncFromSheet(){
   APD=null; try{ renderHorizon(); if(SELECTED)renderDay(SELECTED); }catch(e){}
 }
 (function(){var _rb=document.getElementById('resetcu');if(_rb)_rb.addEventListener('click',function(){resetChanges();});})();
-$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet().catch(function(){}).then(function(){showUpdateSummary();}); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. Calendar write-back stays parked until verified.</div>');}); });
+$('calbtn').addEventListener('click',()=>{ if(GTOKEN){ syncFromSheet().catch(function(){}).then(function(){showUpdateSummary();}); } else ensureGToken(()=>{updateCalBtns();syncFromSheet();gModal('Connected &amp; synced','<div class="gsub">\u2705 Connected \u2014 day-offs now load from the sheet and every accept/decline/move is shared with the rest of the team automatically. You can now write confirmed changes straight back to the calendar events.</div>');}); });
 $('fromDate').addEventListener('change',()=>{SELECTED=null;HZPAGE=0;boot();});
 
 /* ===== calendar job import (ported from the dispatcher) ===== */
@@ -3150,7 +3152,7 @@ function pullAll(){
     else { var dd=$('daydetail'); if(dd)dd.innerHTML='<div class="pickprompt">No calendar jobs found in this date range. Pick another start date above.</div>'; }
     updateCalBtns();
     var last=Object.keys(DATA.days).sort().slice(-1)[0];
-    $('rfstamp').textContent=last?('jobs through '+last):'no calendar jobs found';
+    $('rfstamp').textContent=(last?('jobs through '+last):'no calendar jobs')+' \u00b7 '+(DATA.foremen||[]).filter(function(f){return f.status==='Active';}).length+' crews \u00b7 '+(DATA.trucks||[]).length+' trucks';
   }).catch(function(e){
     var dd=$('daydetail'); if(dd)dd.innerHTML='<div class="pickprompt">Could not pull the calendar \u2014 '+((e&&e.message)||'error')+'</div>';
     $('rfstamp').textContent='';
@@ -3171,6 +3173,21 @@ function boot(){
   if(GTOKEN&&!boot._pulled){boot._pulled=1;pullAll();}else if(GTOKEN){syncFromSheet();}
 }
 boot();
+/* keep the Google token alive in the background so it stops asking to reconnect (mirrors the dispatcher) */
+if(!window._gsiFail&&localStorage.getItem('zd_gconn')===GSCOPE_VER&&(!GTOKEN||Date.now()>GTOKEXP-300000)){
+  setTimeout(function(){try{
+    if(!(window.google&&google.accounts&&google.accounts.oauth2))return;
+    window._silentTok=1;
+    _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:function(){}});
+    _tokenClient.callback=function(resp){ if(resp&&resp.access_token){ GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000); try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP,scope:GSCOPE_VER}));}catch(e){} try{updateCalBtns();}catch(e){} if(!boot._pulled){boot._pulled=1;try{pullAll();}catch(e){}} } window._silentTok=0; };
+    _tokenClient.requestAccessToken({prompt:''});
+  }catch(e){}},900);
+}
+setInterval(function(){
+  if(!GTOKEN||window._gsiFail||localStorage.getItem('zd_gconn')!==GSCOPE_VER)return;
+  if(Date.now()<GTOKEXP-420000)return;
+  try{window._silentTok=1;_tokenClient.requestAccessToken({prompt:''});}catch(e){}
+},300000);
 </script>
 </body>
 </html>
