@@ -808,6 +808,69 @@ function resolveForeman(j){
   if(e){ const f=fm.find(x=>n(x.email)===e); if(f)return f.name; }
   return '';
 }
+let LD_RAW_ITEMS=[];
+const _DEBUG=/[?&]debug=1/i.test((location&&location.search)||'');
+function _isoOf(d){return d?(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')):'';}
+function ldDebugText(){
+  const items=LD_RAW_ITEMS||[];
+  const keyCount={}, reasons={}; const lines=[];
+  let jobN=0,nonJob=0,rej=0,acc=0,pick=0,del=0,strt=0,reg=0,fadOk=0,fadNo=0,dropDate=0;
+  const delByCode={},delByCust={};
+  const DEL='\u{1F6EC}';
+  const today=midnight(new Date());
+  items.forEach(ev=>{
+    const L=parseLabels(ev.description); Object.keys(L).forEach(k=>keyCount[k]=(keyCount[k]||0)+1);
+    const code=(L['job code']||'').trim();
+    if(code&&String(ev.summary||'').includes(DEL)){const d=wallClock(ev.start&&(ev.start.dateTime||ev.start.date)); if(d){const iso=_isoOf(d); delByCode[code]=iso; const c=(L['customer name']||'').trim().toLowerCase(); if(c)delByCust[c]=iso;}}
+  });
+  const samples=[];
+  items.forEach(ev=>{
+    const L=parseLabels(ev.description);
+    const code=(L['job code']||'').trim();
+    if(!code){nonJob++;return;}
+    jobN++;
+    const job=parseCalEvent(ev);
+    if(!job){rej++; const w=(parseCalEvent.why||'?'); reasons[w]=(reasons[w]||0)+1;
+      if(lines.length<40)lines.push('x  '+code.padEnd(12)+' REJECT: '+w);
+      return;}
+    acc++;
+    const isDel=job.isDelivery, isStr=job.straight;
+    if(isDel){del++;} else {pick++; if(isStr)strt++; else reg++;}
+    const fad=ldDeliveryDate(job);
+    const cust=(job.customer||'').trim();
+    const mDel=delByCode[code]||delByCust[cust.toLowerCase()]||'';
+    let drop='';
+    if(!isDel){ if(fad){fadOk++; if(midnight(fad)<today){dropDate++; drop=' (past->dropped)';}} else fadNo++; }
+    if(lines.length<40){
+      lines.push((isDel?'D':'P')+' '+(isStr?'S':'R')+' '+code.padEnd(12)+(cust.slice(0,16)).padEnd(16)
+        +' CF='+(job.cf||'?')
+        +' FADraw='+(job.fadRaw?("'"+job.fadRaw+"'"):'-')
+        +' TF='+(job.deliveryTimeFrame?("'"+job.deliveryTimeFrame.slice(0,20)+"'"):'-')
+        +' =>FAD='+(fad?_isoOf(fad):'\u274C')+drop
+        +' delEv='+(mDel||'-'));
+    }
+    if(samples.length<3&&!isDel)samples.push('--- ['+(isStr?'STRAIGHT':'REGULAR')+'] '+cust+' / '+code+' ---\n'+calDescText(ev.description).slice(0,1300));
+  });
+  const keys=Object.keys(keyCount).sort((a,b)=>keyCount[b]-keyCount[a]);
+  const rk=Object.keys(reasons).sort((a,b)=>reasons[b]-reasons[a]);
+  let o='ZIPDISPATCH LD DIAGNOSTIC - '+items.length+' calendar events in window\n';
+  o+='job events (Job Code present): '+jobN+'   | non-job events (no code): '+nonJob+'\n';
+  o+='  parsed OK: '+acc+'   rejected: '+rej+'\n';
+  if(rk.length)o+='  reject reasons: '+rk.map(r=>r+' x'+reasons[r]).join(' ; ')+'\n';
+  o+='  of parsed: pickups(kept)='+pick+'  deliveries(excluded)='+del+'\n';
+  o+='  pickups: straight='+strt+' regular='+reg+'  | FAD resolved='+fadOk+'  FAD BLANK='+fadNo+'  dropped-as-past='+dropDate+'\n\n';
+  o+='ALL LABEL KEYS (key x #events) - every field present in your descriptions:\n  '+keys.map(k=>k+' x'+keyCount[k]).join('\n  ')+'\n\n';
+  o+='PER-EVENT (first 40)  P=pickup D=delivery S=straight R=regular  delEv=date of a matching delivery event (by code/customer):\n'+lines.join('\n')+'\n\n';
+  o+='RAW DESCRIPTION SAMPLES (redact phone/email if you like):\n\n'+samples.join('\n\n');
+  return o;
+}
+function ldRenderDebug(){
+  const host=$('ldgrid'); if(!host)return;
+  const pre=document.createElement('pre');
+  pre.style.cssText='white-space:pre-wrap;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;background:#0d1117;color:#d6dee7;padding:14px;border-radius:10px;overflow:auto;max-height:78vh;margin-top:14px;border:1px solid #2a3a4a';
+  pre.textContent=ldDebugText();
+  host.appendChild(pre);
+}
 async function calImport(){
   if(!GTOKEN)return {jobs:0,events:0};
   const t0=new Date(Date.now()-CAL_PAST_DAYS*86400000),t1=new Date(Date.now()+CAL_FUTURE_DAYS*86400000);
@@ -816,6 +879,7 @@ async function calImport(){
     const j=await gapiFetch('calendars/'+encodeURIComponent(GCAL_ID)+'/events?timeMin='+encodeURIComponent(t0.toISOString())+'&timeMax='+encodeURIComponent(t1.toISOString())+'&maxResults=2500&singleEvents=true&orderBy=startTime'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):''));
     items=items.concat(j.items||[]); pageToken=j.nextPageToken;
   }while(pageToken&&items.length<10000);
+  LD_RAW_ITEMS=items;
   const jobs=[];
   for(const ev of items){
     if(ev.status==='cancelled')continue;
@@ -856,7 +920,7 @@ function renderFutureJobs(){
 }
 function pullAll(){
   $('rfstamp').textContent='Loading\u2026';
-  return calImport().then(r=>{ renderFutureJobs(); updateCalBtns();
+  return calImport().then(r=>{ renderFutureJobs(); updateCalBtns(); if(_DEBUG)ldRenderDebug();
     $('rfstamp').textContent=LDJOBS.length?(LDJOBS.length+' pickups \u00b7 pulled '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})):'no upcoming pickups';
   }).catch(e=>{ const g=$('ldgrid'); if(g)g.innerHTML='<div class="empty">Could not pull the calendar \u2014 '+esc((e&&e.message)||'error')+'</div>'; $('rfstamp').textContent=''; });
 }
