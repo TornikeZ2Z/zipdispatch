@@ -88,10 +88,11 @@ header .date{color:var(--dim);font-size:16px}
 .sw{display:inline-block;width:22px;height:0;border-top:3px solid;border-radius:2px}
 .sw.dash{border-top-style:dashed}
 
-.mapcard{position:absolute;left:14px;top:14px;z-index:1200;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:12px;padding:15px 19px;width:clamp(560px,52vw,940px);box-shadow:0 4px 16px rgba(0,0,0,.09);max-height:calc(100% - 28px);display:flex;flex-direction:column}
+.mapcard{position:absolute;left:14px;top:14px;z-index:1200;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:12px;padding:15px 19px;width:clamp(320px,52vw,940px);max-width:calc(100% - 28px);box-sizing:border-box;box-shadow:0 4px 16px rgba(0,0,0,.09);max-height:calc(100% - 28px);display:flex;flex-direction:column}
 .mchead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mchead .mt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mcbtns{display:flex;gap:6px;flex-shrink:0}
-.mcmin,.mcx{background:var(--paper);border:1.5px solid var(--line2);border-radius:8px;font-family:'Inter';font-weight:700;cursor:pointer;color:var(--ink);font-size:14.5px;padding:4px 10px;line-height:1.2}
+.mcmin,.mcx{background:var(--paper);border:1.5px solid var(--line2);border-radius:8px;font-family:'Inter';font-weight:700;cursor:pointer;color:var(--ink);font-size:14.5px;padding:4px 10px;line-height:1.2;white-space:nowrap}
 .mcx{color:var(--hazard)}
 .mcmin:hover,.mcx:hover{border-color:var(--ink)}
 .mcbody{overflow-y:auto;min-height:0;display:flex;flex-direction:column}
@@ -3183,14 +3184,14 @@ async function calImport(){
     const day=job.start.slice(0,10);
     job.idx=(days[day]=days[day]||[]).length; days[day].push(job); ok++;
   }
-  DATA.days=days;
+  DATA.days=days; window._calFullDone=true;
   DATA.source='Google Calendar (live)';
   DATA.pulled=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
   CAL_SYNC_ISO=new Date().toISOString();
   return {ok:ok,days:Object.keys(days).length,events:items.length};
 }
 function pullAll(){
-  return calImport().then(function(){ return syncFromSheet(); }).then(function(){
+  return calImport().then(function(){
     renderHorizon();
     var fs=WINDOW.find(function(d){return d.status==='short';})||WINDOW.find(function(d){return d.status==='tight';})||WINDOW[0];
     if(fs){SELECTED=fs.iso;renderHorizon();renderDay(SELECTED);}
@@ -3199,14 +3200,18 @@ function pullAll(){
     populateDayPicker();
     var last=Object.keys(DATA.days).sort().slice(-1)[0];
     $('rfstamp').textContent=(last?('jobs through '+last):'no calendar jobs')+' \u00b7 '+(DATA.foremen||[]).filter(function(f){return f.status==='Active';}).length+' crews \u00b7 '+(DATA.trucks||[]).length+' trucks';
+    syncFromSheet().catch(function(){});   /* day-offs + shared decisions load in the BACKGROUND \u2014 never blocks the first paint or the calendar write */
   }).catch(function(e){
     var dd=$('daydetail'); if(dd)dd.innerHTML='<div class="pickprompt">Could not pull the calendar \u2014 '+((e&&e.message)||'error')+'</div>';
     $('rfstamp').textContent='';
   });
 }
 $('rfbtn')&&$('rfbtn').addEventListener('click',function(){
-  if(GTOKEN){ $('rfstamp').textContent='Refreshing\u2026'; pullAll(); }
-  else { ensureGToken(function(){ updateCalBtns(); $('rfstamp').textContent='Refreshing\u2026'; pullAll(); }); }
+  if(GTOKEN){
+    if(window._calFullDone){ $('rfstamp').textContent='Syncing\u2026'; Promise.resolve().then(function(){return calSyncCore();}).then(function(s){ if(s&&((s.upd||0)+(s.add||0)+(s.del||0))>0)toast('\ud83d\udd04 Calendar edits pulled in \u2014 '+(s.upd||0)+' updated'+(s.add?' \u00b7 '+s.add+' new':'')+(s.del?' \u00b7 '+s.del+' removed':'')+' \u00b7 <u>see details</u>',function(){showSyncChanges(s);}); return syncFromSheet().catch(function(){}); }).then(function(){ var last=Object.keys(DATA.days).sort().slice(-1)[0]; $('rfstamp').textContent=(last?('jobs through '+last):'no calendar jobs')+' \u00b7 '+(DATA.foremen||[]).filter(function(f){return f.status==='Active';}).length+' crews \u00b7 '+(DATA.trucks||[]).length+' trucks'; }).catch(function(e){ $('rfstamp').textContent='Sync failed \u2014 '+((e&&e.message)||'error'); }); }
+    else { $('rfstamp').textContent='Loading jobs\u2026'; pullAll(); }
+  }
+  else { ensureGToken(function(){ updateCalBtns(); $('rfstamp').textContent='Loading jobs\u2026'; pullAll(); }); }
 });
 /* ===== automated calendar updates: pull deltas + show what changed (mirrors the dispatcher) ===== */
 let CAL_SYNC_ISO=null, LAST_SYNC=null;
@@ -3404,6 +3409,7 @@ async function executeCalWrites(){
 }
 
 function boot(){
+  try{console.log('%cZipCleanup build 2026-06-18e \u2014 delta refresh + decoupled Update Calendar','color:#6E9220;font-weight:700');}catch(e){}
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
