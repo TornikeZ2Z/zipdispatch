@@ -1032,40 +1032,46 @@ function renderFutureJobs(){
   host.innerHTML='<table class="ldtable"><thead><tr><th>Person</th><th>Date</th><th>CF</th><th>Delivery</th><th>Pickup</th><th>FAD</th><th>Timeframe</th><th>Customer</th><th>Sales Rep</th><th>Forman</th><th>Days Left</th></tr></thead><tbody>'+LDJOBS.map(row).join('')+'</tbody></table>';
   host.querySelectorAll('tbody tr').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('a'))return;selectJob(+tr.getAttribute('data-idx'),false);}));
 }
-function truckCap(){const t=((typeof DATA!=='undefined'&&DATA.trucks)||[]).filter(x=>x.cf>0);const m=t.length?Math.max.apply(null,t.map(x=>x.cf)):0;return m>0?m:1800;}
+function usableTrucks(){var L=(typeof DATA!=='undefined'&&DATA.trucks)||[];return L.filter(function(t){return t&&t.cf>0&&t.type==='Truck'&&/^active$/i.test(String(t.status||''));}).sort(function(a,b){return a.cf-b.cf;});}
+function biggestActiveCF(){var ts=usableTrucks();return ts.length?ts[ts.length-1].cf:0;}
+function assignTruck(loadCF){var ts=usableTrucks();for(var i=0;i<ts.length;i++){if(ts[i].cf>=loadCF)return ts[i];}return null;}
 function tfWindowDays(j){const s=String(j.deliveryTimeFrame||'');const m=s.match(/(\d+)\s*(business\s*)?day/i);if(m)return Math.round(+m[1]*(m[2]?1.4:1));if(/-\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/.test(s))return 60;const n=s.match(/^\s*(\d{1,3})\s*$/);if(n)return +n[1];return 14;}
 function nearDest(anchor,r){const ad=anchor.delivery,rd=r.delivery;if(!ad||!rd||ad.lat==null||rd.lat==null)return false;if(rd.state&&ad.state&&rd.state===ad.state)return {why:'same state '+ad.state,mi:Math.round(hav(rd,ad))};const d=hav(rd,ad);if(d<=220)return {why:Math.round(d)+' mi from dest',mi:Math.round(d)};return false;}
 function computeConsol(){
   CONSOL=[]; const today=midnight(new Date());
+  const bigCF=biggestActiveCF()||1848;
   const straights=LDJOBS.filter(j=>j.straight&&j.delivery&&j.fadDate);
   const regulars=LDJOBS.filter(j=>!j.straight&&j.delivery);
-  const cap=truckCap();
   straights.forEach(S=>{
     const Ds=midnight(S.fadDate); const cands=[];
     regulars.forEach(R=>{
       const fit=nearDest(S,R); if(!fit)return;
       const rp=parseLooseDate(String(R.start||'').slice(0,10))||today;
       const winEnd=new Date(midnight(rp).getTime()+tfWindowDays(R)*86400000);
-      const tfOK=Ds>=midnight(rp)&&Ds<=winEnd;
-      cands.push({R:R,fit:fit,tfOK:tfOK});
+      if(Ds<midnight(rp)||Ds>winEnd)return;             /* run date must fall inside the regular's delivery timeframe */
+      cands.push({R:R,fit:fit});
     });
     if(!cands.length)return;
-    cands.sort((a,b)=>(b.tfOK-a.tfOK)||(a.fit.mi-b.fit.mi));
+    cands.sort((a,b)=>a.fit.mi-b.fit.mi);
     const grp=[]; let cf=S.cf||0;
-    cands.forEach(c=>{if(cf+(c.R.cf||0)<=cap){grp.push(c);cf+=(c.R.cf||0);}});
-    if(grp.length)CONSOL.push({S:S,grp:grp,cf:cf,cap:cap});
+    cands.forEach(c=>{if(cf+(c.R.cf||0)<=bigCF){grp.push(c);cf+=(c.R.cf||0);}});  /* never exceed the largest active truck */
+    if(!grp.length)return;
+    const truck=assignTruck(cf);                        /* smallest active truck that holds the combined load */
+    CONSOL.push({S:S,grp:grp,cf:cf,truck:truck,cap:truck?truck.cf:bigCF});
   });
   CONSOL.sort((a,b)=>midnight(a.S.fadDate)-midnight(b.S.fadDate));
 }
 function renderConsol(){
   const host=$('consol'); if(!host)return;
   if(!GTOKEN){host.innerHTML='<div class="none">Connect to see consolidation suggestions.</div>';return;}
-  if(!CONSOL.length){host.innerHTML='<div class="none">No consolidation opportunities yet \u2014 no regular moves line up with a straight run by destination and timeframe.</div>';return;}
+  if(!CONSOL.length){host.innerHTML='<div class="none">No consolidation opportunities yet \u2014 no regular moves share a straight run\u2019s destination and fit its delivery timeframe.</div>';return;}
   host.innerHTML=CONSOL.map((c,ci)=>{
-    const pct=Math.min(100,Math.round(c.cf/c.cap*100)),over=c.cf>c.cap;
+    const capCF=c.truck?c.truck.cf:c.cap;
+    const pct=Math.min(100,Math.round(c.cf/capCF*100)),over=!c.truck||c.cf>capCF;
+    const truckLbl=c.truck?('Truck '+c.truck.n+' \u00b7 '+Math.round(c.cf)+' / '+Math.round(c.truck.cf)+' CF'):(Math.round(c.cf)+' CF \u2014 over largest truck, split/rent');
     const anchor='<div class="leg anchor"><span class="lt">'+esc(fmtMDY(c.S.fadDate))+'</span><span>\u2605 '+esc(c.S.customer||'')+' \u2014 '+esc(stateZip(c.S.pickup,c.S.pickupZip))+' \u2192 '+esc(stateZip(c.S.delivery,c.S.deliveryZip))+' \u00b7 '+(c.S.cf||0)+' CF</span></div>';
-    const legs=c.grp.map(g=>'<div class="leg"><span class="lt">'+(g.tfOK?'fits':'tight')+'</span><span>'+esc(g.R.customer||'')+' \u2014 '+esc(stateZip(g.R.pickup,g.R.pickupZip))+' \u2192 '+esc(stateZip(g.R.delivery,g.R.deliveryZip))+' \u00b7 '+(g.R.cf||0)+' CF</span></div>').join('');
-    return '<div class="cgroup"><div class="ch"><span class="dest">'+esc((c.S.delivery&&c.S.delivery.state)||'')+' run</span><span class="when">'+esc(fmtMDY(c.S.fadDate))+' \u00b7 '+(c.grp.length+1)+' jobs</span><span class="cf">'+c.cf+' / '+c.cap+' CF</span></div><div class="cfbar"><i class="'+(over?'over':'')+'" style="width:'+pct+'%"></i></div>'+anchor+legs+'<div class="actions"><button class="prim" data-consol="'+ci+'">Show route on map</button></div></div>';
+    const legs=c.grp.map(g=>'<div class="leg"><span class="lt">'+(g.fit.mi||0)+' mi</span><span>'+esc(g.R.customer||'')+' \u2014 '+esc(stateZip(g.R.pickup,g.R.pickupZip))+' \u2192 '+esc(stateZip(g.R.delivery,g.R.deliveryZip))+' \u00b7 '+(g.R.cf||0)+' CF</span></div>').join('');
+    return '<div class="cgroup"><div class="ch"><span class="dest">'+esc((c.S.delivery&&c.S.delivery.state)||'')+' run</span><span class="when">'+esc(fmtMDY(c.S.fadDate))+' \u00b7 '+(c.grp.length+1)+' jobs</span><span class="cf">'+esc(truckLbl)+'</span></div><div class="cfbar"><i class="'+(over?'over':'')+'" style="width:'+pct+'%"></i></div>'+anchor+legs+'<div class="actions"><button class="prim" data-consol="'+ci+'">Show route on map</button></div></div>';
   }).join('');
   host.querySelectorAll('button[data-consol]').forEach(b=>b.addEventListener('click',()=>showConsolRoute(+b.getAttribute('data-consol'))));
 }
