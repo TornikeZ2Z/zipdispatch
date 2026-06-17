@@ -3039,13 +3039,9 @@ function crewToForemen(rows){
 }
 function vehiclesToTrucks(rows){ if(!rows||!rows.length)return []; const h=rows[0]; const idx=function(n){return h.indexOf(n);}; const out=[]; for(let i=1;i<rows.length;i++){const r=rows[i]||[]; const get=function(n){const k=idx(n);return k<0?'':(r[k]||'');}; if(!String(get('Truck N')).trim())continue; out.push({n:String(get('Truck N')).trim(),status:String(get('Status')||'').trim(),cf:numVcu(get('CF')),maxCrew:numVcu(get('Max Crew Size')),state:String(get('List of States Truck can be used')||'').split(',')[0].trim(),type:String(get('Type')||'').trim(),model:String(get('Truck Full Size')||'').trim(),reg:String(get('Registered To')||'').trim()}); } return out; }
 async function shEnsureTab(name,headers){
-  let existing=null;
-  try{existing=await shValues(name);}catch(e){existing=null;}
-  if(existing===null){
-    try{await shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});}catch(e){}
-    try{await shFetch('/values/'+encodeURIComponent("'"+name+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[headers]})});}catch(e){}
-    return;
-  }
+  let existing;
+  try{existing=await shValues(name);}catch(e){return;}   /* rate-limited/transient: never assume the tab is missing (that fired an addSheet -> 400 already-exists) */
+  if(!existing.length)return;                            /* missing or empty: leave it; first append creates it with headers */
   const head=(existing[0]||[]).slice();
   const missing=headers.filter(function(h){return head.indexOf(h)<0;});
   if(missing.length){ const nh=head.concat(missing);
@@ -3055,6 +3051,8 @@ async function shEnsureTab(name,headers){
 const RENTED_HEADERS=['Status','Truck N','CF','Max Crew Size','Base','Type','Truck Full Size','Truck Box Size','Provider','Daily Rate','Daily Fee $','One-Time Fee $','Per Mile $','Rental Start','Rental End','Fuel','Notes'];
 async function syncFromSheet(){
   if(!GTOKEN)return;
+  if(syncFromSheet._t&&Date.now()-syncFromSheet._t<10000)return;   /* throttle the Sheets read quota (429) */
+  syncFromSheet._t=Date.now();
   try{ const v=await shValues('Crew Day Offs');
     if(v&&v.length>1){ const h=v[0],iS=h.indexOf('Start Date'),iE=h.indexOf('End Date'),iN=h.indexOf('Forman Name'),iT=h.indexOf('Note');
       const off=[]; for(let i=1;i<v.length;i++){const r=v[i]||[];const nm=(r[iN]||'').trim(),a=mdyToIso(r[iS]),b=mdyToIso(r[iE]||r[iS]);if(nm&&a)off.push([nm,a,b||a,(r[iT]||'').trim()]);}
