@@ -1808,7 +1808,7 @@ function estRoutesOn(dayIso){
 //   1) standard chaining  (PM jobs, free, route optimization — always)
 //   2) extra chaining     (AM jobs, customer call, $50 same-day = no discount)
 //   3) day switch         (move date, chain-first, last resort for shortage)
-const CLEAN = { maxArrivalHr: 16, pmCutoffHr: 12, windowDays: 7, buffer: 2,
+const CLEAN = { maxArrivalHr: 16, maxHomeHr: 22, pmCutoffHr: 12, windowDays: 7, buffer: 2,
                 tightLinkMin: 15, tightLinkMi: 15, discountTight: 50, discountLoose: 50 };
 
 function jobByCode(code){ for(const iso in DATA.days){const arr=DATA.days[iso]||[];for(const j of arr){if(j.code===code)return j;}} return null; }
@@ -1856,9 +1856,16 @@ function _linkFeasible(A, jt){
   const done=ws+((jt.actH||schedH(jt))*3600000)+p2d;
   if(done>Date.parse(dayIso+'T23:59')) return {ok:false};
   if(Math.max(A.crew, jt.crew||2)>6) return {ok:false};
-  return {ok:true, arriveMs, linkMi:Math.round(linkMi), linkMin:Math.round(driveMs/60000), anchorEndMs:at1, normal, anchorLeg:la};
+  // TOTAL-ROUTE awareness: the chained job becomes the route's LAST leg, so the crew drives home from ITS delivery to the anchor route's base.
+  const baseObj=(typeof DATA!=='undefined'&&DATA.bases)?DATA.bases[A.base]:null;
+  let returnMi=0, returnMin=0, homeMs=done;
+  if(baseObj&&jt.delivery){ const rrm=cachedRoadMi(jt.delivery, baseObj); returnMi=(rrm!=null?rrm:hav(jt.delivery, baseObj)*1.15); returnMin=Math.round(returnMi/35*60); homeMs=done+returnMi/35*3600000; }
+  const maxHome=Date.parse(dayIso+'T'+String(CLEAN.maxHomeHr||22).padStart(2,'0')+':00');
+  if(homeMs>maxHome) return {ok:false}; // never strand the crew: reject chains whose delivery sends them home too late / too far from base
+  // cost the engine MINIMIZES = empty drive INTO the job (reposition) + empty drive home FROM the job (return). Picks the anchor best for the whole route, not just the next pickup.
+  return {ok:true, arriveMs, linkMi:Math.round(linkMi), linkMin:Math.round(driveMs/60000), returnMi:Math.round(returnMi), returnMin, homeMs, cost:Math.round(driveMs/60000)+returnMin, anchorEndMs:at1, normal, anchorLeg:la};
 }
-function bestAnchorFor(jobObj, routes){ let best=null; for(const A of routes){const f=_linkFeasible(A, jobObj);if(f.ok&&(!best||f.linkMin<best.linkMin))best={A,...f};} return best; }
+function bestAnchorFor(jobObj, routes){ let best=null; for(const A of routes){const f=_linkFeasible(A, jobObj);if(f.ok&&(!best||f.cost<best.cost))best={A,...f};} return best; }
 
 function recGeo(anchorLeg, jobObj){
   const stops=[];
@@ -1876,10 +1883,10 @@ function detectChains(rts, iso){
         && (r.legs[0].cf||0)<=CHAIN_RULES.maxCF && !AUTOOFFLIST.has(r.legs[0].code));
   for(const B of singles){
     const lb=B.legs[0]; let best=null;
-    for(const A of rts){ if(A===B)continue; const f=_linkFeasible(A, lb); if(!f.ok)continue; if(!best||f.linkMin<best.linkMin)best={A,...f}; }
+    for(const A of rts){ if(A===B)continue; const f=_linkFeasible(A, lb); if(!f.ok)continue; if(!best||f.cost<best.cost)best={A,...f}; }
     if(!best)continue;
     const base={ tail:lb.code, after:best.anchorLeg.code, anchorRouteId:best.A.id,
-      linkMi:best.linkMi, linkMin:best.linkMin, anchorEndMs:best.anchorEndMs, arriveMs:best.arriveMs, normal:best.normal,
+      linkMi:best.linkMi, linkMin:best.linkMin, returnMi:best.returnMi, returnMin:best.returnMin, homeMs:best.homeMs, cost:best.cost, anchorEndMs:best.anchorEndMs, arriveMs:best.arriveMs, normal:best.normal,
       customer:lb.customer||'', city:lb.cityFrom||'', deliveryCity:lb.cityTo||'', cf:lb.cf||0, actH:(lb.actH||schedH(lb)),
       origStartMs:Date.parse(lb.start), anchorCustomer:best.anchorLeg.customer||'',
       anchorCity:best.anchorLeg.cityTo||best.anchorLeg.cityFrom||'', geo:recGeo(best.anchorLeg, lb) };
@@ -1888,8 +1895,8 @@ function detectChains(rts, iso){
     else { base.discount=(best.linkMin<=CLEAN.tightLinkMin||best.linkMi<=CLEAN.tightLinkMi)?CLEAN.discountTight:CLEAN.discountLoose;
            base.window=cleanWindow(best.arriveMs, iso); calls.push(base); }
   }
-  standard.sort((a,b)=>a.linkMin-b.linkMin);
-  calls.sort((a,b)=>a.linkMin-b.linkMin);
+  standard.sort((a,b)=>(a.cost!=null?a.cost:a.linkMin)-(b.cost!=null?b.cost:b.linkMin));
+  calls.sort((a,b)=>(a.cost!=null?a.cost:a.linkMin)-(b.cost!=null?b.cost:b.linkMin));
   return {standard, calls};
 }
 
