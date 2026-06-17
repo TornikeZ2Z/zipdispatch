@@ -1163,12 +1163,16 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .hzpg:disabled{opacity:.38;cursor:default}
 .hzpglbl{font-size:13.5px;color:var(--faint);font-weight:600;white-space:nowrap}
 
+#brandlogo{height:44px;width:auto;display:block}
+.calbtns{display:inline-flex;gap:6px;margin-left:8px;vertical-align:middle}
+.cb.cal{text-decoration:none;font-size:12px;padding:3px 9px;background:#eef3fe;border:1px solid #c4d4f5;color:#1558d6;border-radius:7px;font-weight:600;line-height:1.4}
+.cb.cal:hover{background:#e0eafe}
 </style>
 </head>
 <body>
 <header>
   <div class="brand">
-    <img id="brandlogo" src="https://tornikez2z.github.io/zipdispatch/logo.png" alt="Zip To Zip" title="Back to menu" style="cursor:pointer" onclick="location.href='index.html'" onerror="this.style.display='none';document.getElementById('brandtxt').style.display='block'">
+    <img id="brandlogo" src="logo.png" alt="Zip To Zip" title="Back to menu" style="cursor:pointer" onclick="location.href='index.html'" onerror="this.style.display='none';document.getElementById('brandtxt').style.display='block'">
     <h1 id="brandtxt" title="Back to menu" style="display:none;cursor:pointer" onclick="location.href='index.html'">Zip to Zip — cleanup</h1>
   </div>
   <div id="hwin">
@@ -1957,7 +1961,7 @@ function buildMovePool(iso, opt, horizon, callTails){
     return true;
   }).sort((a,b)=>(a.cf||0)-(b.cf||0));
   const base=Date.parse(iso+'T12:00');
-  const targets=horizon.filter(t=>t.iso!==iso && t.iso>=TODAY_ISO && t.spare>=1)
+  const targets=horizon.filter(t=>t.iso>iso && t.spare>=1)/*item1: only days AFTER the job's original date*/
     .sort((x,y)=>(y.spare-x.spare)||(Math.abs(Date.parse(x.iso+'T12:00')-base)-Math.abs(Date.parse(y.iso+'T12:00')-base)));
   const out=[];
   for(const j of movable){
@@ -1977,7 +1981,7 @@ function nearbyDays(iso, n){
   for(let d=-n; d<=n; d++){ if(d===0)continue;
     const dt=new Date(base+d*86400000);
     const i=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-    if(i<TODAY_ISO || !DATA.days[i])continue;
+    if(i<=iso || !DATA.days[i])continue;/*item1: never earlier than the original date*/
     const l=dayLoad(i);
     out.push({iso:i, routes:l.routes, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status});
   }
@@ -2196,6 +2200,9 @@ async function gapiFetch(path,opts){
   return r.status===204?null:r.json();
 }
 const evPath=id=>'calendars/'+encodeURIComponent(GCAL_ID)+'/events/'+encodeURIComponent(String(id).split('@')[0]);
+function calEditLink(eventId){if(!eventId)return '';try{return 'https://calendar.google.com/calendar/u/0/r/eventedit/'+btoa(String(eventId)+' '+GCAL_ID).replace(/=+$/,'');}catch(e){return 'https://calendar.google.com/calendar/u/0/r';}}
+function calOpenBtn(code,label){var j=jobByCode(code);var id=j&&j.eventId;var url=calEditLink(id);if(!url)return '';return '<a class="cb cal" href="'+url+'" target="_blank" rel="noopener" title="Open the Google Calendar event'+(j&&j.customer?(' \u2014 '+esc(j.customer)):'')+'" onclick="event.stopPropagation()">'+esc(label||'event')+'</a>';}
+function calSlotBtns(kind,rec){var myCode=kind==='call'?rec.tail:rec.code;var h=calOpenBtn(myCode,'\ud83d\udcc5 event');if(kind==='call'&&rec.after)h+=calOpenBtn(rec.after,'\ud83d\udcc5 lead');return h?(' <span class="calbtns">'+h+'</span>'):'';}
 function updateCalBtns(){
   const b=$('calbtn'); if(!b)return;
   if(GTOKEN){ b.className='calbtn upd'; b.innerHTML='⤴ Update Calendar'; }
@@ -2647,7 +2654,7 @@ function renderSlot(iso, s, td, dupLeads){
     else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'">change</button></div>'; }
   }
   const casc=(stt==='todo'&&s.altCount>0)?'<div class="casc">If they refuse, '+s.altCount+' other option'+(s.altCount>1?'s':'')+' for this crew \u2192 tap Declined.</div>':'';
-  return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span>'+head+'</div><div class="slotbody">'+body+casc+'</div></div>';
+  return '<div class="slot t'+kind+' '+stt+'"><div class="slothead"><span class="stag step">'+(s.index+1)+'</span>'+head+calSlotBtns(kind,rec)+'</div><div class="slotbody">'+body+casc+'</div></div>';
 }
 function routeBtn(id,rec,kind){RECS[id+'|r']={rec,kind};return '<button class="cb route" data-route="'+id+'|r">\ud83d\uddfa route</button>';}
 function jobCust(td,code){let n=code;td.routes.forEach(r=>r.legs.forEach(l=>{if(l.code===code)n=l.customer||code;}));return n;}
