@@ -958,6 +958,39 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .cmuted{color:var(--faint)}
 .pickprompt{text-align:center;color:var(--faint);font-size:16px;padding:42px 20px;background:var(--card);border:1px dashed var(--line2);border-radius:13px}
 #hwin{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hwlbl{font-size:14px;color:var(--dim);font-weight:600;white-space:nowrap}
+#daynav{position:relative;display:flex;align-items:stretch;gap:0}
+#dprev,#dnext{background:var(--card);border:1.5px solid var(--line2);color:var(--ink);font-size:17px;width:38px;cursor:pointer;border-radius:10px 0 0 10px}
+#dnext{border-radius:0 10px 10px 0;border-left:none}
+#dprev:disabled,#dnext:disabled{opacity:.35;cursor:default}
+#dbtn{background:var(--card);border:1.5px solid var(--line2);border-left:none;border-right:none;font-family:'Inter';font-weight:600;font-size:16px;padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--ink);width:226px;min-width:226px;justify-content:center}
+#dbtn:hover,#dprev:hover:not(:disabled),#dnext:hover:not(:disabled){border-color:var(--ink)}
+#dlabel{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+#dlabel .dl1{font-weight:800}
+#dlabel .dl2{font-size:14px;color:var(--dim);font-weight:600}
+#dtag{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 6px}
+#dtag.tg-today{background:var(--fleet-bg);color:var(--fleet)}
+#dtag.tg-tom{background:var(--travel-bg);color:var(--travel)}
+#dtag.tg-past{background:#F2E8D8;color:#8A5A12}
+#dpanel{display:none;position:absolute;top:calc(100% + 8px);left:0;z-index:1500;background:var(--card);border:1px solid var(--line2);border-radius:13px;box-shadow:0 14px 38px rgba(0,0,0,.16);width:300px;max-height:420px;overflow-y:auto;padding:6px}
+#dpanel.open{display:block}
+.dprow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;cursor:pointer;font-size:15px}
+.dprow:hover{background:var(--paper)}
+.dprow.cur{background:var(--ink);color:#fff}
+.dprow.cur .dpj{color:#cfd3d8}
+.dprow.dim{opacity:.62}
+.dpm{font-family:'Barlow Condensed';font-size:15px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);padding:10px 12px 4px;position:sticky;top:0;background:var(--card)}
+.dpw{width:36px;color:inherit;font-weight:600}
+.dpd{width:24px;font-family:'Barlow Condensed';font-weight:600;font-size:17px}
+.dpj{flex:1;color:var(--dim);font-size:14px}
+.dpt{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:5px;padding:2px 6px}
+.dpt.tg-today{background:var(--fleet-bg);color:var(--fleet)}
+.dpt.tg-tom{background:var(--travel-bg);color:var(--travel)}
+.dpt.tg-past{background:#F2E8D8;color:#8A5A12}
+#dquick{position:sticky;bottom:-6px;z-index:5;display:flex;gap:7px;padding:10px;margin:6px -6px -6px;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -8px 16px rgba(0,0,0,.07)}
+#dquick button{flex:1;border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet);border-radius:9px;font-family:'Inter';font-weight:800;font-size:15px;padding:8px;cursor:pointer}
+#dquick button:hover{border-color:var(--fleet)}
+@media (max-width:760px){#dbtn{width:auto;min-width:0;flex:1;max-width:48vw}#daynav{flex:1}#dpanel.open{position:fixed!important;left:10px;right:10px;bottom:calc(20px + env(safe-area-inset-bottom));top:auto!important;width:auto;max-height:52vh;z-index:1720;box-shadow:0 -12px 40px rgba(0,0,0,.34);border-radius:16px}}
 #hwin label{font-size:14px;color:var(--dim);font-weight:600;display:flex;align-items:center;gap:6px}
 #hwin input[type=date],#hwin select{font-family:'Inter';font-size:14.5px;border:1.5px solid var(--line2);border-radius:8px;padding:5px 9px;background:var(--card);color:var(--ink);font-weight:600}
 .connpill{font-size:14px;color:var(--fleet);font-weight:600;display:inline-flex;align-items:center;gap:5px}
@@ -1186,7 +1219,9 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
     <h1 id="brandtxt" title="Back to menu" style="display:none;cursor:pointer" onclick="location.href='index.html'">Zip to Zip — cleanup</h1>
   </div>
   <div id="hwin">
-    <label>From <input type="date" id="fromDate"></label>
+    <span class="hwlbl">Look-ahead from</span>
+    <div id="daynav"><button id="dprev" title="Earlier start day">‹</button><button id="dbtn"><span id="dlabel"></span><span id="dtag"></span></button><button id="dnext" title="Later start day">›</button><div id="dpanel"></div></div>
+    <input type="date" id="fromDate" style="display:none">
   </div>
   <div class="stats" id="stats"></div>
   <div id="rfwrap">
@@ -3163,6 +3198,7 @@ function pullAll(){
     if(fs){SELECTED=fs.iso;renderHorizon();renderDay(SELECTED);}
     else { var dd=$('daydetail'); if(dd)dd.innerHTML='<div class="pickprompt">No calendar jobs found in this date range. Pick another start date above.</div>'; }
     updateCalBtns();
+    populateDayPicker();
     var last=Object.keys(DATA.days).sort().slice(-1)[0];
     $('rfstamp').textContent=(last?('jobs through '+last):'no calendar jobs')+' \u00b7 '+(DATA.foremen||[]).filter(function(f){return f.status==='Active';}).length+' crews \u00b7 '+(DATA.trucks||[]).length+' trucks';
   }).catch(function(e){
@@ -3226,7 +3262,7 @@ async function calSyncCore(){
   }
   CAL_SYNC_ISO=new Date().toISOString();
   LAST_SYNC={lines:lines.slice(),add:add,upd:upd,del:del,skip:skip,at:Date.now(),since:since};
-  if(add+upd+del>0){ rcInvalidate(); renderHorizon(); if(SELECTED&&WINDOW.find(function(d){return d.iso===SELECTED;}))renderDay(SELECTED); else if(WINDOW.length){SELECTED=WINDOW[0].iso;renderDay(SELECTED);} updateCalBtns(); }
+  if(add+upd+del>0){ rcInvalidate(); renderHorizon(); if(SELECTED&&WINDOW.find(function(d){return d.iso===SELECTED;}))renderDay(SELECTED); else if(WINDOW.length){SELECTED=WINDOW[0].iso;renderDay(SELECTED);} updateCalBtns(); populateDayPicker(); }
   return LAST_SYNC;
 }
 function showSyncChanges(s){
@@ -3247,11 +3283,43 @@ window.addEventListener('focus',function(){
   }).catch(function(){});
 });
 
+/* ===== day picker (mirrors the dispatcher's day-nav control) — drives the look-ahead window start ===== */
+let _dpOpen=false;
+function tomorrowISO(){return new Date(new Date(TODAY_ISO+'T12:00').getTime()+86400000).toISOString().slice(0,10);}
+function dayTag(d){
+  if(d===TODAY_ISO)return ['today','tg-today'];
+  if(d===tomorrowISO())return ['tomorrow','tg-tom'];
+  if(d<TODAY_ISO)return ['past','tg-past'];
+  return null;
+}
+function setFrom(d){ _dpOpen=false; var p=$('dpanel'); if(p)p.classList.remove('open'); var inp=$('fromDate'); if(inp){ inp.value=d; inp.dispatchEvent(new Event('change')); } }
+function stepFrom(dir){ var from=windowStart(); var days=Object.keys(DATA.days||{}).sort(); var t=dir<0?days.filter(function(d){return d<from;}).slice(-1)[0]:days.find(function(d){return d>from;}); if(t)setFrom(t); }
+function populateDayPicker(){
+  var btn=$('dbtn'); if(!btn)return;
+  var from=windowStart();
+  var days=Object.keys(DATA.days||{}).sort();
+  var dt=new Date(from+'T12:00');
+  $('dlabel').innerHTML='<span class="dl1">'+dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</span><span class="dl2">'+((DATA.days[from]||[]).length)+' jobs</span>';
+  var tag=dayTag(from); var te=$('dtag'); te.textContent=tag?tag[0]:''; te.className=tag?tag[1]:'';
+  $('dprev').disabled=!days.filter(function(d){return d<from;}).length; $('dnext').disabled=!days.find(function(d){return d>from;});
+  var month='';
+  $('dpanel').innerHTML=days.map(function(d){ var x=new Date(d+'T12:00'); var m=x.toLocaleDateString('en-US',{month:'long',year:'numeric'}); var head=m!==month?('<div class="dpm">'+m+'</div>'):''; month=m; var g=dayTag(d); return head+'<div class="dprow'+(d===from?' cur':'')+(d<TODAY_ISO?' dim':'')+'" data-d="'+d+'"><span class="dpw">'+x.toLocaleDateString('en-US',{weekday:'short'})+'</span><span class="dpd">'+x.getDate()+'</span><span class="dpj">'+DATA.days[d].length+' jobs</span>'+(g?'<span class="dpt '+g[1]+'">'+g[0]+'</span>':'')+'</div>'; }).join('');
+  var q=document.createElement('div'); q.id='dquick'; q.innerHTML='<button data-q="t">Today</button><button data-q="m">Tomorrow</button>'; $('dpanel').appendChild(q);
+  q.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;setFrom(b.dataset.q==='t'?TODAY_ISO:tomorrowISO());});
+  $('dpanel').classList.toggle('open',_dpOpen);
+  $('dpanel').querySelectorAll('.dprow').forEach(function(r){r.addEventListener('click',function(){setFrom(r.dataset.d);});});
+}
+$('dprev')&&$('dprev').addEventListener('click',function(){stepFrom(-1);});
+$('dnext')&&$('dnext').addEventListener('click',function(){stepFrom(1);});
+$('dbtn')&&$('dbtn').addEventListener('click',function(e){e.stopPropagation();_dpOpen=!_dpOpen;$('dpanel').classList.toggle('open',_dpOpen); if(_dpOpen){var c=$('dpanel').querySelector('.dprow.cur');if(c)c.scrollIntoView({block:'center'});}});
+document.addEventListener('click',function(e){ if(_dpOpen&&!e.target.closest('#daynav')){_dpOpen=false;var p=$('dpanel');if(p)p.classList.remove('open');} });
+
 function boot(){
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
   renderHorizon();
+  populateDayPicker();
   const fs=WINDOW.find(d=>d.status==='short')||WINDOW.find(d=>d.status==='tight')||WINDOW[0];
   if(fs){SELECTED=fs.iso;renderHorizon();renderDay(SELECTED);}
   else $('daydetail').innerHTML='<div class="pickprompt">'+(!GTOKEN?'Connect Google Calendar (button above) to load your upcoming jobs.':(Object.keys(DATA.days).length?'No calendar days in this range. Pick another start date above.':'Loading jobs from Google Calendar…'))+'</div>';
