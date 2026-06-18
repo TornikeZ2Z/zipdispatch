@@ -2275,14 +2275,22 @@ function setStatus(id,v){if(v)STATUS[id]=v;else delete STATUS[id];saveStatus(STA
 var SNAP0=null;
 function ensureSnap(){ if(SNAP0)return; try{SNAP0={status:JSON.parse(JSON.stringify(STATUS)),moves:JSON.parse(JSON.stringify(CONFIRMED_MOVES)),leads:JSON.parse(JSON.stringify(LEADS))};}catch(e){SNAP0={status:{},moves:{},leads:{}};} updateResetCU(); }
 function sessionChangeCount(){ if(!SNAP0)return 0; var n=0,a=SNAP0.status||{}; Object.keys(STATUS).forEach(function(k){if(STATUS[k]!==a[k])n++;}); Object.keys(a).forEach(function(k){if(!(k in STATUS))n++;}); return n; }
-function updateResetCU(){ var b=document.getElementById('resetcu'); if(!b)return; var n=sessionChangeCount(); if(SNAP0&&n>0){b.style.display='';b.textContent='\u21ba Reset changes ('+n+')';b.disabled=false;} else {b.style.display='none';} }
-function resetChanges(){ if(!SNAP0)return;
-  try{var base=SNAP0.status||{}; Object.keys(STATUS).forEach(function(k){ if(STATUS[k]===base[k])return; var p=k.split('|'); var iso=p[0]; var code=p.slice(3).join('|'); var cust=(typeof SLOTCUST!=='undefined'&&SLOTCUST[k])||''; if(typeof logDecision==='function')logDecision(iso,code,cust,'','reopened',''); });}catch(e){}
-  try{STATUS=JSON.parse(JSON.stringify(SNAP0.status));saveStatus(STATUS);}catch(e){}
-  try{CONFIRMED_MOVES=JSON.parse(JSON.stringify(SNAP0.moves));saveMoves();}catch(e){}
-  try{LEADS=JSON.parse(JSON.stringify(SNAP0.leads));saveLeads();}catch(e){}
+function pendingKeys(){ return Object.keys(STATUS).filter(function(k){return STATUS[k]==='confirmed'||STATUS[k]==='accepted';}); }
+function updateResetCU(){ var b=document.getElementById('resetcu'); if(!b)return; var n=pendingKeys().length; if(n>0){b.style.display='';b.textContent='↺ Reset changes ('+n+')';b.disabled=false;} else {b.style.display='none';} }
+function resetChanges(){
+  var keys=pendingKeys(); if(!keys.length)return;
+  keys.forEach(function(k){
+    var p=k.split('|'); var iso=p[0]; var slot=String(p[1]).replace(/^slot/,''); var code=p.slice(3).join('|');
+    var cust=(typeof SLOTCUST!=='undefined'&&SLOTCUST[k])||'';
+    try{ if(typeof logDecision==='function')logDecision(iso,code,cust,'','reopened',''); }catch(e){}
+    delete STATUS[k];
+    try{ delete LEADS[iso+'|slot'+slot+'|'+code]; }catch(e){}
+    try{ delete CONFIRMED_MOVES[code]; }catch(e){}
+  });
+  try{saveStatus(STATUS);}catch(e){} try{saveMoves();}catch(e){} try{saveLeads();}catch(e){}
   SNAP0=null;
-  if(typeof SELECTED!=='undefined'&&SELECTED){renderDay(SELECTED);} if(typeof renderHorizon==='function')renderHorizon(); updateResetCU();
+  if(typeof SELECTED!=='undefined'&&SELECTED){renderDay(SELECTED);} if(typeof renderHorizon==='function')renderHorizon();
+  if(typeof updateCalBtns==='function')updateCalBtns(); updateResetCU();
 }
 let WINDOW=[], SELECTED=null, RECS={}, CURPLAN=null, ACTIVE_ROUTE=null;
 let PROBONLY=false, BASEFILTER=new Set(), CURCHANGES={}, APD=null, COLLAPSED=new Set();
@@ -3515,8 +3523,8 @@ async function executeCalWrites(){
 }
 
 function boot(){
-  try{console.log('%cZipCleanup build 2026-06-18h \u2014 popup modal fix','color:#6E9220;font-weight:700');}catch(e){}
-  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18h';}catch(e){}
+  try{console.log('%cZipCleanup build 2026-06-18i \u2014 reset clears all pending','color:#6E9220;font-weight:700');}catch(e){}
+  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18i';}catch(e){}
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
