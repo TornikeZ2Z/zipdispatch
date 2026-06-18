@@ -2338,10 +2338,9 @@ async function showRoute(rec, kind, title, sub){
   // journey panel
   $('mapcard').style.display='';
   $('mapcard').classList.remove('min');
-  $('mapcard').innerHTML='<div class="mchead"><div class="mt">'+esc(title)+'</div><div class="mcbtns"><button class="mcmin" title="Minimize">–</button><button class="mcx" title="Close">✕ Exit</button></div></div>'
+  $('mapcard').innerHTML='<div class="mchead"><div class="mt">'+esc(title)+'</div><div class="mcbtns"><button class="mcx" title="Close">✕ Exit</button></div></div>'
     +'<div class="mcbody"><div class="ms">'+sub+'</div><div class="steps">'+journeySteps(rec,kind)+'</div></div>';
   $('mapcard').querySelector('.mcx').onclick=exitMap;
-  $('mapcard').querySelector('.mcmin').onclick=function(){const c=$('mapcard');c.classList.toggle('min');this.textContent=c.classList.contains('min')?'+':'–';};
   if(!geo.length){setTimeout(()=>{if(LMAP)LMAP.invalidateSize();},120);return;}
   CUSEQ++; const seq=CUSEQ;
   const col='#0F8A66';                 // pre-assignment -> fleet green, same as the board + the routes view
@@ -2582,7 +2581,7 @@ async function showRouteJourney(route, title, sub, hi){
   const mt=[...new Set(sl2.map(l=>String(l.movingType||'').trim()).filter(Boolean))].join(' / ');
   const acts=sl2.reduce((s,l)=>s+(l.actH||0),0);
   const totalCF=r.totalCF||sl2.reduce((s,l)=>s+(l.cf||0),0);
-  const head='<div class="mchead"><div class="mt">'+esc(title||(r.id+' \u00b7 day timeline'))+'</div><div class="mcbtns"><button class="mcmin" title="Minimize panel">\u2013</button><button class="mcx" title="Exit map">\u2715 Exit map</button></div></div>';
+  const head='<div class="mchead"><div class="mt">'+esc(title||(r.id+' \u00b7 day timeline'))+'</div><div class="mcbtns"><button class="mcx" title="Exit map">\u2715 Exit map</button></div></div>';
   const minfo='<div class="minfo">'
     +'<div class="mirow"><b>'+esc(sl2.map(l=>l.customer||l.code).join(' + '))+'</b><span class="mono ts">'+sl2.map(l=>esc(l.code)).join(' \u00b7 ')+'</span></div>'
     +'<div class="mirow">'+tmCU(sl2[0].start)+' \u2013 ~'+new Date(endR).toTimeString().slice(0,5)+' \u00b7 '+totalCF.toLocaleString()+' CF \u00b7 crew '+(r.crew||'')+(acts?' \u00b7 ACT '+acts+'h':'')+(bm!=null?(function(){const d=new Date(bm);if(d.getMinutes()||d.getSeconds())d.setHours(d.getHours()+1);d.setMinutes(0,0,0);return ' \u00b7 <b>back ~'+d.toTimeString().slice(0,5)+'</b>';})():'')+'</div>'
@@ -2591,7 +2590,6 @@ async function showRouteJourney(route, title, sub, hi){
   $('mapcard').style.display=''; $('mapcard').classList.remove('min');
   $('mapcard').innerHTML=head+'<div class="mcbody">'+minfo+'<div class="steps" id="cu-steps-'+seq+'"></div><div class="ms" id="cu-daytot-'+seq+'" style="margin-top:6px"></div></div>';
   $('mapcard').querySelector('.mcx').onclick=exitMap;
-  $('mapcard').querySelector('.mcmin').onclick=function(){const c=$('mapcard');c.classList.toggle('min');this.textContent=c.classList.contains('min')?'+':'\u2013';};
   setTimeout(()=>{if(LMAP)LMAP.invalidateSize();},120);
 
   renderItineraryCU(r,items,seq,false);
@@ -2773,7 +2771,7 @@ function renderSlot(iso, s, td, dupLeads, dispN){
   const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
   let head, body='';
   if(kind==='call'){
-    head='<b><span class="tlbl call">\ud83d\udcde Optimized re-chaining</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
+    head='<b><span class="tlbl call">\ud83d\udcde Extra Chaining</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b> \u2014 same-day flip, no discount needed.</div>';
     const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning?\u201d</div>';
     if(stt==='todo'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; body=desc+script+'<div class="leadrow"><label>Runs after (lead job):</label><select class="leadsel" data-lk="'+lk+'">'+dayJobOptions(td,lead)+'</select></div><div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-lk="'+lk+'">Confirm re-chain</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,rec,'call',buildRecRoute(rec,'call',td))+'</div>'; }
@@ -2815,7 +2813,7 @@ function renderDay(iso){
   h+='<div class="fixpanel">';
   if(distro.doubleChains.length){ distro.doubleChains.forEach(dc=>{ h+='<div class="distalert">\u26a0 Double chaining \u2014 <b>'+esc(dc.tails.join(' & '))+'</b> are both chained after <b>'+esc(dc.lead)+'</b>. One crew can\u2019t do both \u2014 split one off.</div>'; }); }
   if(distro.standalonePM.length){ h+='<div class="distinfo">\ud83d\udd17 Afternoon job'+(distro.standalonePM.length>1?'s':'')+' running solo (no feasible chain found): '+esc(distro.standalonePM.join(', '))+'.</div>'; }
-  if(plan.standardChains.length){h+='<div class="fixinfo"><span class="tlbl free">free</span> '+plan.standardChains.length+' afternoon job'+(plan.standardChains.length>1?'s':'')+' Extra Chained (no call needed): '+plan.standardChains.map(c=>esc(c.customer||c.tail)+' after '+esc(c.anchorCustomer||c.after)).join('; ')+'.</div>';}
+  if(plan.standardChains.length){h+='<div class="fixinfo"><span class="tlbl free">free</span> '+plan.standardChains.length+' afternoon job'+(plan.standardChains.length>1?'s':'')+' Optimized re-chaining (no call needed): '+plan.standardChains.map(c=>esc(c.customer||c.tail)+' after '+esc(c.anchorCustomer||c.after)).join('; ')+'.</div>';}
   if(st==='ok'){
     h+='<div class="cres ok">\u2713 This day holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Nothing to resolve.</div>';
   }else{
@@ -3553,8 +3551,8 @@ async function executeCalWrites(){
 }
 
 function boot(){
-  try{console.log('%cZipCleanup build 2026-06-18k \u2014 same-company chaining','color:#6E9220;font-weight:700');}catch(e){}
-  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18k';}catch(e){}
+  try{console.log('%cZipCleanup build 2026-06-18l \u2014 label fix + no min/max btn','color:#6E9220;font-weight:700');}catch(e){}
+  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18l';}catch(e){}
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
