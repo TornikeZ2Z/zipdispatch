@@ -1717,6 +1717,7 @@ function detectAutoChains(rts){
       if(tailsTaken.has(A.id))continue;                          // one new tail per head per pass
       const la=[...A.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).slice(-1)[0];
       if(!la.delivery||!INREGION(la.delivery))continue;
+      if(coOf(la)!==coOf(lb))continue;   // chain only within the same company
       const at1=Math.max(...A.legs.map(l=>l._endMs||Date.parse(l.end||l.start||0)));
       const rm=cachedRoadMi(la.delivery,lb.pickup);
       const linkMi=(rm!=null?rm:hav(la.delivery,lb.pickup)*1.15);
@@ -1882,6 +1883,18 @@ function coreAvailOn(iso){
   return { avail: a.length-off.size, off:[...off], total:a.length };
 }
 
+function companyOf(title, dateMs){
+  var t=String(title||'').toLowerCase();
+  var dv=(typeof dateMs==='number'&&isFinite(dateMs))?dateMs:Date.parse(dateMs);
+  if(!isFinite(dv))dv=Infinity;                 // unknown date -> treat as "now/future" (Liga/Boston/VA cutoffs only gate the past)
+  var isBoston=/(\(Boston\)|MA\s*-|RI\s*-|NH\s*-)/.test(String(title||''));
+  if(t.indexOf('liga')>=0 && dv<new Date(2025,0,1).getTime()) return 'Liga';
+  if(t.indexOf('tuji')>=0) return 'Tuji';
+  if(isBoston && dv<new Date(2026,3,20).getTime()) return 'Boston';
+  if(t.indexOf('(virginia)')>=0 && dv<new Date(2026,2,26).getTime()) return 'Virginia';
+  return 'Zip to Zip';
+}
+function coOf(j){ if(!j)return 'Zip to Zip'; if(j.company)return j.company; return companyOf(j.title||j.summary||'', Date.parse(j.start||0)); }
 function _linkFeasible(A, jt){
   if(A.ldDeparture) return {ok:false};
   if(A.legs.length>=CHAIN_RULES.maxJobs) return {ok:false};
@@ -1890,6 +1903,7 @@ function _linkFeasible(A, jt){
   if(!jt.pickup||!jt.delivery||!INREGION(jt.delivery)) return {ok:false};
   const la=[...A.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).slice(-1)[0];
   if(!la.delivery||!INREGION(la.delivery)) return {ok:false};
+  if(coOf(la)!==coOf(jt)) return {ok:false};   // chain only within the same company
   const at1=Math.max(...A.legs.map(l=>l._endMs||Date.parse(l.end||l.start||0)));
   const rm=cachedRoadMi(la.delivery, jt.pickup);
   const linkMi=(rm!=null?rm:hav(la.delivery, jt.pickup)*1.15);
@@ -3179,6 +3193,7 @@ function parseCalEvent(ev){
     straight:/straight/i.test(jt)?true:(/regular/i.test(jt)?false:/straight/i.test(String(ev.description||''))),
     packing:numV(G('Packing Estimate')),
     customer:G('Customer Name').trim(),
+    title:String(ev.summary||''), company:companyOf(String(ev.summary||''), start.getTime()),
     phone:(function(){var s=String(ev.description||'');var m=s.match(/customer\s*mobile\s*[:\-]?\s*([+0-9()\s.\-]{7,})/i)||s.match(/\bmobile\b[^\n:\-]*[:\-]\s*([+0-9()\s.\-]{7,})/i)||s.match(/\bphone\b[^\n:\-]*[:\-]\s*([+0-9()\s.\-]{7,})/i);return m?m[1].replace(/\s+/g,' ').trim():'';})(),
     start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,tripDays,
     piano:String(ev.summary||'').includes('🎹'),
@@ -3538,8 +3553,8 @@ async function executeCalWrites(){
 }
 
 function boot(){
-  try{console.log('%cZipCleanup build 2026-06-18j \u2014 names + phone timeline + window write','color:#6E9220;font-weight:700');}catch(e){}
-  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18j';}catch(e){}
+  try{console.log('%cZipCleanup build 2026-06-18k \u2014 same-company chaining','color:#6E9220;font-weight:700');}catch(e){}
+  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18k';}catch(e){}
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
