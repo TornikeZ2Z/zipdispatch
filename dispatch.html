@@ -1144,12 +1144,15 @@ function assignAll(routes,w,baseMode){
   const freeF=(key,r)=>!(busyF[key]||[]).some(iv=>iv.rid!==r.id);
   const fbest={};
   for(const r of order){
-    r._pinBusy=false;r._pinOff=false;
+    r._pinBusy=false;r._pinOff=false;r._noForeman=false;
+    if(r.pinForeman==='__NONE__'){ r._noForeman=true; }
+    else {
     if(r.pinForeman&&isOff(r.pinForeman)){r.pinForeman=null;r._pinOff=true;}
     if(r.pinForeman){
       const f=DATA.foremen.find(x=>x.name===r.pinForeman);
       if(f&&freeF(f.name,r))book(busyF,f.name,r);
       else r._pinBusy=true;
+    }
     }
     r._pinIssues=[];
     r.pinTrucks=r.pinTrucks||[];
@@ -1178,8 +1181,8 @@ function assignAll(routes,w,baseMode){
     }
     evals.sort((a,b)=>(a.busy-b.busy)||(b.score-a.score));
     r.candidates=evals.filter(e=>!e.busy).slice(0,4);
-    let best=r.candidates[0]||null;
-    if(r.pinForeman&&!r._pinBusy){
+    let best=r._noForeman?null:(r.candidates[0]||null);
+    if(!r._noForeman&&r.pinForeman&&!r._pinBusy){
       const pe=evals.find(e=>e.f.name===r.pinForeman);
       if(pe){best=pe;}
     } else if(best){book(busyF,best.f.name,r);}
@@ -1263,7 +1266,7 @@ function assignAll(routes,w,baseMode){
     r.vehicles=need;
     r.short=need.filter(v=>v.kind==='short').length;
     r.rentals=need.filter(v=>v.kind==='rental'||(v.kind==='fleet'&&isRentalTruck(v.t))).length;
-    r.status=r.short>0?'short':(r.rentals>0?'rental':'fleet');
+    r.status=(r.short>0||!r.foreman)?'short':(r.rentals>0?'rental':'fleet');
     // crew transport: how many cab seats do the assigned vehicles actually have?
     // fleet trucks carry their real cab; rentals/short slots assume a 3-seat cab (standard box-truck)
     {const _cab=need.reduce((s,v)=>s+(v.kind==='fleet'?(v.t.maxCrew||3):3),0);
@@ -1900,7 +1903,7 @@ function renderCards(){
         if(s.dataset.act==='base')r.baseOverride=s.value==='auto'?null:s.value;
         else if(s.dataset.act==='truck'){r.pinTrucks=r.pinTrucks||[];r.pinTrucks[+s.dataset.slot||0]=s.value==='auto'?null:s.value;}
         else if(s.dataset.act==='tn'){r.trucksOverride=s.value==='auto'?null:+s.value;}
-        else r.pinForeman=s.value==='auto'?null:s.value;
+        else { routes.forEach(q=>{ if(q!==r&&q.foreman&&!q.pinForeman) q.pinForeman=q.foreman.name; }); r.pinForeman=(s.value==='auto'?null:s.value); }
       });
       setTimeout(()=>toastUndo(_rid+' '+_act+' updated.',()=>{
         const rr=routes.find(x=>x.id===_rid);if(!rr)return;
@@ -2048,7 +2051,7 @@ function assignCtrlsHTML(r){
   const _confT=new Set(routes.filter(q=>q.confirmed&&q.id!==r.id).flatMap(q=>(q.pinTrucks||[]).filter(Boolean)));
   const _cfOK=r.foreman&&!((r.short||0)>0);
   const cfHtml='<div class="ctrlgrp cfwrap"><label>&nbsp;</label><button class="cfbtn" data-r="'+r.id+'"'+(_cfOK?'':' disabled')+' title="'+(_cfOK?'Lock this foreman + truck to this route — reserved, hidden from other routes, required before the calendar can be updated':'Assign a foreman and cover every truck slot first — incomplete routes can\'t be confirmed')+'">✔ Confirm</button></div>';
-  const fSel='<select data-act="foreman"'+(RO?' disabled':'')+' data-r="'+r.id+'"><optgroup label="✦ SUGGESTED"><option value="auto"'+(!r.pinForeman?' selected':'')+'>'+(r.foreman?esc(r.foreman.name):'auto')+'</option></optgroup><optgroup label="All foremen">'
+  const fSel='<select data-act="foreman"'+(RO?' disabled':'')+' data-r="'+r.id+'"><optgroup label="✦ SUGGESTED"><option value="auto"'+(!r.pinForeman?' selected':'')+'>'+(r.foreman?esc(r.foreman.name):'auto')+'</option><option value="__NONE__"'+(r.pinForeman==='__NONE__'?' selected':'')+'>\u274c No foreman (needs assignment)</option></optgroup><optgroup label="All foremen">'
     +DATA.foremen.filter(x=>x.status!=='Cancelled'&&!_confF.has(x.name)).sort((a,b)=>a.nick.localeCompare(b.nick)).map(x=>'<option value="'+esc(x.name)+'"'+(r.pinForeman===x.name?' selected':'')+'>'+esc(x.name)+' ('+x.base+(x.status!=='Active'?', potential':'')+(isOff(x.name)?', off':'')+')'+esc(fBusy(x.name))+'</option>').join('')+'</optgroup></select>';
   const slotsSpec=r._slotsSpec||['Truck'];
   const truckOpts=DATA.trucks.filter(k=>k.status==='Active'&&!_confT.has(k.n)).sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true}));
@@ -2117,7 +2120,7 @@ function cardHTML(r){
     r.legs.filter(l=>l.eventId).map(l=>'<a class="chip calopen" target="_blank" rel="noopener" href="'+calEditUrl(l.eventId)+'" title="Open '+esc(l.code)+' in Google Calendar — edit anything there; the board pulls your edits in automatically when you come back to this tab">✎ '+esc(l.code)+'</a>').join(''),
     r.piano?chip('piano'):'',
     r.baseOverride?chip('base set manually','ov'):'',
-    r.pinForeman?chip(r._pinBusy?'pinned foreman busy!':'foreman pinned','ov'):'',
+    (!r.foreman?chip('\u26a0 needs foreman','warn'):(r.pinForeman?chip(r._pinBusy?'pinned foreman busy!':'foreman pinned','ov'):'')),
     r._pinOff?chip('pinned foreman is off — auto-reassigned','warn'):'',
     (r.pinTrucks&&r.pinTrucks.some(Boolean))?chip('truck pinned'+(r._pinIssues&&r._pinIssues.length?(' — '+r._pinIssues.join(' · ')):''),(r._pinIssues&&r._pinIssues.length)?'warn':'ov'):'',
     (r._carNeed>0)?'<span class="chip" title="Crew of '+r.crew+' but the assigned '+((r.vehicles||[]).length>1?'vehicles seat':'truck cab seats')+' only '+r._cabSeats+'. Send '+r._carNeed+' crew member'+(r._carNeed>1?'s':'')+' in a follow car (their own vehicle) to meet the truck at the pickup." style="background:#EAF1FB;border-color:#C5D8F2;color:#1F5Fb0">🚗 +1 car · '+r._carNeed+' ride'+(r._carNeed>1?'s':'')+' along</span>':'',
