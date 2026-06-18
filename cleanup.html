@@ -226,6 +226,11 @@ header .date{color:var(--dim);font-size:16px}
 #calpush:disabled{opacity:.45;cursor:default}
 #gmodal{display:none;position:fixed;inset:0;z-index:3000;background:rgba(31,34,38,.45);align-items:center;justify-content:center}
 #gmodal.show{display:flex}
+#gmodal .gbox{background:var(--card,#fff);border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:22px 24px;box-shadow:0 24px 64px rgba(0,0,0,.32);position:relative;box-sizing:border-box}
+#gmodal .gh{font-family:'Barlow Condensed';font-size:24px;font-weight:600;line-height:1.15;margin-bottom:10px;padding-right:28px;color:var(--ink)}
+#gmodal .gfoot{margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+#gmodal .gx{position:absolute;top:11px;right:13px;background:none;border:none;font-size:19px;cursor:pointer;color:var(--dim);line-height:1;padding:4px}
+#gmodal .sumsec{margin-top:12px} #gmodal .sumsec h4{font-family:'Barlow Condensed';font-size:16px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);margin:0 0 4px} #gmodal .sumsec ul{margin:0;padding-left:18px} #gmodal .sumnet{margin-top:12px;font-weight:600;color:var(--ink)}
 #gmodal .gbody{font-size:15px;line-height:1.6;max-height:60vh;overflow:auto}
 .gplan{border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin-top:10px}
 .gpcode{font-family:'IBM Plex Mono';font-weight:600;margin-bottom:7px}
@@ -2219,7 +2224,7 @@ async function truckRoute(a,b){
 /* ===== gModal (dispatcher style) ===== */
 function gModal(title,html,footer){
   let host=$('gmodalhost');
-  host.innerHTML='<div class="gmodal show" id="gm"><div class="gbox"><button class="gx" id="gmx">✕</button><div class="gh">'+esc(title)+'</div><div class="gbody">'+html+'</div>'+(footer?'<div class="gfoot">'+footer+'</div>':'')+'</div></div>';
+  host.innerHTML='<div class="gmodal show" id="gmodal"><div class="gbox"><button class="gx" id="gmx">✕</button><div class="gh">'+esc(title)+'</div><div class="gbody">'+html+'</div>'+(footer?'<div class="gfoot">'+footer+'</div>':'')+'</div></div>';
   const m=host.querySelector('.gmodal');
   host.querySelector('#gmx').onclick=()=>host.innerHTML='';
   m.addEventListener('click',e=>{if(e.target===m)host.innerHTML='';});
@@ -3510,8 +3515,8 @@ async function executeCalWrites(){
 }
 
 function boot(){
-  try{console.log('%cZipCleanup build 2026-06-18g \u2014 one-tap confirm','color:#6E9220;font-weight:700');}catch(e){}
-  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18g';}catch(e){}
+  try{console.log('%cZipCleanup build 2026-06-18h \u2014 popup modal fix','color:#6E9220;font-weight:700');}catch(e){}
+  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18h';}catch(e){}
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
