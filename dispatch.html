@@ -2558,7 +2558,7 @@ function refreshMap(){
     paddingTopLeft:[600,50],paddingBottomRight:[60,70]});
 
   mc.innerHTML='<div class="mchead"><div class="mt">'+r.id+' · day timeline</div>'
-      +'<div class="mcbtns"><button class="mcmin" title="Minimize panel">–</button><button class="mcx" title="Exit map">✕ Exit map</button></div></div>'
+      +'<div class="mcbtns"><button class="mcx" title="Exit map">✕ Exit map</button></div></div>'
     +'<div class="mcbody">'
     +(function(){
         const sl2=[...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
@@ -2590,7 +2590,7 @@ function refreshMap(){
     +'<div class="ms" id="daytot-'+seq+'" style="margin-top:6px"></div>'
     +'<button id="showall">← all routes</button>'
     +'</div>';
-  mc.classList.toggle('min',MAPCARD_MIN);
+  mc.classList.remove('min');
   document.getElementById('showall').onclick=()=>{mapMode='all';highlighted=null;renderCards();refreshMap();};
 
   renderItinerary(r,items,seq,false);
@@ -2755,12 +2755,12 @@ function drawAllJobs(seq){
   drawBases(null);
   if(pts.length)LMAP.flyToBounds(L.latLngBounds(pts),{duration:0.5,maxZoom:11,paddingTopLeft:[600,40],paddingBottomRight:[40,60]});
   mc.innerHTML='<div class="mchead"><div class="mt">All jobs — '+currentDay+'</div>'
-      +'<div class="mcbtns"><button class="mcmin" title="Minimize panel">–</button><button class="mcx" title="Exit map">✕ Exit map</button></div></div>'
+      +'<div class="mcbtns"><button class="mcx" title="Exit map">✕ Exit map</button></div></div>'
     +'<div class="mcbody">'
     +'<div class="ms">'+vis.length+(filtersActive()?' of '+routes.length:'')+' routes'+(filtersActive()?' <b>(filters applied)</b>':'')+' · one color each · only loaded job legs shown. Hover for customer & details, click a line to open that route with full ETAs.</div>'
     +'<div class="ms rsrc" id="allrt-'+seq+'">'+(HEREKEY()?'Fetching truck routes…':'Straight-line preview')+'</div>'
     +'</div>';
-  mc.classList.toggle('min',MAPCARD_MIN);
+  mc.classList.remove('min');
   if(HEREKEY())Promise.all(items.map(it=>truckRoute(it.a,it.b).then(rt=>{
     if(seq!==drawSeq||!rt)return;
     it.line.setLatLngs(rt.pts);
