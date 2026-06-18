@@ -2452,13 +2452,14 @@ function routeSteps(route){
   const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
   const rows=[]; let prevDoneMs=null;
   sl.forEach((l,i)=>{ const st=Date.parse(l.start); const act=(l.actH||schedH(l)||3); const samePD=sameSpot(l);
-    if(i>0&&prevDoneMs!=null) rows.push(step(fmtMs(prevDoneMs),'Reposition to <b>'+esc(l.customer||l.code)+'</b> \u00b7 '+esc(l.cityFrom||''),true));
-    if(samePD){ const dM=st+act*3600000; rows.push(step(fmtMs(st),'Work <b>'+esc(l.customer||l.code)+'</b> ~'+fmtH(act)+' at '+esc(l.cityFrom||'')+' \u00b7 same address \u00b7 done ~'+fmtMs(dM),false)); prevDoneMs=dM; return; }
-    rows.push(step(fmtMs(st),'Arrive <b>'+esc(l.customer||l.code)+'</b> \u00b7 pickup '+esc(l.cityFrom||'')+' \u00b7 '+(l.cf||0).toLocaleString()+' CF',false));
+    const ph=((typeof jobByCode==='function'&&jobByCode(l.code))||l||{}).phone||'';
+    if(i>0&&prevDoneMs!=null) rows.push(step(fmtMs(prevDoneMs),'Reposition to <b>'+esc(l.customer||l.code)+'</b>'+(ph?' · '+esc(ph):''),true));
+    if(samePD){ const dM=st+act*3600000; rows.push(step(fmtMs(st),'Work <b>'+esc(l.customer||l.code)+'</b> ~'+fmtH(act)+(ph?' · '+esc(ph):'')+' · same address · done ~'+fmtMs(dM),false)); prevDoneMs=dM; return; }
+    rows.push(step(fmtMs(st),'Arrive <b>'+esc(l.customer||l.code)+'</b>'+(ph?' · '+esc(ph):'')+' · '+(l.cf||0).toLocaleString()+' CF',false));
     const loadMs=st+act*0.6*3600000;
-    rows.push(step(fmtMs(loadMs),'Load ~'+(Math.round(act*0.6*10)/10)+'h, drive to '+esc(l.cityTo||'delivery'),true));
+    rows.push(step(fmtMs(loadMs),'Load ~'+(Math.round(act*0.6*10)/10)+'h, then drive to drop-off',true));
     const doneMs=loadMs+30*60000+act*0.4*3600000;
-    rows.push(step(fmtMs(doneMs),'Deliver '+esc(l.cityTo||'')+' \u00b7 done ~'+fmtMs(doneMs),false));
+    rows.push(step(fmtMs(doneMs),'Drop off · done ~'+fmtMs(doneMs),false));
     prevDoneMs=doneMs;
   });
   return rows.join('');
@@ -2758,7 +2759,7 @@ function renderSlot(iso, s, td, dupLeads, dispN){
   const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
   let head, body='';
   if(kind==='call'){
-    head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
+    head='<b><span class="tlbl call">\ud83d\udcde Optimized re-chaining</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b> \u2014 same-day flip, no discount needed.</div>';
     const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning?\u201d</div>';
     if(stt==='todo'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; body=desc+script+'<div class="leadrow"><label>Runs after (lead job):</label><select class="leadsel" data-lk="'+lk+'">'+dayJobOptions(td,lead)+'</select></div><div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-lk="'+lk+'">Confirm re-chain</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,rec,'call',buildRecRoute(rec,'call',td))+'</div>'; }
@@ -2767,7 +2768,7 @@ function renderSlot(iso, s, td, dupLeads, dispN){
   } else {
     const sl=rec.slot, tf=fmtDay(rec.to);
     const where=sl.fresh?('as its own crew, ~'+hmPretty(sl.origStartMs)):('after <b>'+esc(sl.anchorCustomer||sl.anchorCode)+'</b>, arrive <span class="win">'+sl.window.text+'</span>');
-    head='<b><span class="tlbl move">\ud83d\udcc5 move date</span> '+esc(rec.customer||rec.code)+'</b> '+tag+' <span class="stag $">\u002450</span>';
+    head='<b><span class="tlbl move">\ud83d\udcc5 Change Date</span> '+esc(rec.customer||rec.code)+'</b> '+tag+' <span class="stag $">\u002450</span>';
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'. Offer \u002450 off for the date change.</div>';
     const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We\u2019ll take \u002450 off for changing the date.\u201d</div>';
     if(stt==='todo'){ body=desc+script+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'" data-mvto="'+rec.to+'" data-mvcust="'+esc(rec.customer||rec.code)+'" data-mvstart="'+((function(){var j=jobByCode(rec.code);return j?Date.parse(rec.to+' '+String(j.start).slice(11)):Date.parse(rec.to);})())+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,sl,'move',buildRecRoute(rec,'move',td))+'</div>'; }
@@ -2800,7 +2801,7 @@ function renderDay(iso){
   h+='<div class="fixpanel">';
   if(distro.doubleChains.length){ distro.doubleChains.forEach(dc=>{ h+='<div class="distalert">\u26a0 Double chaining \u2014 <b>'+esc(dc.tails.join(' & '))+'</b> are both chained after <b>'+esc(dc.lead)+'</b>. One crew can\u2019t do both \u2014 split one off.</div>'; }); }
   if(distro.standalonePM.length){ h+='<div class="distinfo">\ud83d\udd17 Afternoon job'+(distro.standalonePM.length>1?'s':'')+' running solo (no feasible chain found): '+esc(distro.standalonePM.join(', '))+'.</div>'; }
-  if(plan.standardChains.length){h+='<div class="fixinfo"><span class="tlbl free">free</span> '+plan.standardChains.length+' afternoon job'+(plan.standardChains.length>1?'s':'')+' auto-chained (extra-chain, no call): '+plan.standardChains.map(c=>esc(c.customer||c.tail)+' after '+esc(c.anchorCustomer||c.after)).join('; ')+'.</div>';}
+  if(plan.standardChains.length){h+='<div class="fixinfo"><span class="tlbl free">free</span> '+plan.standardChains.length+' afternoon job'+(plan.standardChains.length>1?'s':'')+' Extra Chained (no call needed): '+plan.standardChains.map(c=>esc(c.customer||c.tail)+' after '+esc(c.anchorCustomer||c.after)).join('; ')+'.</div>';}
   if(st==='ok'){
     h+='<div class="cres ok">\u2713 This day holds its '+plan_buffer()+'-crew buffer ('+plan.spare+' free). Nothing to resolve.</div>';
   }else{
@@ -3178,6 +3179,7 @@ function parseCalEvent(ev){
     straight:/straight/i.test(jt)?true:(/regular/i.test(jt)?false:/straight/i.test(String(ev.description||''))),
     packing:numV(G('Packing Estimate')),
     customer:G('Customer Name').trim(),
+    phone:(function(){var s=String(ev.description||'');var m=s.match(/customer\s*mobile\s*[:\-]?\s*([+0-9()\s.\-]{7,})/i)||s.match(/\bmobile\b[^\n:\-]*[:\-]\s*([+0-9()\s.\-]{7,})/i)||s.match(/\bphone\b[^\n:\-]*[:\-]\s*([+0-9()\s.\-]{7,})/i);return m?m[1].replace(/\s+/g,' ').trim():'';})(),
     start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,tripDays,
     piano:String(ev.summary||'').includes('🎹'),
     rescheduled:String(ev.summary||'').toUpperCase().includes('RESCHEDULED'),
@@ -3488,7 +3490,7 @@ function showUpdateSummary(){
 async function executeCalWrites(){
   var acts=gatherConfirmed().filter(function(a){return a.writable;});
   if(!acts.length){gModal('Nothing to write','<div class="gsub">No confirmed changes are ready to write yet. Press ↻ Refresh so the calendar finishes loading, then try again.</div>');return;}
-  var ok=0,fail=0;var errs=[];
+  var ok=0,fail=0;var errs=[];var done=[];
   var pad=function(n){return String(n).padStart(2,'0');};
   var fmtLocal=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00';};
   for(const a of acts){
@@ -3505,26 +3507,39 @@ async function executeCalWrites(){
         desc=upsertField(desc,'After Customer Name',(lj&&lj.customer)||'');
         if(leadTruck)desc=upsertField(desc,'Truck #',leadTruck);
         desc=upsertField(desc,'Support Chained','Yes');
-        const body={description:desc};
-        if(leadNick)body.summary=newTitle(ev.summary,leadNick,leadTruck);
+        const leadCust=(lj&&lj.customer)||a.after||'';
+        let baseTitle=String(ev.summary||'').replace(/^AFTER\b[^·]*·\s*/i,'');
+        if(leadNick)baseTitle=newTitle(baseTitle,leadNick,leadTruck);
+        const body={description:desc, summary:(leadCust?('AFTER '+leadCust+' · '):'')+baseTitle};
         body.attendees=setForemanGuest(ev.attendees,emailForNick(leadNick),foremanEmailSet());
-        if(a.arriveMs!=null){const day=String(ev.start.dateTime||'').slice(0,10)||a.iso;const sd=day+'T'+fmtMs(a.arriveMs)+':00';body.start={dateTime:sd,timeZone:tz};body.end={dateTime:fmtLocal(new Date(Date.parse(sd)+durMs)),timeZone:tz};}
+        if(a.arriveMs!=null){
+          const day=String(ev.start.dateTime||'').slice(0,10)||a.iso;
+          const win=(typeof cleanWindow==='function')?cleanWindow(a.arriveMs,day):null;
+          const sd=day+'T'+(win?win.start:fmtMs(a.arriveMs))+':00';
+          body.start={dateTime:sd,timeZone:tz};
+          body.end={dateTime:(win&&win.end?day+'T'+win.end+':00':fmtLocal(new Date(Date.parse(sd)+durMs))),timeZone:tz};
+        }
         await gapiFetch(evPath(a.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify(body)});
       } else {
         const clock=(ev.start.dateTime||'').slice(11,16)||'09:00';
         const sdt=a.to+'T'+clock+':00';
         await gapiFetch(evPath(a.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify({start:{dateTime:sdt,timeZone:tz},end:{dateTime:fmtLocal(new Date(Date.parse(sdt)+durMs)),timeZone:tz}})});
       }
-      ok++;
+      ok++; done.push(a);
     }catch(e){fail++;errs.push((a.customer||a.code)+': '+e.message);}
   }
+  done.forEach(function(a){ try{delete STATUS[a.key];}catch(e){} try{delete LEADS[a.iso+'|slot'+a.slot+'|'+a.code];}catch(e){} try{delete CONFIRMED_MOVES[a.code];}catch(e){} try{if(typeof logDecision==='function')logDecision(a.iso,a.code,a.customer||'','','pushed','');}catch(e){} });
+  try{saveStatus(STATUS);}catch(e){} try{saveMoves();}catch(e){} try{saveLeads();}catch(e){}
+  SNAP0=null;
   $('gmodalhost').innerHTML='';
-  gModal('Calendar updated','<div class="gsub">✅ '+ok+' change'+(ok!==1?'s':'')+' written'+(fail?' · ⚠ '+fail+' failed':'')+'.</div>'+(fail?'<div class="gqt">'+esc(errs.slice(0,5).join(' · '))+(/40[13]/.test(errs.join(' '))?'<br>Sign-in may have expired or lacks calendar access — click <b>Connect Calendar</b>, then Update again.':'')+'</div>':'')+'<div class="gqt">Press ↻ Refresh to re-pull and see them reflected here.</div>');
+  gModal('Calendar updated','<div class="gsub">✅ '+ok+' change'+(ok!==1?'s':'')+' written'+(fail?' · ⚠ '+fail+' failed':'')+'.</div>'+(fail?'<div class="gqt">'+esc(errs.slice(0,5).join(' · '))+(/40[13]/.test(errs.join(' '))?'<br>Sign-in may have expired or lacks calendar access — click <b>Connect Calendar</b>, then Update again.':'')+'</div>':'')+'<div class="gqt">Refreshing the board to reflect the changes…</div>');
+  try{ if(typeof SELECTED!=='undefined'&&SELECTED)renderDay(SELECTED); if(typeof renderHorizon==='function')renderHorizon(); if(typeof updateCalBtns==='function')updateCalBtns(); if(typeof updateResetCU==='function')updateResetCU(); }catch(e){}
+  try{ if(window._calFullDone && typeof calSyncCore==='function'){ Promise.resolve(calSyncCore()).then(function(){ try{if(SELECTED)renderDay(SELECTED);if(typeof renderHorizon==='function')renderHorizon();}catch(_){} }).catch(function(){}); } else if(typeof pullAll==='function'){ pullAll(); } }catch(e){}
 }
 
 function boot(){
-  try{console.log('%cZipCleanup build 2026-06-18i \u2014 reset clears all pending','color:#6E9220;font-weight:700');}catch(e){}
-  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18i';}catch(e){}
+  try{console.log('%cZipCleanup build 2026-06-18j \u2014 names + phone timeline + window write','color:#6E9220;font-weight:700');}catch(e){}
+  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18j';}catch(e){}
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
