@@ -1319,6 +1319,18 @@ function tripAwayMap(dayIso){
 const AUTOOFFLIST=new Set();
 const CHAIN_RULES={maxDriveMin:45,maxCF:700,lateMin:30,maxJobs:3,maxHomeHr:22};
 const ACT_LOAD_SHARE=0.6; // owner rule: ACT splits 60% loading at pickup / 40% unloading at delivery
+function companyOf(title, dateMs){
+  var t=String(title||'').toLowerCase();
+  var dv=(typeof dateMs==='number'&&isFinite(dateMs))?dateMs:Date.parse(dateMs);
+  if(!isFinite(dv))dv=Infinity;
+  var isBoston=/(\(Boston\)|MA\s*-|RI\s*-|NH\s*-)/.test(String(title||''));
+  if(t.indexOf('liga')>=0 && dv<new Date(2025,0,1).getTime()) return 'Liga';
+  if(t.indexOf('tuji')>=0) return 'Tuji';
+  if(isBoston && dv<new Date(2026,3,20).getTime()) return 'Boston';
+  if(t.indexOf('(virginia)')>=0 && dv<new Date(2026,2,26).getTime()) return 'Virginia';
+  return 'Zip to Zip';
+}
+function coOf(j){ if(!j)return 'Zip to Zip'; if(j.company)return j.company; return companyOf(j.title||j.summary||'', Date.parse(j.start||0)); }
 function detectAutoChains(rts){
   // Universal fit-based chaining (owner spec):
   //  - any job can chain, morning included
@@ -1347,6 +1359,7 @@ function detectAutoChains(rts){
       if(tailsTaken.has(A.id))continue;                          // one new tail per head per pass
       const la=[...A.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).slice(-1)[0];
       if(!la.delivery||!INREGION(la.delivery))continue;
+      if(coOf(la)!==coOf(lb))continue;   // chain only within the same company
       const at1=Math.max(...A.legs.map(l=>l._endMs||Date.parse(l.end||l.start||0)));
       const rm=cachedRoadMi(la.delivery,lb.pickup);
       const linkMi=(rm!=null?rm:hav(la.delivery,lb.pickup)*1.15);
@@ -2244,6 +2257,7 @@ function computeSuggestions(){
       if(B===A||B.isLD||B.crew>3||B.legs.length>1||(B.trucksNeeded||0)>1||B.vansNeeded)continue;
       const lb=B.legs[0];
       if(!lb.pickup||!lb.delivery||!INREGION(lb.delivery))continue;
+      if(coOf(la)!==coOf(lb))continue;   // chain only within the same company
       const gapH=(B.t0-A.t1)/3600000;
       if(gapH<0.75||gapH>5)continue;
       const linkMi=hav(la.delivery,lb.pickup);
@@ -4007,6 +4021,7 @@ function parseCalEvent(ev){
     straight:/straight/i.test(jt)?true:(/regular/i.test(jt)?false:/straight/i.test(String(ev.description||''))),
     packing:numV(G('Packing Estimate')),
     customer:G('Customer Name').trim(),
+    title:String(ev.summary||''), company:companyOf(String(ev.summary||''), start.getTime()),
     start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,tripDays,
     piano:String(ev.summary||'').includes('🎹'),
     rescheduled:String(ev.summary||'').toUpperCase().includes('RESCHEDULED'),
