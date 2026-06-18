@@ -1228,7 +1228,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
   <div id="rfwrap">
     <div class="rfrowbtns"><button id="resetcu" class="calbtn ghost" title="Undo this review session&#39;s on-screen changes - back to the loaded state" style="display:none">&#8634; Reset changes</button><button id="calbtn" class="calbtn">🗓 Connect Calendar</button>
     <button id="rfbtn" class="calbtn" title="Pull the latest jobs from Google Calendar">↻ Refresh</button></div>
-    <span id="rfstamp"></span>
+    <span id="rfstamp"></span><span id="buildtag" style="font-size:11px;color:var(--faint);opacity:.65;margin-left:8px"></span>
   </div>
 </header>
 
@@ -2427,6 +2427,7 @@ function declinedSetFor(iso){const s=new Set();Object.keys(STATUS).forEach(k=>{i
 function _normAddr(s){return String(s||'').toLowerCase().replace(/\b(apt|apartment|unit|suite|ste|fl|floor)\b.*$/,'').replace(/#.*$/,'').replace(/[.,]/g,' ').replace(/\bstreet\b/g,'st').replace(/\bavenue\b/g,'ave').replace(/\broad\b/g,'rd').replace(/\bboulevard\b/g,'blvd').replace(/\bdrive\b/g,'dr').replace(/\s+/g,' ').trim();}
 function sameSpot(l){ if(!l||!l.pickup||!l.delivery)return false; var pa=_normAddr(l.pickupAddr), da=_normAddr(l.deliveryAddr); if(pa&&da&&pa===da)return true; if(l.pickup.lat!=null&&l.delivery.lat!=null){return hav(l.pickup,l.delivery)<0.4;} return false; }
 function fmtLateWindow(m){ if(m==null||m<=0)return '0:00'; var lo=Math.ceil(m/30)*30, hi=lo+60; function hm(x){return Math.floor(x/60)+':'+String(Math.round(x%60)).padStart(2,'0');} return hm(lo)+'\u2013'+hm(hi); }
+function fmtEtaWindow(ms){ var d=new Date(ms); var m=d.getHours()*60+d.getMinutes(); var lo=Math.ceil(m/30)*30, hi=lo+60; function hm(x){x=((x%1440)+1440)%1440; return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0');} return hm(lo)+'–'+hm(hi); }
 function routeGeo(route){
   const sl=[...route.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start)); const stops=[];
   sl.forEach(l=>{ const p=ptOf(l.pickup), d=ptOf(l.delivery);
@@ -2599,14 +2600,15 @@ function renderItineraryCU(r,items,seq,resolved){
         const eta=cursor+min*60000;
         const next=items[items.indexOf(it)+1];
         const sched=next&&next.leg?Date.parse(next.leg.start):null;
-        let note='';
+        let note='',_lateFlag=false;
         if(sched!=null){
           const dl=Date.parse(next.leg.winEnd||next.leg.start);
           const slack=Math.round((dl-eta)/60000);
           const lbl=next.leg.winEnd?('window until '+String(next.leg.winEnd).slice(11,16)):('scheduled '+fmtMs(sched));
-          note=slack>=0?(' \u00b7 ETA '+fmtMs(eta)+', '+lbl+' ('+slack+' min slack)'):(' \u00b7 ETA '+fmtMs(eta)+' \u2014 ~'+fmtLateWindow(-slack)+' LATE vs '+lbl);
+          _lateFlag=slack<0;
+          note=slack>=0?(' \u00b7 ETA '+fmtMs(eta)+', '+lbl+' ('+slack+' min slack)'):(' \u00b7 ETA '+fmtEtaWindow(eta));
         }
-        rows.push({t:fmtMs(cursor),txt:it.label+' \u00b7 '+min+' min'+note,travel:true,warn:note.includes('LATE')});
+        rows.push({t:fmtMs(cursor),txt:it.label+' \u00b7 '+min+' min'+note,travel:true,warn:_lateFlag});
         cursor=sched!=null?Math.max(eta,sched):eta;
       }
     } else {
@@ -3408,8 +3410,108 @@ async function executeCalWrites(){
   gModal('Calendar updated','<div class="gsub">\u2705 '+ok+' change'+(ok!==1?'s':'')+' written'+(fail?' \u00b7 \u26a0 '+fail+' failed':'')+'.</div>'+(fail?'<div class="gqt">'+esc(errs.slice(0,5).join(' \u00b7 '))+(/40[13]/.test(errs.join(' '))?'<br>Sign-in may have expired or lacks calendar access \u2014 click <b>Connect Calendar</b>, then Update again.':'')+'</div>':'')+'<div class="gqt">Press \u21bb Refresh to re-pull and see them reflected here.</div>');
 }
 
+/* ===== Update Calendar v3 (bulletproof): never drop a confirmed item; always show the summary ===== */
+function gatherConfirmed(){
+  var byIso={};
+  Object.keys(STATUS).forEach(function(k){
+    if(STATUS[k]!=='confirmed')return;
+    var p=k.split('|'); if(p.length<4)return;
+    var iso=p[0], slot=String(p[1]).replace(/^slot/,''), kind=p[2], code=p.slice(3).join('|');
+    if(!iso||!kind||!code)return;
+    (byIso[iso]=byIso[iso]||[]).push({iso:iso,slot:slot,kind:kind,code:code,key:k});
+  });
+  var out=[];
+  Object.keys(byIso).forEach(function(iso){
+    var hasCall=byIso[iso].some(function(x){return x.kind==='call';});
+    var plan=null;
+    if(hasCall){ try{ plan=cleanupPlan(iso, scanHorizon(windowStart(),7)); }catch(e){} }
+    byIso[iso].forEach(function(x){
+      var j=jobByCode(x.code);
+      x.customer=(typeof SLOTCUST!=='undefined'&&SLOTCUST[x.key])||(j&&j.customer)||x.code;
+      x.eventId=(j&&j.eventId)||null; x.writable=false; x.why='';
+      if(x.kind==='move'){
+        var cm=CONFIRMED_MOVES[x.code]; x.to=(cm&&cm.to)||null;
+        if(x.eventId&&x.to)x.writable=true; else x.why=(!x.eventId?'job not loaded yet':'no target date');
+      } else {
+        x.after=LEADS[iso+'|slot'+x.slot+'|'+x.code]||null;
+        if(plan){ var rec=(plan.callPool||[]).find(function(r){return r.tail===x.code;}); if(rec){ if(x.arriveMs==null)x.arriveMs=(rec.askArriveMs!=null?rec.askArriveMs:rec.arriveMs); if(!x.after)x.after=rec.after; } }
+        if(x.eventId&&x.after)x.writable=true; else x.why=(!x.eventId?'job not loaded yet':'lead not found');
+      }
+      out.push(x);                       /* ALWAYS include — the summary shows everything that is confirmed */
+    });
+  });
+  out.sort(function(a,b){return a.iso<b.iso?-1:a.iso>b.iso?1:0;});
+  return out;
+}
+function showUpdateSummary(){
+ try{
+  var acts=gatherConfirmed();
+  if(!acts.length){ gModal('Nothing confirmed yet','<div class="gsub">Nothing is queued to write. To push to the calendar: open a day with a shortage, pick a re-chain or a date-move, press <b>Accept</b>, then <b>Confirm</b> on it. Confirmed items show up here ready to write — accepted-but-not-confirmed ones don’t.</div>'); return; }
+  var writable=acts.filter(function(a){return a.writable;});
+  var byIso={}; acts.forEach(function(a){(byIso[a.iso]=byIso[a.iso]||[]).push(a);});
+  var isos=Object.keys(byIso).sort();
+  var nm=function(a){return esc(a.customer||a.code||'?');};
+  var html='<div class="gsub">Review before writing — <b>'+acts.length+'</b> confirmed change'+(acts.length>1?'s':'')+' across '+isos.length+' day'+(isos.length>1?'s':'')+':</div>';
+  isos.forEach(function(iso){
+    var f=fmtDay(iso), list=byIso[iso];
+    html+='<div class="sumsec"><h4>'+f.dow+' '+f.mon+' '+f.dn+' — '+list.length+'</h4><ul>';
+    list.forEach(function(a){
+      var line;
+      if(a.kind==='call') line='📞 '+nm(a)+' → runs after <b>'+esc((a.after&&((jobByCode(a.after)||{}).customer))||a.after||'?')+'</b>'+(a.arriveMs!=null?(' ('+fmtMs(a.arriveMs)+')'):'');
+      else line='📅 '+nm(a)+' → <b>'+(a.to?(fmtDay(a.to).dow+' '+fmtDay(a.to).mon+' '+fmtDay(a.to).dn):'(date pending)')+'</b>';
+      if(!a.writable) line='<span style="opacity:.55">'+line+' — <i>can’t write yet: '+esc(a.why||'incomplete')+'</i></span>';
+      html+='<li style="margin:3px 0">'+line+'</li>';
+    });
+    html+='</ul></div>';
+  });
+  if(writable.length<acts.length) html+='<div class="gqt">'+(acts.length-writable.length)+' item(s) can’t be written yet (greyed) — usually the calendar is still loading. Press ↻ Refresh, then open this again.</div>';
+  html+='<div class="sumnet">Will write <b>'+writable.length+'</b> of '+acts.length+' to the calendar.</div>';
+  var footer='<button class="cb" id="sumcancel">Cancel</button>'+(writable.length?(' <button class="cb yes" id="sumconfirm">Confirm &amp; write '+writable.length+' to calendar</button>'):'');
+  var box=gModal('Update summary — '+acts.length+' change'+(acts.length>1?'s':''), html, footer);
+  var cc=box&&box.querySelector('#sumcancel'); if(cc)cc.onclick=function(){$('gmodalhost').innerHTML='';};
+  var sc=box&&box.querySelector('#sumconfirm'); if(sc)sc.onclick=function(){$('gmodalhost').innerHTML='';ensureGToken(function(){executeCalWrites();});};
+ }catch(e){ try{ gModal('Update Calendar — something went wrong','<div class="gsub">Couldn’t build the summary: '+esc(String((e&&e.message)||e))+'</div>'); }catch(_){} }
+}
+async function executeCalWrites(){
+  var acts=gatherConfirmed().filter(function(a){return a.writable;});
+  if(!acts.length){gModal('Nothing to write','<div class="gsub">No confirmed changes are ready to write yet. Press ↻ Refresh so the calendar finishes loading, then try again.</div>');return;}
+  var ok=0,fail=0;var errs=[];
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var fmtLocal=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00';};
+  for(const a of acts){
+    try{
+      const ev=await gapiFetch(evPath(a.eventId));
+      const tz=(ev.start&&ev.start.timeZone)||'America/New_York';
+      const durMs=(Date.parse(ev.end&&ev.end.dateTime)-Date.parse(ev.start&&ev.start.dateTime))||3*3600000;
+      if(a.kind==='call'){
+        let leadNick='',leadTruck='';
+        const lj=jobByCode(a.after); const leadEventId=(lj&&lj.eventId)||null;
+        if(leadEventId){try{const lev=await gapiFetch(evPath(leadEventId));const tg=parseTitleTag(lev.summary);leadNick=tg.nick;leadTruck=tg.truck;}catch(e){}}
+        let desc=ev.description||'';
+        desc=upsertField(desc,'After Job Code',a.after);
+        desc=upsertField(desc,'After Customer Name',(lj&&lj.customer)||'');
+        if(leadTruck)desc=upsertField(desc,'Truck #',leadTruck);
+        desc=upsertField(desc,'Support Chained','Yes');
+        const body={description:desc};
+        if(leadNick)body.summary=newTitle(ev.summary,leadNick,leadTruck);
+        body.attendees=setForemanGuest(ev.attendees,emailForNick(leadNick),foremanEmailSet());
+        if(a.arriveMs!=null){const day=String(ev.start.dateTime||'').slice(0,10)||a.iso;const sd=day+'T'+fmtMs(a.arriveMs)+':00';body.start={dateTime:sd,timeZone:tz};body.end={dateTime:fmtLocal(new Date(Date.parse(sd)+durMs)),timeZone:tz};}
+        await gapiFetch(evPath(a.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify(body)});
+      } else {
+        const clock=(ev.start.dateTime||'').slice(11,16)||'09:00';
+        const sdt=a.to+'T'+clock+':00';
+        await gapiFetch(evPath(a.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify({start:{dateTime:sdt,timeZone:tz},end:{dateTime:fmtLocal(new Date(Date.parse(sdt)+durMs)),timeZone:tz}})});
+      }
+      ok++;
+    }catch(e){fail++;errs.push((a.customer||a.code)+': '+e.message);}
+  }
+  $('gmodalhost').innerHTML='';
+  gModal('Calendar updated','<div class="gsub">✅ '+ok+' change'+(ok!==1?'s':'')+' written'+(fail?' · ⚠ '+fail+' failed':'')+'.</div>'+(fail?'<div class="gqt">'+esc(errs.slice(0,5).join(' · '))+(/40[13]/.test(errs.join(' '))?'<br>Sign-in may have expired or lacks calendar access — click <b>Connect Calendar</b>, then Update again.':'')+'</div>':'')+'<div class="gqt">Press ↻ Refresh to re-pull and see them reflected here.</div>');
+}
+
 function boot(){
-  try{console.log('%cZipCleanup build 2026-06-18e \u2014 delta refresh + decoupled Update Calendar','color:#6E9220;font-weight:700');}catch(e){}
+  try{console.log('%cZipCleanup build 2026-06-18f \u2014 bulletproof Update summary + ETA range','color:#6E9220;font-weight:700');}catch(e){}
+  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18f';}catch(e){}
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
