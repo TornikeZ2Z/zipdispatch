@@ -101,7 +101,9 @@ header .date{color:var(--dim);font-size:16px}
 .mapcard.min .mchead{gap:14px}
 .mapcard .mt{font-family:'Barlow Condensed';font-weight:600;font-size:22px;letter-spacing:.02em}
 .mapcard .ms{font-size:15px;color:var(--dim);margin-top:3px;line-height:1.5}
-.mapcard .steps{margin-top:10px;display:flex;flex-direction:column;gap:7px;max-height:300px;overflow-y:auto;padding-right:4px}
+.mapcard .steps{margin-top:10px;display:flex;flex-direction:column;gap:7px;padding-right:4px}
+.bchip.co-chip{font-weight:700}
+.bchip.co-chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .mapcard .step{font-size:15px;color:var(--ink);display:flex;gap:8px;position:relative;padding-left:17px;line-height:1.45}
 .mapcard .step .dot{position:absolute;left:0;top:5px;width:9px;height:9px;border-radius:50%;background:var(--ink)}
 .mapcard .step.tv .dot{background:var(--travel)}
@@ -2307,7 +2309,7 @@ function resetChanges(){
   if(typeof updateCalBtns==='function')updateCalBtns(); updateResetCU();
 }
 let WINDOW=[], SELECTED=null, RECS={}, CURPLAN=null, ACTIVE_ROUTE=null;
-let PROBONLY=false, BASEFILTER=new Set(), CURCHANGES={}, APD=null, COLLAPSED=new Set();
+let PROBONLY=false, BASEFILTER=new Set(), COMPANYFILTER=new Set(), CURCHANGES={}, APD=null, COLLAPSED=new Set();
 let HZPAGE=0, _hzManual=false;
 function getAPD(){ if(APD===null){ try{APD=allProblemDays();}catch(e){APD=[];} } return APD; }
 function windowStart(){return $('fromDate').value||TODAY_ISO;}
@@ -2685,9 +2687,10 @@ function renderHorizon(){
   }
   _hzManual=false;
   const bases=['NJ','PA','NY','DE','CT','MA'];
+  const comps=[...new Set(Object.values(DATA.days||{}).flat().map(j=>coOf(j)))].filter(Boolean).sort();
   let ctrl='<div class="hzctrl"><button class="ftoggle'+(PROBONLY?' on':'')+'" id="probtoggle">'+(PROBONLY?'\u25c9 All problem days ahead':'\u25cb Problems only')+'</button>'
     +'<span class="bflab">base</span><div class="bfilter">'+bases.map(b=>'<button class="bchip b-'+b+(BASEFILTER.has(b)?' on':'')+'" data-base="'+b+'">'+b+'</button>').join('')
-    +(BASEFILTER.size?'<button class="bchip clr" data-base="__clr" title="clear base filter">\u2715</button>':'')+'</div></div>';
+    +(BASEFILTER.size?'<button class="bchip clr" data-base="__clr" title="clear base filter">\u2715</button>':'')+'</div>'+(comps.length>1?('<span class="bflab">company</span><div class="bfilter">'+comps.map(c=>'<button class="bchip co-chip'+(COMPANYFILTER.has(c)?' on':'')+'" data-co="'+esc(c)+'">'+esc(c)+'</button>').join('')+(COMPANYFILTER.size?'<button class="bchip clr" data-co="__clr" title="clear company filter">\u2715</button>':'')+'</div>'):'')+'</div>';
   if(!strip.length){ el.innerHTML=ctrl+'<div class="allclear">'+(PROBONLY?'\u2713 No problem days anywhere in the future schedule.':'No calendar days in the 7 days from this date \u2014 pick another start date above.')+'</div>'; renderStats(); bindHz(); if(PROBONLY)$('daydetail').innerHTML=''; return; }
   el.innerHTML=ctrl+'<div class="phead">'+pageStrip.map(d=>{const f=fmtDay(d.iso);const lab=d.status==='short'?('over '+Math.abs(d.spare)):(d.status==='tight'?'full':d.spare+' free');return '<button class="pchip '+d.status+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="pd">'+f.dow+' '+f.mon+' '+f.dn+'</span><span class="pm">'+d.routes+'/'+d.availableCore+' \u00b7 '+lab+'</span></button>';}).join('')+'</div>'+pager;
   renderStats(); bindHz();
@@ -2700,7 +2703,8 @@ function bindHz(){
   if(hp)hp.onclick=()=>{_hzManual=true;HZPAGE=Math.max(0,HZPAGE-1);renderHorizon();};
   if(hn)hn.onclick=()=>{_hzManual=true;HZPAGE=HZPAGE+1;renderHorizon();};
   document.querySelectorAll('#horizon .pchip').forEach(p=>p.addEventListener('click',()=>{SELECTED=p.dataset.iso;renderHorizon();renderDay(SELECTED);}));
-  document.querySelectorAll('#horizon .bchip').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.base;if(v==='__clr')BASEFILTER.clear();else if(BASEFILTER.has(v))BASEFILTER.delete(v);else BASEFILTER.add(v);renderHorizon();if(SELECTED&&WINDOW.find(d=>d.iso===SELECTED))renderDay(SELECTED);}));
+  document.querySelectorAll('#horizon .bchip[data-base]').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.base;if(v==='__clr')BASEFILTER.clear();else if(BASEFILTER.has(v))BASEFILTER.delete(v);else BASEFILTER.add(v);renderHorizon();if(SELECTED&&WINDOW.find(d=>d.iso===SELECTED))renderDay(SELECTED);}));
+  document.querySelectorAll('#horizon .bchip[data-co]').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.co;if(v==='__clr')COMPANYFILTER.clear();else if(COMPANYFILTER.has(v))COMPANYFILTER.delete(v);else COMPANYFILTER.add(v);renderHorizon();if(SELECTED&&WINDOW.find(d=>d.iso===SELECTED))renderDay(SELECTED);}));
 }
 function renderStats(){
   const core=DATA.foremen.filter(f=>f.status==='Active').length;
@@ -2715,6 +2719,7 @@ function tlChunk(td, changes, incoming){
   changes=changes||{};
   let RR=td.routes.slice();
   if(BASEFILTER.size) RR=RR.filter(r=>BASEFILTER.has(r.base));
+  if(COMPANYFILTER.size) RR=RR.filter(r=>COMPANYFILTER.has(coOf((r.legs&&r.legs[0])||r.first||r)));
   if(!RR.length) return '<div id="cltl" class="tlwrap"><div class="tlempty">No routes for the selected base'+(BASEFILTER.size>1?'s':'')+' on this day.</div></div>';
   let minH=8,maxH=18;
   const legBlocks=r=>{const sl=[...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));return sl.map((l,i)=>{const st=Date.parse(l.start);const multi=l._far&&l.straight;let en=multi?null:(l._endMs||Date.parse(l.end||l.start));const nd=en&&new Date(en).getDate()!==new Date(st).getDate();return {r,l,i,n:sl.length,st,en,nd,multi};});};
@@ -2731,7 +2736,7 @@ function tlChunk(td, changes, incoming){
   const trackOf=r=>legBlocks(r).map(mkB).join('');
   let rows=''; const byB={};
   [...RR].sort((x,y)=>(x.base||'').localeCompare(y.base||'')||((x.t0||0)-(y.t0||0))).forEach(r=>{(byB[r.base]=byB[r.base]||[]).push(r);});
-  const _ghosts=(td.ghosts||[]).filter(g=>!BASEFILTER.size||BASEFILTER.has(g.base));
+  const _ghosts=(td.ghosts||[]).filter(g=>(!BASEFILTER.size||BASEFILTER.has(g.base))&&(!COMPANYFILTER.size||COMPANYFILTER.has(coOf(g))));
   const _gByB={}; _ghosts.forEach(g=>{(_gByB[g.base]=_gByB[g.base]||[]).push(g);});
   const _ghostRow=(g)=>{const gl=Math.max(0,pos(g.origStartMs));const gr=Math.min(100,pos(g.origEndMs||g.origStartMs));const gw=Math.max(3,gr-gl);const dest=g.kind==='call'?('now '+hmPretty(g.newStartMs||g.arriveMs)+', after '+(jobCust(td,g.after)||g.after)):('moved to '+fmtDay(g.to).mon+' '+fmtDay(g.to).dn);return '<div class="tlrow ghostrow" data-base="'+esc(g.base)+'"'+(COLLAPSED.has(g.base)?' style="display:none"':'')+' title="'+esc(g.customer+' \u2014 '+dest)+'"><div class="tllabel"><b>'+esc(g.customer)+'</b><span>was '+hmPretty(g.origStartMs)+' \u2192 '+esc(dest)+'</span></div><div class="tltrack"><div class="tlblock ghostblk '+(g.kind==='call'?'gcall':'gmove')+'" style="left:'+gl+'%;width:'+gw+'%">was here</div></div></div>';};
   const _bases=[...new Set([...Object.keys(byB),...Object.keys(_gByB)])].sort();
