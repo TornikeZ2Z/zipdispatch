@@ -2748,7 +2748,7 @@ function renderSlot(iso, s, td, dupLeads, dispN){
     head='<b><span class="tlbl call">\ud83d\udcde call</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF \u00b7 booked '+hmPretty(rec.origStartMs)+'. Ask to flip to the afternoon \u2014 arrive <span class="win">'+rec.window.text+'</span>, chaining after <b>'+esc(rec.anchorCustomer||rec.after)+'</b> \u2014 same-day flip, no discount needed.</div>';
     const script='<div class="iscript">\u201cHi '+esc((shortName?shortName(rec.customer):'')||'there')+' \u2014 could we come between '+rec.window.text+' instead of the morning?\u201d</div>';
-    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Talked to the client?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,rec,'call',buildRecRoute(rec,'call',td))+'</div>'; }
+    if(stt==='todo'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; body=desc+script+'<div class="leadrow"><label>Runs after (lead job):</label><select class="leadsel" data-lk="'+lk+'">'+dayJobOptions(td,lead)+'</select></div><div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-lk="'+lk+'">Confirm re-chain</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,rec,'call',buildRecRoute(rec,'call',td))+'</div>'; }
     else if(stt==='accepted'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; body=desc+'<div class="leadrow"><label>Runs after (lead job):</label><select class="leadsel" data-lk="'+lk+'">'+dayJobOptions(td,lead)+'</select></div><div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-lk="'+lk+'">Confirm re-chain</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Client declined instead</button></div>'; }
     else if(stt==='confirmed'){ const lk=lKey(iso,s.index,rec.tail); const lead=LEADS[lk]||rec.after; const dup=dupLeads.has(lead); body='<div class="confirmed'+(dup?' dup':'')+'">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.tail)+' arrives '+rec.window.text+', runs after <b>'+esc(jobCust(td,lead))+'</b>.'+(dup?' <span class="dupwarn">\u26a0 same lead as another re-chain \u2014 re-do this.</span>':'')+'<button class="cb undo" data-act="reopen" data-id="'+id+'">change</button></div>'; }
   } else {
@@ -2757,7 +2757,7 @@ function renderSlot(iso, s, td, dupLeads, dispN){
     head='<b><span class="tlbl move">\ud83d\udcc5 move date</span> '+esc(rec.customer||rec.code)+'</b> '+tag+' <span class="stag $">\u002450</span>';
     const desc='<div class="slotdesc">'+esc(rec.city||'')+' \u00b7 '+rec.cf+' CF. Move from <b>'+fmtDay(iso).mon+' '+fmtDay(iso).dn+'</b> to <b>'+tf.dow+' '+tf.mon+' '+tf.dn+'</b> ('+tf.dow+' has '+rec.targetSpare+' free) \u2014 '+where+'. Offer \u002450 off for the date change.</div>';
     const script='<div class="iscript">\u201cWould '+tf.dow+', '+tf.mon+' '+tf.dn+' work instead?'+(sl.fresh?'':' We\u2019d arrive around '+sl.window.text+'.')+' We\u2019ll take \u002450 off for changing the date.\u201d</div>';
-    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><span class="ask">Client OK to move?</span><button class="cb yes" data-act="accept" data-id="'+id+'">Accepted</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,sl,'move',buildRecRoute(rec,'move',td))+'</div>'; }
+    if(stt==='todo'){ body=desc+script+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'" data-mvto="'+rec.to+'" data-mvcust="'+esc(rec.customer||rec.code)+'" data-mvstart="'+((function(){var j=jobByCode(rec.code);return j?Date.parse(rec.to+' '+String(j.start).slice(11)):Date.parse(rec.to);})())+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Declined</button>'+routeBtn(id,sl,'move',buildRecRoute(rec,'move',td))+'</div>'; }
     else if(stt==='accepted'){ body=desc+'<div class="ibtns"><button class="cb yes" data-act="confirm" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'" data-mvto="'+rec.to+'" data-mvcust="'+esc(rec.customer||rec.code)+'" data-mvstart="'+((function(){var j=jobByCode(rec.code);return j?Date.parse(rec.to+' '+String(j.start).slice(11)):Date.parse(rec.to);})())+'">Confirm move to '+tf.mon+' '+tf.dn+'</button><button class="cb" data-act="decline" data-id="'+id+'" data-cust="'+esc(rec.customer||rec.tail||rec.code)+'">Client declined instead</button></div>'; }
     else if(stt==='confirmed'){ body='<div class="confirmed">\u2713 Confirmed \u2014 '+esc(rec.customer||rec.code)+' moved to '+tf.dow+' '+tf.mon+' '+tf.dn+'.<button class="cb undo" data-act="reopen" data-id="'+id+'" data-mvcode="'+esc(rec.code)+'">change</button></div>'; }
   }
@@ -3354,7 +3354,7 @@ function gatherConfirmed(){
 }
 function showUpdateSummary(){
   var acts=gatherConfirmed();
-  if(!acts.length){ gModal('Nothing confirmed yet','<div class="gsub">Nothing is queued to write. To push to the calendar: open a day with a shortage, pick a re-chain or a date-move, press <b>Accept</b>, then <b>Confirm</b> on it. Confirmed items show up here ready to write \u2014 accepted-but-not-confirmed ones don\u2019t.</div>'); return; }
+  if(!acts.length){ gModal('Nothing confirmed yet','<div class="gsub">Nothing is queued to write. To push to the calendar: open a day with a shortage, pick a re-chain or a date-move, press <b>Confirm</b> on it. Confirmed items show up here ready to write \u2014 accepted-but-not-confirmed ones don\u2019t.</div>'); return; }
   var byIso={}; acts.forEach(function(a){(byIso[a.iso]=byIso[a.iso]||[]).push(a);});
   var isos=Object.keys(byIso).sort();
   var nm=function(c){var j=jobByCode(c);return esc((j&&j.customer)||c||'?');};
@@ -3446,7 +3446,7 @@ function gatherConfirmed(){
 function showUpdateSummary(){
  try{
   var acts=gatherConfirmed();
-  if(!acts.length){ gModal('Nothing confirmed yet','<div class="gsub">Nothing is queued to write. To push to the calendar: open a day with a shortage, pick a re-chain or a date-move, press <b>Accept</b>, then <b>Confirm</b> on it. Confirmed items show up here ready to write — accepted-but-not-confirmed ones don’t.</div>'); return; }
+  if(!acts.length){ gModal('Nothing confirmed yet','<div class="gsub">Nothing is queued to write. To push to the calendar: open a day with a shortage, pick a re-chain or a date-move, press <b>Confirm</b> on it. Confirmed items show up here ready to write — accepted-but-not-confirmed ones don’t.</div>'); return; }
   var writable=acts.filter(function(a){return a.writable;});
   var byIso={}; acts.forEach(function(a){(byIso[a.iso]=byIso[a.iso]||[]).push(a);});
   var isos=Object.keys(byIso).sort();
@@ -3510,8 +3510,8 @@ async function executeCalWrites(){
 }
 
 function boot(){
-  try{console.log('%cZipCleanup build 2026-06-18f \u2014 bulletproof Update summary + ETA range','color:#6E9220;font-weight:700');}catch(e){}
-  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18f';}catch(e){}
+  try{console.log('%cZipCleanup build 2026-06-18g \u2014 one-tap confirm','color:#6E9220;font-weight:700');}catch(e){}
+  try{var _bt=document.getElementById('buildtag'); if(_bt)_bt.textContent='build 18g';}catch(e){}
   if(!$('fromDate').value)$('fromDate').value=TODAY_ISO;
   {const _dk=Object.keys(DATA.days).sort(),_bc=DATA.foremen.filter(f=>f.status!=='Active'&&f.status!=='Cancelled').length;$('rfstamp').textContent=_dk.length?('jobs through '+_dk[_dk.length-1]+' \u00b7 '+_bc+' backup crews held'):(GTOKEN?'Loading jobs\u2026':'Connect Calendar above to load jobs');}
   updateCalBtns();
