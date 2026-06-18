@@ -1899,6 +1899,10 @@ function renderCards(){
       if(!r)return;
       const _act=s.dataset.act,_slot=+s.dataset.slot||0,_rid=r.id;
       const _prev=_act==='base'?r.baseOverride:(_act==='truck'?(r.pinTrucks||[])[_slot]:(_act==='tn'?r.trucksOverride:r.pinForeman));
+      if(_act==='foreman' && s.value!=='auto' && s.value!=='__NONE__' && r.legs.length===1){
+        const _bz=routes.find(q=>q!==r&&q.foreman&&q.foreman.name===s.value);
+        if(_bz){ showChainConfirm(r,_bz,s); return; }
+      }
       applyWithDiff(r.id,()=>{
         if(s.dataset.act==='base')r.baseOverride=s.value==='auto'?null:s.value;
         else if(s.dataset.act==='truck'){r.pinTrucks=r.pinTrucks||[];r.pinTrucks[+s.dataset.slot||0]=s.value==='auto'?null:s.value;}
@@ -2979,6 +2983,63 @@ function gModal(title,html,footer){
   m.querySelector('#gclosebtn').onclick=()=>m.classList.remove('show');
   return m;
 }
+
+function showChainConfirm(B,A,sel){
+  var X=A.foreman; if(!X){return;}
+  var lb=B.legs[0];
+  var aLegs=A.legs.slice().sort(function(x,y){return Date.parse(x.start||0)-Date.parse(y.start||0);});
+  var la=aLegs[aLegs.length-1];
+  var at1=Math.max.apply(null,A.legs.map(function(l){return l._endMs||Date.parse(l.end||l.start||0);}));
+  var rm=(la.delivery&&lb.pickup)?cachedRoadMi(la.delivery,lb.pickup):null;
+  var linkMi=(rm!=null)?rm:((la.delivery&&lb.pickup)?hav(la.delivery,lb.pickup)*1.15:0);
+  var driveMs=linkMi/35*3600000, driveMin=Math.round(driveMs/60000);
+  var eta=at1+driveMs;
+  var bt0=Date.parse(lb.start||0);
+  var lateMin=Math.round((eta-bt0)/60000);
+  var workMs=((lb.actH||schedH(lb)||3))*3600000;
+  var base=DATA.bases[A.base];
+  var homeMi=0; if(base&&lb.delivery){var hm=cachedRoadMi(lb.delivery,{lat:base.lat,lon:base.lon}); homeMi=(hm!=null)?hm:hav(lb.delivery,{lat:base.lat,lon:base.lon})*1.15;}
+  var routeEnd=eta+workMs+homeMi/35*3600000;
+  var dEnd=new Date(bt0); dEnd.setHours((CHAIN_RULES.maxHomeHr||22),0,0,0); var dayEnd=dEnd.getTime();
+  var warns=[];
+  if(coOf(la)!==coOf(lb))warns.push('Different companies \u2014 <b>'+esc(coOf(la))+'</b> vs <b>'+esc(coOf(lb))+'</b>. Auto-chaining blocks this; manual is allowed.');
+  if(driveMin>(CHAIN_RULES.maxDriveMin||45))warns.push('Long hop between jobs \u2014 '+driveMin+' min drive (over the '+(CHAIN_RULES.maxDriveMin||45)+'-min guideline).');
+  if(lateMin>(CHAIN_RULES.lateMin||30))warns.push('Arrives ~'+lateMin+' min after the booked start \u2014 the customer may be waiting.');
+  if(isFinite(routeEnd)&&routeEnd>dayEnd)warns.push('Runs past end of day \u2014 crew home ~<b>'+hhmm(routeEnd)+'</b> (after '+(CHAIN_RULES.maxHomeHr||22)+':00).');
+  var cust=function(l){return esc(l.customer||l.code||'');};
+  var aList=aLegs.map(function(l){return '<li style="margin:2px 0"><b>'+esc(l.code)+'</b> \u2014 '+cust(l)+' \u00b7 '+hhmm(Date.parse(l.start))+'</li>';}).join('');
+  var html=''
+   +'<div style="font:14px/1.5 Inter,system-ui">'
+     +'<div style="margin-bottom:6px"><span style="display:inline-block;background:#0E7C66;color:#fff;font-weight:700;padding:2px 8px;border-radius:7px">'+esc(X.nick||X.name)+'</span> currently runs:</div>'
+     +'<ol style="margin:0 0 12px 18px;padding:0">'+aList+'</ol>'
+     +'<div style="margin-bottom:6px">Add <b>'+esc(lb.code)+'</b> ('+cust(lb)+') as the next stop:</div>'
+     +'<div style="background:#F4F8F7;border:1px solid #DCE6E3;border-radius:10px;padding:10px 12px;margin-bottom:'+(warns.length?'10px':'0')+'">'
+       +'<div>\u2713 Finishes '+esc(la.cityTo||la.deliveryAddr||la.code)+' ~<b>'+hhmm(at1)+'</b></div>'
+       +'<div style="color:#5A6B66">\u21b3 drive '+linkMi.toFixed(0)+' mi \u00b7 ~'+driveMin+' min</div>'
+       +'<div>\u25cf Arrives <b>'+esc(lb.code)+'</b> ~<b>'+hhmm(eta)+'</b> \u00b7 booked '+hhmm(bt0)
+          +(lateMin>5?' \u00b7 <span style="color:#B23A2A;font-weight:700">'+lateMin+' min late</span>':' \u00b7 <span style="color:#0E7C66;font-weight:700">on time</span>')+'</div>'
+     +'</div>'
+     +(warns.length?'<div style="background:#FFF6F4;border:1px solid #E5A79B;border-radius:10px;padding:8px 12px;color:#8A2A1C">'+warns.map(function(w){return '<div style="margin:3px 0">\u26a0 '+w+'</div>';}).join('')+'</div>':'')
+   +'</div>';
+  var footer='<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">'
+    +'<button id="chCancel" style="border:1.5px solid var(--line2);background:var(--card);color:var(--ink);font-family:Inter;font-weight:600;font-size:15px;padding:8px 14px;border-radius:10px;cursor:pointer">Cancel</button>'
+    +'<button class="gapply" id="chGo">Chain it onto '+esc(X.nick||X.name)+'</button></div>';
+  var m=gModal('\ud83d\udd17 Chain this job?',html,footer);
+  var reset=function(){try{sel.value=(B.pinForeman==='__NONE__'?'__NONE__':(B.pinForeman||'auto'));}catch(_){}};
+  var gc=m.querySelector('#gclosebtn'); if(gc)gc.onclick=function(){m.classList.remove('show');reset();};
+  m.querySelector('#chCancel').onclick=function(){m.classList.remove('show');reset();};
+  m.querySelector('#chGo').onclick=function(){
+    m.classList.remove('show');
+    chainApply(function(){
+      routes.forEach(function(q){if(q!==B&&q.foreman&&!q.pinForeman)q.pinForeman=q.foreman.name;});
+      manualChains.push({tail:lb.code,after:la.code});
+      rebuildRoutes();
+    });
+    render();
+    toast('Chained '+lb.code+' onto '+(X.nick||X.name)+' \u2014 '+(lateMin>5?lateMin+' min late':'on time')+'.');
+  };
+}
+
 const ZD_A='[ZipDispatch]',ZD_B='[/ZipDispatch]';
 function upsertZDBlock(desc,blk){
   const d=desc||'';
