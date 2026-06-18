@@ -198,6 +198,11 @@ header .date{color:var(--dim);font-size:16px}
 .ddbtn.act{background:var(--ink);color:#fff;border-color:var(--ink)}
 .ddpanel{display:none;position:absolute;top:calc(100% + 8px);left:0;z-index:1500;background:var(--card);border:1px solid var(--line2);border-radius:13px;box-shadow:0 14px 38px rgba(0,0,0,.16);min-width:230px;max-height:380px;overflow-y:auto;padding:6px}
 .ddpanel.open{display:block}
+#mapfull{display:none;position:absolute;top:12px;right:12px;z-index:1200;background:var(--card);border:1.5px solid var(--line2);border-radius:9px;font:600 14px Inter;padding:7px 11px;cursor:pointer;color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+#mapfull:hover{border-color:var(--ink)}
+.layout.mapon #mapfull{display:block}
+#mapwrap:fullscreen{width:100vw!important;height:100vh!important;background:var(--bg)}
+#mapwrap:fullscreen #map{height:100vh!important}
 .ddrow{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;cursor:pointer;font-size:15px}
 .ddrow:hover{background:var(--paper)}
 .ddrow.cur{background:var(--ink);color:#fff}
@@ -953,6 +958,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
       <div class="ddwrap" id="bwrap"><button class="ddbtn" id="bbtn">All bases ▾</button><div class="ddpanel" id="bpanel"></div></div>
       <div class="ddwrap" id="ffwrap"><button class="ddbtn" id="ffbtn">All foremen ▾</button><div class="ddpanel" id="ffpanel"></div></div>
       <div class="ddwrap" id="iswrap"><button class="ddbtn" id="isbtn">Status: All ▾</button><div class="ddpanel" id="ispanel"></div></div>
+      <div class="ddwrap" id="cowrap"><button class="ddbtn" id="cobtn">Company: All ▾</button><div class="ddpanel" id="copanel"></div></div>
       <button id="clearfl" title="Reset every filter">✕ Clear filters</button>
     </div>
     <div id="ffsummary"></div>
@@ -963,6 +969,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
     <div id="timelineview" style="display:none"></div>
   </div>
   <div id="mapwrap">
+    <button id="mapfull" title="Full screen (Esc to exit)">⛶ Full screen</button>
     <div id="map"></div>
     <div class="mapcard" id="mapcard"></div>
     <div class="maplegend">
@@ -1472,9 +1479,10 @@ const FFSEL=new Set();
 const BASESEL=new Set();
 let CHFILTER='all';
 let MTFILTER='all';
-const DD={mt:false,sh:false,ch:false,b:false,ff:false,is:false};
+const DD={mt:false,sh:false,ch:false,b:false,ff:false,is:false,co:false};
 let ISSUEFILTER='all';
 let SHIFTFILTER='all';
+let COMPANYFILTER='all';
 const routeShift=r=>+String([...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start))[0].start).slice(11,13)<12?'am':'pm';
 const routeIsLD=r=>r.isLD||r.legs.some(l=>/long/i.test(l.movingType||''));
 const routeKind=r=>r.hasCarrier?'carrier':(routeIsLD(r)?'ld':'local');
@@ -1482,6 +1490,7 @@ function visibleRoutes(){
   let shown=routes;
   if(FFSEL.size)shown=shown.filter(r=>r.foreman&&FFSEL.has(r.foreman.name));
   if(BASESEL.size)shown=shown.filter(r=>BASESEL.has(r.base));
+  if(COMPANYFILTER!=='all')shown=shown.filter(r=>coOf(r.legs[0])===COMPANYFILTER);
   if(CHFILTER==='chained')shown=shown.filter(r=>r.legs.length>1);
   if(CHFILTER==='single')shown=shown.filter(r=>r.legs.length===1);
   if(MTFILTER!=='all')shown=shown.filter(r=>routeKind(r)===MTFILTER);
@@ -1491,7 +1500,7 @@ function visibleRoutes(){
   else if(ISSUEFILTER==='short')shown=shown.filter(r=>(r.short||0)>0||!r.foreman);
   return shown;
 }
-function filtersActive(){return FFSEL.size>0||BASESEL.size>0||CHFILTER!=='all'||MTFILTER!=='all'||SHIFTFILTER!=='all'||ISSUEFILTER!=='all';}
+function filtersActive(){return FFSEL.size>0||BASESEL.size>0||CHFILTER!=='all'||MTFILTER!=='all'||SHIFTFILTER!=='all'||ISSUEFILTER!=='all'||COMPANYFILTER!=='all';}
 const TODAY_ISO=(function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
 const PALETTE=['#0F8A66','#B26B0B','#6C5CE0','#C2417A','#2563EB','#D97706','#0E7490','#7C3AED','#DC2626','#65A30D','#0891B2','#9333EA','#BE185D','#4338CA'];
 function rebuildRoutes(){
@@ -1595,7 +1604,7 @@ function renderFilters(){
     if(VIEWMODE==='timeline')renderTimeline();};
   const cb=document.getElementById('clearfl');
   if(cb){cb.style.display=filtersActive()?'':'none';
-    cb.onclick=()=>{MTFILTER='all';SHIFTFILTER='all';CHFILTER='all';ISSUEFILTER='all';BASESEL.clear();FFSEL.clear();apply();};}
+    cb.onclick=()=>{MTFILTER='all';SHIFTFILTER='all';CHFILTER='all';ISSUEFILTER='all';COMPANYFILTER='all';BASESEL.clear();FFSEL.clear();apply();};}
   // type
   const kc={local:0,ld:0,carrier:0};
   routes.forEach(r=>kc[routeKind(r)]++);
@@ -1603,6 +1612,13 @@ function renderFilters(){
     [{v:'all',t:'All types',c:routes.length},{v:'local',t:'Local moving',c:kc.local},{v:'ld',t:'Long distance (straight)',c:kc.ld},{v:'carrier',t:'Regular (carrier)',c:kc.carrier}],
     MTFILTER,v=>{MTFILTER=v;apply();},
     MTFILTER==='all'?'Type: All':(MTFILTER==='local'?'Local':(MTFILTER==='ld'?'Long distance':'Regular (carrier)')),'mt');
+  const coCnt={};routes.forEach(r=>{const c=coOf(r.legs[0]);coCnt[c]=(coCnt[c]||0)+1;});
+  const coList=Object.keys(coCnt).sort();
+  if(COMPANYFILTER!=='all'&&!coList.includes(COMPANYFILTER))COMPANYFILTER='all';
+  singlePanel('copanel','cobtn',
+    [{v:'all',t:'All companies',c:routes.length}].concat(coList.map(c=>({v:c,t:c,c:coCnt[c]}))),
+    COMPANYFILTER,v=>{COMPANYFILTER=v;apply();},
+    COMPANYFILTER==='all'?'Company: All':COMPANYFILTER,'co');
   const cN=routes.filter(r=>r.confirmed).length;
   const aN=routes.filter(r=>!r.confirmed&&r.foreman&&!((r.short||0)>0)).length;
   const sN=routes.filter(r=>(r.short||0)>0||!r.foreman).length;
@@ -4655,7 +4671,7 @@ document.getElementById('dprev').addEventListener('click',()=>stepDay(-1));
 document.getElementById('dnext').addEventListener('click',()=>stepDay(1));
 document.getElementById('dbtn').addEventListener('click',e=>{e.stopPropagation();dpOpen=!dpOpen;document.getElementById('dpanel').classList.toggle('open',dpOpen);
   if(dpOpen){const c=document.querySelector('#dpanel .dprow.cur');if(c)c.scrollIntoView({block:'center'});}});
-[['mtbtn','mt','mtpanel'],['shbtn','sh','shpanel'],['chbtn','ch','chpanel'],['bbtn','b','bpanel'],['ffbtn','ff','ffpanel'],['isbtn','is','ispanel']].forEach(([btn,key,panel])=>{
+[['mtbtn','mt','mtpanel'],['shbtn','sh','shpanel'],['chbtn','ch','chpanel'],['bbtn','b','bpanel'],['ffbtn','ff','ffpanel'],['isbtn','is','ispanel'],['cobtn','co','copanel']].forEach(([btn,key,panel])=>{
   document.getElementById(btn).addEventListener('click',e=>{
     e.stopPropagation();
     const was=DD[key];
@@ -4689,6 +4705,8 @@ document.getElementById('allmapbtn').addEventListener('click',()=>{
   updateViewBtns();
   setTimeout(()=>{openMap();},wasOn?60:480);
 });
+(function(){var mf=document.getElementById('mapfull');if(mf)mf.addEventListener('click',function(){var w=document.getElementById('mapwrap');if(!document.fullscreenElement){(w.requestFullscreen?w.requestFullscreen():(w.webkitRequestFullscreen&&w.webkitRequestFullscreen()));}else{(document.exitFullscreen?document.exitFullscreen():(document.webkitExitFullscreen&&document.webkitExitFullscreen()));}});
+document.addEventListener('fullscreenchange',function(){var b=document.getElementById('mapfull');if(b)b.textContent=document.fullscreenElement?'⛶ Exit full screen':'⛶ Full screen';if(window.LMAP)setTimeout(function(){try{LMAP.invalidateSize();if(typeof refreshMap==='function'&&mapMode==='all')refreshMap();}catch(_){}},140);});})();
 window.addEventListener('resize',()=>{if(LMAP)LMAP.invalidateSize();});
 render();
 setViewMode('timeline');updateViewBtns();
