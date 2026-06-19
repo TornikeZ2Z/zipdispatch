@@ -740,6 +740,16 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .ajsw i:before{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.15s}
 .ajsw input:checked+i{background:var(--fleet)}
 .ajsw input:checked+i:before{left:21px}
+.aebtn{margin-left:8px;align-self:center;font-family:'Inter';font-weight:600;font-size:13px;color:var(--dim);background:var(--card);border:1px solid var(--line2);border-radius:999px;padding:4px 11px;cursor:pointer;transition:.12s}
+.aebtn:hover{border-color:var(--ink);color:var(--ink)}
+.aelist{max-height:52vh;overflow:auto;margin:10px 0;display:flex;flex-direction:column;gap:5px}
+.aerow{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid var(--line);border-radius:10px}
+.aerow .aelbl{font-size:14px;line-height:1.3}
+.aerow .aemeta{display:block;color:var(--dim);font-size:12.5px;font-family:'IBM Plex Mono',monospace;margin-top:1px}
+.skrow{padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+.skrow span{color:var(--dim)}
+.sksnip{display:block;color:var(--dim);font-style:italic;font-size:12.5px;margin-top:2px}
+.skforce{margin-left:8px;font-size:12px;font-weight:700;color:var(--rental);background:var(--rental-bg);border:1px solid var(--line2);border-radius:7px;padding:3px 9px;cursor:pointer}
 .skrow span{font-size:14px;color:#9A3E1D}
 .skiprep{margin-top:10px;font-size:14px}
 .skiprep summary{cursor:pointer;color:#9A3E1D;font-weight:700}
@@ -1266,6 +1276,9 @@ const STATES = null;
 
 /* EXCL */
 let EXCL=new Set(),FORCE=new Set();
+try{EXCL=new Set(JSON.parse(localStorage.getItem('zd_excl')||'[]'));FORCE=new Set(JSON.parse(localStorage.getItem('zd_force')||'[]'));}catch(e){}
+function persistToggles(){try{localStorage.setItem('zd_excl',JSON.stringify([...EXCL]));localStorage.setItem('zd_force',JSON.stringify([...FORCE]));}catch(e){}}
+let CAL_SKIPPED=[];
 
 /* manualChains */
 let manualChains=[];
@@ -1999,7 +2012,7 @@ function dayLoad(iso){
   const target=core.avail-CLEAN.buffer; const routes=opt.finalCount;
   const status = routes<=target?'ok':(routes<=core.avail?'tight':'short');
   return {iso, routes, base:opt.baseCount, availableCore:core.avail, coreOff:core.off, target,
-          spare:core.avail-routes, status, standardCount:opt.standardChains.length, _opt:opt};
+          spare:core.avail-routes, status, nearFull:status==='ok'&&(core.avail-routes)<=CLEAN.buffer, standardCount:opt.standardChains.length, _opt:opt};
 }
 
 function slotOnTarget(jobObj, targetIso){
@@ -2067,7 +2080,7 @@ function allProblemDays(){
   for(const iso of Object.keys(DATA.days).sort()){
     if(iso<TODAY_ISO)continue;
     const l=dayLoad(iso);
-    if(l.status!=='ok') out.push({iso, routes:l.routes, base:l.base, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status, standardCount:l.standardCount});
+    if(l.status!=='ok' || l.nearFull) out.push({iso, routes:l.routes, base:l.base, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status, nearFull:l.nearFull, standardCount:l.standardCount});
   }
   return out;
 }
@@ -2080,7 +2093,7 @@ function cleanupPlan(iso, horizon){
   const gapToBuffer=Math.max(0, load.routes-load.target);
   const gapToCover =Math.max(0, load.routes-load.availableCore);
   return { iso, availableCore:load.availableCore, coreOff:load.coreOff, target:load.target,
-           baseRoutes:load.base, routes:load.routes, routesSnap:load._opt.routesSnap, status:load.status, spare:load.spare,
+           baseRoutes:load.base, routes:load.routes, routesSnap:load._opt.routesSnap, status:load.status, nearFull:load.nearFull, spare:load.spare,
            standardChains:opt.standardChains, callPool, movePool, gapToBuffer, gapToCover };
 }
 
@@ -2091,7 +2104,7 @@ function scanHorizon(fromIso, nDays){
     const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     if(!DATA.days[iso])continue;
     const l=dayLoad(iso);
-    days.push({iso, routes:l.routes, base:l.base, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status, standardCount:l.standardCount});
+    days.push({iso, routes:l.routes, base:l.base, availableCore:l.availableCore, target:l.target, spare:l.spare, status:l.status, nearFull:l.nearFull, standardCount:l.standardCount});
   }
   return days;
 }
@@ -2692,7 +2705,7 @@ function renderHorizon(){
     +'<span class="bflab">base</span><div class="bfilter">'+bases.map(b=>'<button class="bchip b-'+b+(BASEFILTER.has(b)?' on':'')+'" data-base="'+b+'">'+b+'</button>').join('')
     +(BASEFILTER.size?'<button class="bchip clr" data-base="__clr" title="clear base filter">\u2715</button>':'')+'</div>'+(comps.length>1?('<span class="bflab">company</span><div class="bfilter">'+comps.map(c=>'<button class="bchip co-chip'+(COMPANYFILTER.has(c)?' on':'')+'" data-co="'+esc(c)+'">'+esc(c)+'</button>').join('')+(COMPANYFILTER.size?'<button class="bchip clr" data-co="__clr" title="clear company filter">\u2715</button>':'')+'</div>'):'')+'</div>';
   if(!strip.length){ el.innerHTML=ctrl+'<div class="allclear">'+(PROBONLY?'\u2713 No problem days anywhere in the future schedule.':'No calendar days in the 7 days from this date \u2014 pick another start date above.')+'</div>'; renderStats(); bindHz(); if(PROBONLY)$('daydetail').innerHTML=''; return; }
-  el.innerHTML=ctrl+'<div class="phead">'+pageStrip.map(d=>{const f=fmtDay(d.iso);const lab=d.status==='short'?('over '+Math.abs(d.spare)):(d.status==='tight'?'full':d.spare+' free');return '<button class="pchip '+d.status+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="pd">'+f.dow+' '+f.mon+' '+f.dn+'</span><span class="pm">'+d.routes+'/'+d.availableCore+' \u00b7 '+lab+'</span></button>';}).join('')+'</div>'+pager;
+  el.innerHTML=ctrl+'<div class="phead">'+pageStrip.map(d=>{const f=fmtDay(d.iso);const amber=d.nearFull||d.status==='tight';const lab=d.status==='short'?('over '+Math.abs(d.spare)):(amber?('only '+d.spare+' free'):(d.spare+' free'));const cls=d.nearFull?'tight':d.status;return '<button class="pchip '+cls+(d.iso===SELECTED?' sel':'')+'" data-iso="'+d.iso+'"><span class="pd">'+f.dow+' '+f.mon+' '+f.dn+'</span><span class="pm">'+d.routes+'/'+d.availableCore+' \u00b7 '+lab+'</span></button>';}).join('')+'</div>'+pager;
   renderStats(); bindHz();
 }
 function bindHz(){
@@ -2813,8 +2826,8 @@ function renderDay(iso){
   const td=timelineData(iso, changes);
   const distro=distroChecks(td); const incoming=incomingMoves(iso);
   const f=fmtDay(iso); const st=plan.status;
-  const chip=st==='short'?{c:'short',t:'over by '+Math.abs(plan.spare)}:st==='tight'?{c:'tight',t:'full \u00b7 no buffer'}:{c:'ok',t:plan.spare+' crews free'};
-  let h='<div class="daycard"><div class="dchead"><div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2><div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.availableCore+'</b> core crews \u00b7 aim \u2264'+plan.target+(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off':'')+'</div></div><span class="schip '+chip.c+'">'+chip.t+'</span></div><div class="dcbody">';
+  const chip=st==='short'?{c:'short',t:'over by '+Math.abs(plan.spare)}:st==='tight'?{c:'tight',t:'only '+plan.spare+' free'}:plan.nearFull?{c:'tight',t:'at buffer \u00b7 only '+plan.spare+' free'}:{c:'ok',t:plan.spare+' free'};
+  let h='<div class="daycard"><div class="dchead"><div><h2>'+f.dow+', '+f.mon+' '+f.dn+'</h2><div class="dcsum"><b>'+plan.routes+'</b> routes vs <b>'+plan.availableCore+'</b> core crews \u00b7 aim \u2264'+plan.target+(plan.coreOff.length?' \u00b7 '+plan.coreOff.length+' off':'')+'</div></div><span class="schip '+chip.c+'">'+chip.t+'</span><button class="aebtn" onclick="allEventsModal()">⏻ '+((DATA.days[iso]||[]).length)+' job'+((DATA.days[iso]||[]).length===1?'':'s')+(skippedForDay(iso)?(' · '+skippedForDay(iso)+' not imported'):'')+'</button></div><div class="dcbody">';
   h+='<div class="fixpanel">';
   if(distro.doubleChains.length){ distro.doubleChains.forEach(dc=>{ h+='<div class="distalert">\u26a0 Double chaining \u2014 <b>'+esc(dc.tails.join(' & '))+'</b> are both chained after <b>'+esc(dc.lead)+'</b>. One crew can\u2019t do both \u2014 split one off.</div>'; }); }
   if(distro.standalonePM.length){ h+='<div class="distinfo">\ud83d\udd17 Afternoon job'+(distro.standalonePM.length>1?'s':'')+' running solo (no feasible chain found): '+esc(distro.standalonePM.join(', '))+'.</div>'; }
@@ -3035,6 +3048,61 @@ async function shAppendRow(tab,obj){
   Object.keys(obj).forEach(k=>{if(!header.includes(k))row.push(String(obj[k]));});
   await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});
 }
+async function shUpdateCellByMatch(tab,match,setCol,setVal){
+  const vals=await shValues(tab); if(!vals.length)return false;
+  const header=vals[0];
+  for(let i=1;i<vals.length;i++){
+    const rowObj=Object.fromEntries(header.map((h,j)=>[h,vals[i][j]||'']));
+    if(match(rowObj)){
+      let ci=header.indexOf(setCol);
+      if(ci<0){ci=header.length;await shFetch('/values/'+encodeURIComponent("'"+tab+"'!"+colA1(ci)+'1')+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[[setCol]]})});}
+      await shFetch('/values/'+encodeURIComponent("'"+tab+"'!"+colA1(ci)+(i+1))+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[[setVal]]})});
+      return true;
+    }
+  }
+  return false;
+}
+function setJobEnabled(key,on,meta){
+  if(on)EXCL.delete(key);else EXCL.add(key);
+  persistToggles(); APD=null;
+  if(GTOKEN){
+    if(!on)shAppendRow('Excluded Events',{'Event Id':key,'Title':(meta&&meta.t)||'','Day':(meta&&meta.d)||SELECTED||'','Status':'Excluded','Note':'via ZipCleanup'}).catch(()=>{});
+    else shUpdateCellByMatch('Excluded Events',r=>r['Event Id']===key&&r['Status']==='Excluded','Status','Restored').catch(()=>{});
+  }
+  try{renderHorizon(); if(SELECTED)renderDay(SELECTED);}catch(e){}
+  toast(on?'✓ back on the board — recomputed':'Switched off — the calendar event is untouched. Toggle it back any time.');
+}
+function skippedForDay(iso){return CAL_SKIPPED.filter(x=>x.d===(iso||SELECTED)).length;}
+function skipReport(dayOnly){
+  const list=dayOnly?CAL_SKIPPED.filter(x=>x.d===SELECTED):CAL_SKIPPED;
+  if(!list.length)return '';
+  const rowH=x=>'<div class="skrow"><b>'+esc(x.t)+'</b><span> — '+esc(x.why)+'</span>'+(x.snip?'<i class="sksnip">“'+esc(x.snip)+'…”</i>':'')+(/ON HOLD/i.test(x.why)&&x.eid?' <button class="skforce" data-eid="'+esc(x.eid)+'">Import anyway</button>':'')+'</div>';
+  return '<details class="skiprep" open><summary>'+list.length+' calendar event'+(list.length>1?'s':'')+' not imported — why</summary><div>'+list.slice(0,60).map(rowH).join('')+(list.length>60?'<div>…</div>':'')+'<div class="ts" style="margin-top:8px">Fix in Google Calendar (usually a <b>Job Code:</b> line + a zip in <b>Moving From</b>), then ↻ Refresh. No-data events can’t be switched on.</div></div></details>';
+}
+async function forceImportEvent(eid){
+  FORCE.add(eid);persistToggles();
+  if(!GTOKEN)return toast('Saved — it will import on the next ↻ Refresh.');
+  try{
+    const ev=await gapiFetch('calendars/'+encodeURIComponent(GCAL_ID)+'/events/'+encodeURIComponent(eid));
+    const job=parseCalEvent(ev);
+    if(!job)return toast('Still cannot import it: '+(parseCalEvent.why||'unreadable')+'.');
+    const day=job.start.slice(0,10);
+    job.idx=(DATA.days[day]=DATA.days[day]||[]).length; DATA.days[day].push(job);
+    CAL_SKIPPED=CAL_SKIPPED.filter(x=>x.eid!==eid); APD=null;
+    renderHorizon(); if(SELECTED)renderDay(SELECTED);
+    toast('✓ '+job.code+' imported despite ON HOLD.');
+  }catch(e){toast('⚠ could not fetch the event: '+e.message);}
+}
+function allEventsModal(){
+  const iso=SELECTED||currentDay; if(!iso)return;
+  const all=(DATA.days[iso]||[]).slice().sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
+  const onCount=all.filter(j=>!EXCL.has(jobKey(j))).length, offCount=all.length-onCount;
+  const rowOf=j=>{const k=jobKey(j),ex=EXCL.has(k);return '<div class="aerow"><label class="ajsw"><input type="checkbox" data-k="'+esc(k)+'" data-t="'+esc(j.customer||j.code||'')+'"'+(ex?'':' checked')+'><i></i></label><span class="aelbl"><b>'+esc(j.code||'')+'</b> '+esc(j.customer||'')+'<span class="aemeta">'+esc(String(j.start||'').slice(11,16))+' · '+(j.cf||0)+' CF · '+esc(j.from||j.cityFrom||'?')+' → '+esc(j.to||j.cityTo||'?')+(ex?' · OFF the board':'')+'</span></span></div>';};
+  const body='<div class="gsub">'+onCount+' on the board'+(offCount?(' · '+offCount+' switched off'):'')+(skippedForDay(iso)?(' · '+skippedForDay(iso)+' not imported'):'')+'. Flip any job on or off — the calendar event is never changed; the choice is shared with the dispatcher.</div><div class="aelist">'+(all.length?all.map(rowOf).join(''):'<div class="ts">No events imported for this day.</div>')+'</div>'+skipReport(true);
+  const m=gModal('All events — '+iso, body);
+  m.querySelectorAll('.ajsw input[type=checkbox]').forEach(cb=>cb.addEventListener('change',function(){setJobEnabled(this.dataset.k,this.checked,{t:this.dataset.t,d:iso});}));
+  m.querySelectorAll('.skforce').forEach(b=>b.addEventListener('click',function(){forceImportEvent(this.dataset.eid);}));
+}
 function mdyToIso(s){if(!s)return '';const p=String(s).trim().split('/');if(p.length!==3)return '';const m=('0'+p[0].trim()).slice(-2),d=('0'+p[1].trim()).slice(-2);let y=p[2].trim();if(y.length===2)y='20'+y;return y+'-'+m+'-'+d;}
 function hasLocalStatus(iso,code){return Object.keys(STATUS).some(k=>k.indexOf(iso+'|')===0 && STATUS[k] && k.split('|').slice(3).join('|')===code);}
 function sheetExcluded(iso){
@@ -3108,6 +3176,10 @@ async function syncFromSheet(){
         }
       }
     }
+  }catch(e){}
+  try{ const _ex=await shValues('Excluded Events');
+    if(_ex&&_ex.length>1){ const _h=_ex[0],_iE=_h.indexOf('Event Id'),_iS=_h.indexOf('Status');
+      for(let i=1;i<_ex.length;i++){const r=_ex[i]||[];const id=(r[_iE]||'').trim(),st=(r[_iS]||'').trim();if(id&&st==='Excluded')EXCL.add(id);} }
   }catch(e){}
   APD=null; try{ renderHorizon(); if(SELECTED)renderDay(SELECTED); }catch(e){}
 }
@@ -3212,13 +3284,15 @@ async function calImport(){
     const j=await gapiFetch('calendars/'+encodeURIComponent(GCAL_ID)+'/events?timeMin='+encodeURIComponent(t0.toISOString())+'&timeMax='+encodeURIComponent(t1.toISOString())+'&maxResults=2500&singleEvents=false'+(pageToken?'&pageToken='+pageToken:''));
     items=items.concat(j.items||[]); pageToken=j.nextPageToken;
   }while(pageToken&&items.length<10000);
-  const days={}; let ok=0;
+  const days={}; let ok=0; const skipped=[];
   for(const ev of items){
-    if(ev.status==='cancelled')continue;
-    const job=parseCalEvent(ev); if(!job)continue;
+    if(ev.status==='cancelled'){const _d=((ev.start&&(ev.start.dateTime||ev.start.date))||'').slice(0,10);skipped.push({eid:ev.id||'',t:String(ev.summary||'(no title)'),d:_d,why:'cancelled in Google Calendar',snip:''});continue;}
+    const job=parseCalEvent(ev);
+    if(!job){const _d=((ev.start&&(ev.start.dateTime||ev.start.date))||'').slice(0,10);const _snip=calDescText(ev.description||'').replace(/\s+/g,' ').trim().slice(0,80);skipped.push({eid:ev.id||'',t:String(ev.summary||'(no title)'),d:_d,why:parseCalEvent.why||'could not read as a job',snip:_snip});continue;}
     const day=job.start.slice(0,10);
     job.idx=(days[day]=days[day]||[]).length; days[day].push(job); ok++;
   }
+  CAL_SKIPPED=skipped;
   DATA.days=days; window._calFullDone=true;
   DATA.source='Google Calendar (live)';
   DATA.pulled=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
