@@ -1015,6 +1015,7 @@ function persistToggles(){try{localStorage.setItem('zd_excl',JSON.stringify([...
 function buildRoutes(){
   const jobs=DATA.jobs.filter(j=>!EXCL.has(jobKey(j))), used=new Set(), routes=[];
   const cmap={}; manualChains.concat(AUTOCHAINS).forEach(c=>cmap[c.tail]=c.after);
+  const manualSet=new Set(manualChains.map(c=>c.tail));
   const aft=j=>cmap[j.code]||j.after;
   for(const h of jobs.filter(j=>j.first&&!aft(j))){
     if(used.has(h.code))continue;
@@ -1025,16 +1026,17 @@ function buildRoutes(){
       if(!next)break;
       legs.push(next); used.add(next.code); cur=next;
     }
-    routes.push(makeRoute(legs,routes.length,false,h.code));
+    routes.push(makeRoute(legs,routes.length,false,h.code,legs.some(l=>manualSet.has(l.code))));
   }
   for(const j of jobs){ if(!used.has(j.code)){routes.push(makeRoute([j],routes.length,true)); used.add(j.code);} }
   return routes;
 }
 
-function makeRoute(legs,idx,orphan=false,headCode=null){
+function makeRoute(legs,idx,orphan=false,headCode=null,manualChained=false){
   const _mo=(headCode&&typeof manualOrder!=='undefined')?manualOrder[headCode]:null;
   if(_mo&&legs.length>1){ const _bc={}; legs.forEach(l=>_bc[l.code]=l); const _ord=_mo.map(c=>_bc[c]).filter(Boolean); legs.forEach(l=>{if(_ord.indexOf(l)<0)_ord.push(l);}); legs=_ord; }
   else { legs=legs.slice().sort((a,b)=>(Date.parse(a.start||0)||0)-(Date.parse(b.start||0)||0)); } // legs[0] = the crew's first job of the day (base, leave-time, ETAs all key off this)
+  const _seq=(_mo||manualChained)&&legs.length>1;
   const totalCF=legs.reduce((s,l)=>s+l.cf,0);
   const maxCF=Math.max(...legs.map(l=>l.cf));
   const crew=Math.max(...legs.map(l=>l.crew||0),2);
@@ -1052,7 +1054,7 @@ function makeRoute(legs,idx,orphan=false,headCode=null){
     const dh=(l.pickup&&l.delivery&&!l._carrier)?hav(l.pickup,l.delivery)/35*1.15:0;
     l._endMs=st+(act+dh)*3600000; // approximate real end: travel to delivery + work
   });
-  if(_mo&&legs.length>1){ var _pe=null,_pl=null;
+  if(_seq){ var _pe=null,_pl=null;
     for(var _i=0;_i<legs.length;_i++){ var _l=legs[_i],_bk=Date.parse(_l.start||0),_ac=(_l.actH!=null&&_l.actH>0)?_l.actH:schedH(_l),_dh=(_l.pickup&&_l.delivery&&!_l._carrier)?hav(_l.pickup,_l.delivery)/35*1.15:0,_ar;
       if(_i===0){_ar=_bk;} else { var _mi=(_pl&&_l.pickup)?(cachedRoadMi(_pl,_l.pickup)!=null?cachedRoadMi(_pl,_l.pickup):hav(_pl,_l.pickup)*1.15):0; _ar=_pe+_mi/35*3600000; }
       _l._arriveMs=_ar; _l._lateMin=Math.round((_ar-_bk)/60000); _l._endMs=_ar+(_ac+_dh)*3600000; _pe=_l._endMs; _pl=(_l.delivery&&INREGION(_l.delivery))?_l.delivery:_l.pickup;
@@ -1069,9 +1071,13 @@ function makeRoute(legs,idx,orphan=false,headCode=null){
   let base=null,bd=1e9;
   if(legs[0].pickup){for(const [k,b] of Object.entries(DATA.bases)){const d=hav(legs[0].pickup,b); if(d<bd){bd=d;base=k;}}}
   else base=legs[0].base;
+  var _overruns=false,_homeMs=null;
+  if(_seq){ var _lst=legs[legs.length-1], _bo=DATA.bases[base];
+    if(_lst&&_bo){ var _fl=(_lst.delivery&&INREGION(_lst.delivery))?_lst.delivery:_lst.pickup; var _hmi=_fl?(cachedRoadMi(_fl,_bo)!=null?cachedRoadMi(_fl,_bo):hav(_fl,_bo)*1.15):0; _homeMs=(_lst._endMs||0)+_hmi/35*3600000; var _de=Date.parse(String(legs[0].start).slice(0,10)+'T'+String(CHAIN_RULES.maxHomeHr||22).padStart(2,'0')+':00'); _overruns=_homeMs>_de; }
+  }
   return {id:'R'+(idx+1),legs,totalCF,maxCF,crew,trucksNeeded,vansNeeded,ordIdx,isLD,ldDeparture,hasCarrier,laborOnly,estimateVisit,flatRate,packing,piano,
           pickupState,nearestBase:base,baseDist:Math.round(bd),sheetBase:legs[0].base,base:null,orphan,
-          stale:legs.some(l=>l.rescheduled)&&legs.length>1, manualOrdered:!!(_mo&&legs.length>1), _head:headCode||((legs[0]||{}).code)};
+          stale:legs.some(l=>l.rescheduled)&&legs.length>1, manualOrdered:!!(_mo&&legs.length>1), manualChained:!!manualChained, seqTimed:!!_seq, overruns:_overruns, homeMs:_homeMs, _head:headCode||((legs[0]||{}).code)};
 }
 
 function scoreRoute(r,w){
@@ -2194,7 +2200,8 @@ function cardHTML(r){
     (r.pinTrucks&&r.pinTrucks.some(Boolean))?chip('truck pinned'+(r._pinIssues&&r._pinIssues.length?(' — '+r._pinIssues.join(' · ')):''),(r._pinIssues&&r._pinIssues.length)?'warn':'ov'):'',
     (r._carNeed>0)?'<span class="chip" title="Crew of '+r.crew+' but the assigned '+((r.vehicles||[]).length>1?'vehicles seat':'truck cab seats')+' only '+r._cabSeats+'. Send '+r._carNeed+' crew member'+(r._carNeed>1?'s':'')+' in a follow car (their own vehicle) to meet the truck at the pickup." style="background:#EAF1FB;border-color:#C5D8F2;color:#1F5Fb0">🚗 +1 car · '+r._carNeed+' ride'+(r._carNeed>1?'s':'')+' along</span>':'',
     CHANGED[r.id]?chip('↺ '+CHANGED[r.id].join(' · '),'delta'):'',
-    r.stale?'<span class="tag warn" title="A job in this chain was rescheduled after the link was recorded — confirm the pairing is still valid.">chain needs review</span>':''
+    r.stale?'<span class="tag warn" title="A job in this chain was rescheduled after the link was recorded — confirm the pairing is still valid.">chain needs review</span>':'',
+    r.overruns?'<span class="chip" style="background:#FBEAE5;color:#B23A2A;border-color:#E5A79B" title="Run in this order, the crew gets home after '+(CHAIN_RULES.maxHomeHr||22)+':00 — this chain cannot fit in one day. Re-order the stops or split a job off.">🚨 runs past day-end — not feasible</span>':''
   ].filter(Boolean).join('');
   const f=r.foreman, ev=r.foremanEval;
   const fblock=f
@@ -3804,9 +3811,10 @@ function renderTimeline(){
   const RR=visibleRoutes();
   let minH=8,maxH=18;
   const legBlocks=r=>{
-    const sl=[...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
+    const useSeq=!!r.seqTimed;
+    const sl=useSeq?r.legs.slice():[...r.legs].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
     return sl.map((l,i)=>{
-      const st=Date.parse(l.start);
+      const st=(useSeq&&l._arriveMs)?l._arriveMs:Date.parse(l.start);
       const multi=l._far&&l.straight;
       let en=multi?null:(l._endMs||Date.parse(l.end||l.start));
       const nd=en&&new Date(en).getDate()!==new Date(st).getDate();
