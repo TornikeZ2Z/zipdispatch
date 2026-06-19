@@ -958,7 +958,7 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
       <div class="ddwrap" id="bwrap"><button class="ddbtn" id="bbtn">All bases ▾</button><div class="ddpanel" id="bpanel"></div></div>
       <div class="ddwrap" id="ffwrap"><button class="ddbtn" id="ffbtn">All foremen ▾</button><div class="ddpanel" id="ffpanel"></div></div>
       <div class="ddwrap" id="iswrap"><button class="ddbtn" id="isbtn">Status: All ▾</button><div class="ddpanel" id="ispanel"></div></div>
-      <div class="ddwrap" id="cowrap"><button class="ddbtn" id="cobtn">Company: All ▾</button><div class="ddpanel" id="copanel"></div></div>
+      <div class="ddwrap" id="cowrap"><button class="ddbtn" id="cobtn">Branch: All ▾</button><div class="ddpanel" id="copanel"></div></div>
       <button id="clearfl" title="Reset every filter">✕ Clear filters</button>
     </div>
     <div id="ffsummary"></div>
@@ -1618,7 +1618,7 @@ function renderFilters(){
   singlePanel('copanel','cobtn',
     [{v:'all',t:'All companies',c:routes.length}].concat(coList.map(c=>({v:c,t:c,c:coCnt[c]}))),
     COMPANYFILTER,v=>{COMPANYFILTER=v;apply();},
-    COMPANYFILTER==='all'?'Company: All':COMPANYFILTER,'co');
+    COMPANYFILTER==='all'?'Branch: All':COMPANYFILTER,'co');
   const cN=routes.filter(r=>r.confirmed).length;
   const aN=routes.filter(r=>!r.confirmed&&r.foreman&&!((r.short||0)>0)).length;
   const sN=routes.filter(r=>(r.short||0)>0||!r.foreman).length;
