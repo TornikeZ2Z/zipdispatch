@@ -387,6 +387,12 @@ details.cands summary:hover{color:var(--ink)}
 #refreshbtn{margin-left:0;background:var(--card);border:1px solid var(--line2);color:var(--ink);font-family:'Inter';font-weight:500;font-size:15.5px;padding:10px 15px;border-radius:10px;cursor:pointer}
 #refreshbtn:hover{border-color:var(--ink)}
 #allmapbtn{font-family:'Inter';font-weight:600;font-size:15px;padding:8px 14px;border-radius:9px;cursor:pointer;background:var(--card);border:1.5px solid var(--line2);color:var(--ink)}
+.ordwrap{margin:8px 0;padding:8px 10px;background:#F7F9F0;border:1px solid #DDE7C5;border-radius:9px}
+.ordhead{font-family:'Barlow Condensed';font-weight:600;font-size:13.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.ordwarn{color:#B26B0B;font-weight:700}
+.ordrow{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:14px}
+.ordcust{flex:1;font-weight:600}
+.ordsel{font-family:'Inter';font-size:13px;padding:3px 7px;border:1px solid var(--line2);border-radius:7px;background:var(--card)}
 .vbtn{background:var(--card);border:1.5px solid var(--line2);border-radius:9px;font-family:'Inter';font-weight:600;font-size:15px;padding:8px 14px;cursor:pointer;color:var(--ink)}
 .vbtn:hover{border-color:var(--ink)}
 .vbtn.on,#allmapbtn.on{background:#8CAF2C;border-color:#8CAF2C;color:#15200A;font-weight:800}
@@ -1019,14 +1025,16 @@ function buildRoutes(){
       if(!next)break;
       legs.push(next); used.add(next.code); cur=next;
     }
-    routes.push(makeRoute(legs,routes.length));
+    routes.push(makeRoute(legs,routes.length,false,h.code));
   }
   for(const j of jobs){ if(!used.has(j.code)){routes.push(makeRoute([j],routes.length,true)); used.add(j.code);} }
   return routes;
 }
 
-function makeRoute(legs,idx,orphan=false){
-  legs=legs.slice().sort((a,b)=>(Date.parse(a.start||0)||0)-(Date.parse(b.start||0)||0)); // legs[0] = the crew's first job of the day (base, leave-time, ETAs all key off this)
+function makeRoute(legs,idx,orphan=false,headCode=null){
+  const _mo=(headCode&&typeof manualOrder!=='undefined')?manualOrder[headCode]:null;
+  if(_mo&&legs.length>1){ const _bc={}; legs.forEach(l=>_bc[l.code]=l); const _ord=_mo.map(c=>_bc[c]).filter(Boolean); legs.forEach(l=>{if(_ord.indexOf(l)<0)_ord.push(l);}); legs=_ord; }
+  else { legs=legs.slice().sort((a,b)=>(Date.parse(a.start||0)||0)-(Date.parse(b.start||0)||0)); } // legs[0] = the crew's first job of the day (base, leave-time, ETAs all key off this)
   const totalCF=legs.reduce((s,l)=>s+l.cf,0);
   const maxCF=Math.max(...legs.map(l=>l.cf));
   const crew=Math.max(...legs.map(l=>l.crew||0),2);
@@ -1044,6 +1052,12 @@ function makeRoute(legs,idx,orphan=false){
     const dh=(l.pickup&&l.delivery&&!l._carrier)?hav(l.pickup,l.delivery)/35*1.15:0;
     l._endMs=st+(act+dh)*3600000; // approximate real end: travel to delivery + work
   });
+  if(_mo&&legs.length>1){ var _pe=null,_pl=null;
+    for(var _i=0;_i<legs.length;_i++){ var _l=legs[_i],_bk=Date.parse(_l.start||0),_ac=(_l.actH!=null&&_l.actH>0)?_l.actH:schedH(_l),_dh=(_l.pickup&&_l.delivery&&!_l._carrier)?hav(_l.pickup,_l.delivery)/35*1.15:0,_ar;
+      if(_i===0){_ar=_bk;} else { var _mi=(_pl&&_l.pickup)?(cachedRoadMi(_pl,_l.pickup)!=null?cachedRoadMi(_pl,_l.pickup):hav(_pl,_l.pickup)*1.15):0; _ar=_pe+_mi/35*3600000; }
+      _l._arriveMs=_ar; _l._lateMin=Math.round((_ar-_bk)/60000); _l._endMs=_ar+(_ac+_dh)*3600000; _pe=_l._endMs; _pl=(_l.delivery&&INREGION(_l.delivery))?_l.delivery:_l.pickup;
+    }
+  }
   const ldDeparture=legs.some(l=>l._far&&l.straight);
   const hasCarrier=legs.some(l=>l._carrier);
   const laborOnly=legs.length>0&&legs.every(l=>/labor/i.test(l.jobType||''));
@@ -1057,7 +1071,7 @@ function makeRoute(legs,idx,orphan=false){
   else base=legs[0].base;
   return {id:'R'+(idx+1),legs,totalCF,maxCF,crew,trucksNeeded,vansNeeded,ordIdx,isLD,ldDeparture,hasCarrier,laborOnly,estimateVisit,flatRate,packing,piano,
           pickupState,nearestBase:base,baseDist:Math.round(bd),sheetBase:legs[0].base,base:null,orphan,
-          stale:legs.some(l=>l.rescheduled)&&legs.length>1};
+          stale:legs.some(l=>l.rescheduled)&&legs.length>1, manualOrdered:!!(_mo&&legs.length>1), _head:headCode||((legs[0]||{}).code)};
 }
 
 function scoreRoute(r,w){
@@ -1304,6 +1318,8 @@ function assignAll(routes,w,baseMode){
 const WEIGHTS={cf:35,pack:20,ld:20,multi:15,piano:10};
 function getW(){return WEIGHTS;}
 let manualChains=[];
+let manualOrder={};try{manualOrder=JSON.parse(localStorage.getItem('zd_morder')||'{}');}catch(e){}
+function persistMOrder(){try{localStorage.setItem('zd_morder',JSON.stringify(manualOrder));}catch(e){}}
 let AUTOCHAINS=[];
 let TRIPAWAY={};let TRIPAWAY_T={};
 const _tn=x=>String(x||'').replace(/[#\s]/g,'').toUpperCase();
@@ -1913,6 +1929,13 @@ function renderCards(){
       e.stopPropagation();
       const r=routes.find(x=>x.id===s.dataset.r);
       if(!r)return;
+      if(s.dataset.act==='order'){ var _hd=s.dataset.head,_cd=s.dataset.code,_pos=s.value;
+        var _cur=manualOrder[_hd]?manualOrder[_hd].slice():r.legs.slice().sort(function(a,b){return Date.parse(a.start||0)-Date.parse(b.start||0);}).map(function(l){return l.code;});
+        if(_pos==='auto'){delete manualOrder[_hd];} else { _cur=_cur.filter(function(c){return c!==_cd;}); _cur.splice(Math.max(0,Math.min(_cur.length,(+_pos)-1)),0,_cd); manualOrder[_hd]=_cur; }
+        persistMOrder(); rebuildRoutes(); render();
+        if(VIEWMODE==='table')renderTable(); if(VIEWMODE==='timeline')renderTimeline();
+        return;
+      }
       const _act=s.dataset.act,_slot=+s.dataset.slot||0,_rid=r.id;
       const _prev=_act==='base'?r.baseOverride:(_act==='truck'?(r.pinTrucks||[])[_slot]:(_act==='tn'?r.trucksOverride:r.pinForeman));
       if(_act==='foreman' && s.value!=='auto' && s.value!=='__NONE__' && r.legs.length===1){
@@ -2093,6 +2116,32 @@ function assignCtrlsHTML(r){
     +tnSel+tSels+cfHtml
   +'</div></div>';
 }
+function seqTimeline(legs){
+  var out=[],pe=null,pl=null;
+  for(var i=0;i<legs.length;i++){ var l=legs[i]; if(!l)continue;
+    var bk=Date.parse(l.start||0), ac=(l.actH!=null&&l.actH>0)?l.actH:schedH(l), dh=(l.pickup&&l.delivery&&!l._carrier)?hav(l.pickup,l.delivery)/35*1.15:0, ar;
+    if(i===0){ar=bk;} else { var mi=(pl&&l.pickup)?(cachedRoadMi(pl,l.pickup)!=null?cachedRoadMi(pl,l.pickup):hav(pl,l.pickup)*1.15):0; ar=pe+mi/35*3600000; }
+    out.push({code:l.code,arriveMs:ar,lateMin:Math.round((ar-bk)/60000)});
+    pe=ar+(ac+dh)*3600000; pl=(l.delivery&&INREGION(l.delivery))?l.delivery:l.pickup;
+  }
+  return out;
+}
+function orderRowHTML(r){
+  if(!r||!r.legs||r.legs.length<2)return '';
+  var cur=r.legs.slice(); var N=cur.length; var curCodes=cur.map(function(l){return l.code;});
+  var rows=cur.map(function(l,idx){
+    var opts='<option value="auto"'+(r.manualOrdered?'':' selected')+'>auto (by booked time)</option>';
+    for(var p=1;p<=Math.min(N,4);p++){
+      var arr=curCodes.filter(function(c){return c!==l.code;}); arr.splice(p-1,0,l.code);
+      var tl=seqTimeline(arr.map(function(c){return cur.filter(function(x){return x.code===c;})[0];}));
+      var me=null; for(var k=0;k<tl.length;k++){if(tl[k].code===l.code){me=tl[k];break;}}
+      var lab=me?(' \u2192 '+hhmm(me.arriveMs)+(me.lateMin>5?(' +'+me.lateMin+'m'):' on time')):'';
+      opts+='<option value="'+p+'"'+((r.manualOrdered&&(idx+1)===p)?' selected':'')+'>'+p+lab+'</option>';
+    }
+    return '<div class="ordrow"><span class="ordcust">'+esc(l.customer||l.code)+'</span><select class="ordsel" data-act="order" data-r="'+r.id+'" data-head="'+esc(r._head||'')+'" data-code="'+esc(l.code)+'">'+opts+'</select></div>';
+  }).join('');
+  return '<div class="ordwrap"><div class="ordhead">Visiting order'+(N>3?' \u00b7 <span class="ordwarn">'+N+' stops \u2014 over the 3-job auto guideline</span>':'')+'</div>'+rows+'</div>';
+}
 function cardHTML(r){
   const sl=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
   const codes=sl.map(l=>l.code).join(' · ');
@@ -2205,7 +2254,7 @@ function cardHTML(r){
   if(collapsedRoutes.has(rKey(r)))return miniCardHTML(r,cmpMis);
   const offRow='<div class="mirow mexcls cardex">'+sl.map(l=>'<span class="mexwrap"><label class="ajsw mexcl" title="Take '+esc(l.code)+' off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" data-k="'+esc(jobKey(l))+'" data-t="'+esc(l.customer||l.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(l))?'':' checked')+'><i></i></label><span class="ts">on board · '+esc(l.code)+'</span></span>').join('')+'</div>';
   const shortRow=r.short?'<div class="mirow"><button class="exbtn addrentbtn" data-r="'+r.id+'" data-sz="'+esc((r.vehicles.find(v=>v.kind==='short')||{}).sz||'')+'" data-base="'+esc(r.base||'NJ')+'">🚚 No truck free — add a rental for this route</button></div>':'';
-  const ctrls=shortRow+offRow+assignCtrlsHTML(r);
+  const ctrls=shortRow+offRow+orderRowHTML(r)+assignCtrlsHTML(r);
   return '<div class="card st-'+r.status+(highlighted===r.id?' hl':'')+(cmpMis?' mismatch':'')+'" data-r="'+r.id+'">'
     +'<div class="cardtop"><button class="ctgl" data-k="'+esc(rKey(r))+'" title="Minimize this route — one line with the essentials">−</button><span class="rpill">'+r.id+'</span>'+pathLine(r)
     +'<button class="vizbtn hdr'+(highlighted===r.id?' on':'')+'" data-r="'+r.id+'">'+(highlighted===r.id?'Hide ▸':'Journey ▸')+'</button>'
@@ -3022,6 +3071,7 @@ function showChainConfirm(B,A,sel){
   if(driveMin>(CHAIN_RULES.maxDriveMin||45))warns.push('Long hop between jobs \u2014 '+driveMin+' min drive (over the '+(CHAIN_RULES.maxDriveMin||45)+'-min guideline).');
   if(lateMin>(CHAIN_RULES.lateMin||30))warns.push('Arrives ~'+lateMin+' min after the booked start \u2014 the customer may be waiting.');
   if(isFinite(routeEnd)&&routeEnd>dayEnd)warns.push('Runs past end of day \u2014 crew home ~<b>'+hhmm(routeEnd)+'</b> (after '+(CHAIN_RULES.maxHomeHr||22)+':00).');
+  if(A.legs.length>=(CHAIN_RULES.maxJobs||3))warns.push('This makes a '+(A.legs.length+1)+'-job chain \u2014 past the '+(CHAIN_RULES.maxJobs||3)+'-job auto guideline (manual cap 4). Allowed, but it gets tight.');
   var cust=function(l){return esc(l.customer||l.code||'');};
   var aList=aLegs.map(function(l){return '<li style="margin:2px 0"><b>'+esc(l.code)+'</b> \u2014 '+cust(l)+' \u00b7 '+hhmm(Date.parse(l.start))+'</li>';}).join('');
   var html=''
