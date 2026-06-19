@@ -2338,7 +2338,7 @@ function windowStart(){return $('fromDate').value||TODAY_ISO;}
 let LMAP=null, LAYER=null;
 function initMap(){
   if(LMAP)return;
-  LMAP=L.map('map',{zoomControl:false,attributionControl:true}).setView([40.7,-74.3],8);L.control.zoom({position:'bottomright'}).addTo(LMAP);
+  LMAP=L.map('map',{zoomControl:false,attributionControl:true}).setView([40.7,-74.3],8); /* zoom +/- buttons removed - use scroll wheel */
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(LMAP);
   LAYER=L.layerGroup().addTo(LMAP);
 }
