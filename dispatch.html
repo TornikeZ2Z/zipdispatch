@@ -393,6 +393,16 @@ details.cands summary:hover{color:var(--ink)}
 .ordrow{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:14px}
 .ordcust{flex:1;font-weight:600}
 .ordsel{font-family:'Inter';font-size:13px;padding:3px 7px;border:1px solid var(--line2);border-radius:7px;background:var(--card)}
+.chip.realchk{background:#EAF1FB!important;border-color:#C5D8F2!important;color:#1F5FB0!important;font-weight:700}
+.chip.whyinfo{background:#EFE9FB!important;border-color:#D6CCF2!important;color:#5B3FB0!important;font-weight:700;cursor:pointer}
+.whybox .whysec{margin:6px 0 10px}
+.whybox h4{margin:0 0 4px;font-family:'Barlow Condensed';font-size:15px;letter-spacing:.04em;text-transform:uppercase;color:var(--dim)}
+.whybox .whyname{font-weight:700;font-size:15px}
+.whybox .whyscore{color:var(--fleet);font-weight:700;font-size:13px;margin-left:6px}
+.whybox ul{margin:4px 0 0;padding-left:18px;font-size:14px}
+.whybox .whypros li{color:#1E7A3D}
+.whybox .whycons li{color:#B23A2A}
+.whybox .whynote{color:var(--dim);font-size:13px;margin-top:6px}
 .vbtn{background:var(--card);border:1.5px solid var(--line2);border-radius:9px;font-family:'Inter';font-weight:600;font-size:15px;padding:8px 14px;cursor:pointer;color:var(--ink)}
 .vbtn:hover{border-color:var(--ink)}
 .vbtn.on,#allmapbtn.on{background:#8CAF2C;border-color:#8CAF2C;color:#15200A;font-weight:800}
@@ -2148,6 +2158,28 @@ function orderRowHTML(r){
   }).join('');
   return '<div class="ordwrap"><div class="ordhead">Visiting order'+(N>3?' \u00b7 <span class="ordwarn">'+N+' stops \u2014 over the 3-job auto guideline</span>':'')+'</div>'+rows+'</div>';
 }
+function whyPopover(rid){
+  var r=routes.find(function(x){return x.id===rid;}); if(!r)return;
+  var ev=r.foremanEval;
+  var fH = r.foreman
+    ? ('<div class="whyname">'+esc(r.foreman.name)+(ev&&ev.score!=null?' <span class="whyscore">match '+ev.score+'</span>':'')+'</div>'
+       +((ev&&ev.pros&&ev.pros.length)?'<ul class="whypros">'+ev.pros.map(function(p){return '<li>'+esc(p)+'</li>';}).join('')+'</ul>':'')
+       +((ev&&ev.cons&&ev.cons.length)?'<ul class="whycons">'+ev.cons.map(function(c){return '<li>'+esc(c)+'</li>';}).join('')+'</ul>':'')
+       +(r.foremanTravel?'<div class="whynote">travels from '+esc(r.foreman.base)+' base to '+esc(r.base)+'</div>':''))
+    : '<div class="whyname">No foreman picked</div><div class="whynote">'+(r._noForeman?'none eligible after filters':'awaiting assignment')+'</div>';
+  var tparts=[];
+  (r.vehicles||[]).forEach(function(v){
+    if(v.kind==='fleet'&&v.t){ tparts.push('<li><b>'+esc(v.t.n)+'</b> — '+v.t.cf.toLocaleString()+' CF (load '+(r.totalCF||0).toLocaleString()+'), cab '+v.t.maxCrew+' for crew '+r.crew+', '+esc(v.t.state)+(isRentalTruck(v.t)?' · monthly rental':' · owned')+(v.t.state&&v.t.state!==r.base?' · reposition '+esc(v.t.state)+'→'+esc(r.base):'')+'</li>'); }
+    else if(v.kind==='short'){ tparts.push('<li style="color:#B23A2A">No '+esc(v.sz||'truck')+' free — add a rental</li>'); }
+    else if(v.kind==='rental'){ tparts.push('<li>Rental '+esc(v.sz||'')+(v.rate?' · ~$'+v.rate+'/day':'')+'</li>'); }
+  });
+  if(!tparts.length)tparts.push('<li>No truck assigned yet — '+(r.trucksNeeded||1)+' needed.</li>');
+  var html='<div class="whybox"><div class="whysec"><h4>Why this foreman</h4>'+fH+'</div>'
+    +'<div class="whysec"><h4>Why this truck</h4><ul class="whytrk">'+tparts.join('')+'</ul></div>'
+    +'<div class="whynote">Route difficulty '+r.score+'/100 — hardest routes pick their foreman & truck first.</div></div>';
+  gModal('Why this assignment — '+r.id, html);
+}
+(function(){document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('.whyinfo[data-why]');if(b){e.stopPropagation();whyPopover(b.getAttribute('data-why'));}});})();
 function cardHTML(r){
   const sl=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
   const codes=sl.map(l=>l.code).join(' · ');
@@ -2166,6 +2198,7 @@ function cardHTML(r){
     +backTxt
     +' &nbsp;·&nbsp; <span class="mono">'+codes+'</span>';
   const chips=[
+    '<button class="chip whyinfo" data-why="'+r.id+'" title="Why this foreman and truck were chosen">ⓘ why</button>',
     r.legs.length>1?chip('chained ×'+r.legs.length):'',
     (r.trucksNeeded||0)>=2?chip('multi-truck ×'+r.trucksNeeded):'',
     r.vansNeeded?chip('+ '+r.vansNeeded+' van'+(r.vansNeeded>1?'s':'')):'',
@@ -2201,7 +2234,9 @@ function cardHTML(r){
     (r._carNeed>0)?'<span class="chip" title="Crew of '+r.crew+' but the assigned '+((r.vehicles||[]).length>1?'vehicles seat':'truck cab seats')+' only '+r._cabSeats+'. Send '+r._carNeed+' crew member'+(r._carNeed>1?'s':'')+' in a follow car (their own vehicle) to meet the truck at the pickup." style="background:#EAF1FB;border-color:#C5D8F2;color:#1F5Fb0">🚗 +1 car · '+r._carNeed+' ride'+(r._carNeed>1?'s':'')+' along</span>':'',
     CHANGED[r.id]?chip('↺ '+CHANGED[r.id].join(' · '),'delta'):'',
     r.stale?'<span class="tag warn" title="A job in this chain was rescheduled after the link was recorded — confirm the pairing is still valid.">chain needs review</span>':'',
-    r.overruns?'<span class="chip" style="background:#FBEAE5;color:#B23A2A;border-color:#E5A79B" title="Run in this order, the crew gets home after '+(CHAIN_RULES.maxHomeHr||22)+':00 — this chain cannot fit in one day. Re-order the stops or split a job off.">🚨 runs past day-end — not feasible</span>':''
+    r.overruns?'<span class="chip" style="background:#FBEAE5;color:#B23A2A;border-color:#E5A79B" title="Run in this order, the crew gets home after '+(CHAIN_RULES.maxHomeHr||22)+':00 — this chain cannot fit in one day. Re-order the stops or split a job off.">🚨 runs past day-end — not feasible</span>':'',
+    (function(){var calFm=r.legs.map(function(l){return l.mf||l.mfGuest;}).filter(Boolean)[0]||null;return calFm?'':'<span class="chip realchk" title="No #foreman# tag and no foreman invited on the calendar event(s) for this route — reality check: nobody is actually assigned in the calendar yet.">📅 no foreman in calendar'+(r.foreman?' — suggest '+esc(r.foreman.nick):'')+'</span>';})(),
+    (function(){var calTk=r.legs.map(function(l){return l.mt;}).filter(Boolean)[0]||null;var sg=(r.vehicles&&r.vehicles[0]&&r.vehicles[0].t)?r.vehicles[0].t.n:null;return calTk?'':'<span class="chip realchk" title="No #truck# tag on the calendar event(s) for this route — reality check: no truck assigned in the calendar yet.">📅 no truck in calendar'+(sg?' — suggest '+esc(sg):'')+'</span>';})()
   ].filter(Boolean).join('');
   const f=r.foreman, ev=r.foremanEval;
   const fblock=f
@@ -2443,7 +2478,7 @@ function openMap(){
 function initMap(){
   if(LMAP)return;
   LMAP=L.map('map',{zoomControl:false,attributionControl:true});
-  L.control.zoom({position:'topright'}).addTo(LMAP);
+  /* zoom +/- buttons removed - use scroll wheel */
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(LMAP);
   L.control.scale({imperial:true,metric:false,position:'bottomright'}).addTo(LMAP);
@@ -2662,6 +2697,7 @@ function refreshMap(){
         +'<div class="mirow">👷 '+(r.foreman?'<b>'+esc(r.foreman.nick)+'</b> ('+esc(r.foreman.name)+')':'<b class="nofor">⚠ NO FOREMAN</b>')+' · 🚚 '+(r.short?'<b class="nofor">'+esc(routeVehText(r))+'</b>':esc(routeVehText(r)))+(r._carNeed>0?' · 🚗 <b>+'+r._carNeed+' in a follow car</b> (cab seats '+r._cabSeats+', crew '+r.crew+')':'')+'</div>'
         +sl2.filter(l=>l._carrier).map(l=>'<div class="mirow cdwrap"><span class="ts" style="flex-shrink:0">🚛 '+esc(l.code)+' carrier drop-off</span><span class="cdcol"><input class="cdrop" data-code="'+esc(l.code)+'" value="'+esc(l.carrierDropAddr||'')+'" placeholder="default: crew returns to base — or type the carrier\'s address / zip"><span class="ajhint cdhint">'+(l.carrierDrop?'✓ '+esc(l.carrierDrop.city)+', '+esc(l.carrierDrop.state):'')+'</span></span></div>').join('')
         +'<div class="mirow mexcls">'+sl2.map(l=>'<span class="mexwrap"><label class="ajsw mexcl" title="Take '+esc(l.code)+' off the board (the calendar event stays untouched) or bring it back"><input type="checkbox" data-k="'+esc(jobKey(l))+'" data-t="'+esc(l.customer||l.code)+'" data-d="'+esc(currentDay)+'"'+(EXCL.has(jobKey(l))?'':' checked')+'><i></i></label><span class="ts">on board · '+esc(l.code)+'</span></span>').join('')+'</div>'
+        +orderRowHTML(r)
         +assignCtrlsHTML(r)
         +'</div>';
       })()
@@ -4029,7 +4065,7 @@ async function _pushCalendarUpdates(){
         }
         const was=p.oldF==='—'?null:p.oldF;
         return '<div class="gplan">'
-        +'<div class="gphead"><b>'+esc(p.l.customer||p.l.code)+'</b><span class="ts">'+esc(p.l.code)+' · '+esc(p.l.cityFrom)+' → '+esc(p.l.cityTo)+' · '+tm(p.l.start)+'–'+tm(p.l.end||p.l.start)+'</span></div>'
+        +'<div class="gphead"><b>'+esc(p.l.customer||p.l.code)+'</b><span class="ts">'+esc(p.l.code)+' · '+esc(p.l.cityFrom)+' → '+esc(p.l.cityTo)+' · '+((p.r.seqTimed&&p.l._arriveMs)?(hhmm(p.l._arriveMs)+'–'+hhmm(p.l._endMs||p.l._arriveMs)+' (re-timed)'):(tm(p.l.start)+'–'+tm(p.l.end||p.l.start)))+'</span></div>'
         +'<div class="gpchips">'+typeChip(p.l.movingType,'tmove',1)+typeChip(p.l.jobType,'tjob',1)+'</div>'
         +'<div class="gpmeta">'+(p.l.cf||0).toLocaleString()+' CF · crew '+(p.l.crew||'—')+(p.l.actH?' · ACT '+p.l.actH+'h':'')+(p.l.packing?' · packing $'+Math.round(p.l.packing).toLocaleString():'')+' · '+esc(p.r.base)+' base · '+esc(routeVehText(p.r))+'</div>'
         +'<div class="gprow"><span>👷 Foreman</span><div>'+(p.fSame
@@ -4039,7 +4075,7 @@ async function _pushCalendarUpdates(){
         +'<div class="gprow"><span>🚚 Truck</span><div>'+(p.tSame
             ?'<b>'+esc(p.newT)+'</b> <i class="gqt">already on the event</i>'
             :(p.oldT!=='—'?'<span class="gold">'+esc(p.oldT)+'</span> becomes <b>'+esc(p.newT)+'</b>':'<b>'+esc(p.newT)+'</b> written into the title'))+'</div></div>'
-                +'<div class="gqt" style="margin-top:6px">📝 Writes to the event: <span class="mono">Truck #: '+esc(p.newT)+'</span>'+(p.l.after?', <span class="mono">After Job Code: '+esc(p.l.after)+'</span>, <span class="mono">After Customer Name: '+esc(leadCustomerOf(p.l))+'</span>':'')+', title <span class="mono">/#'+esc(p.r.foreman.nick)+'#'+esc(truckToken(p.r))+'#</span>. No booking fields touched.</div>'
+                +'<div class="gqt" style="margin-top:6px">📝 Writes to the event: <span class="mono">Truck #: '+esc(p.newT)+'</span>'+(p.l.after?', <span class="mono">After Job Code: '+esc(p.l.after)+'</span>, <span class="mono">After Customer Name: '+esc(leadCustomerOf(p.l))+'</span>':'')+', title <span class="mono">/#'+esc(p.r.foreman.nick)+'#'+esc(truckToken(p.r))+'#</span>. '+((p.r.seqTimed&&p.l._arriveMs)?('<b style="color:#B26B0B">Booking time moves to '+hhmm(p.l._arriveMs)+'</b> — chained after the prior job finishes.'):'No booking fields touched.')+'</div>'
         +'</div>';}).join('')+'</div>'
       +'<div class="gqt" style="margin-top:10px">✅ Only these future events change · 🔒 past events are never touched · ✉️ Google notifies newly invited guests.</div>');
     const foot=document.createElement('button');
@@ -4071,6 +4107,7 @@ async function _pushCalendarUpdates(){
           desc=upsertField(desc,'Truck #',truckToken(p.r));
           if(p.l.after){desc=upsertField(desc,'After Job Code',p.l.after);desc=upsertField(desc,'After Customer Name',leadCustomerOf(p.l));}
           const body={summary:newTitle(ev.summary,p.r.foreman.nick,truckToken(p.r)),description:desc,attendees:setForemanGuest(ev.attendees,p.r.foreman.email,foremanEmailSet())};
+          if(p.r&&p.r.seqTimed&&p.l._arriveMs){var _tz=(ev.start&&ev.start.timeZone)||'America/New_York';var _isf=function(ms){var d=new Date(ms),z=function(n){return String(n).padStart(2,'0');};return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes())+':00';};body.start={dateTime:_isf(p.l._arriveMs),timeZone:_tz};body.end={dateTime:_isf(p.l._endMs||(p.l._arriveMs+((p.l.actH||schedH(p.l))*3600000))),timeZone:_tz};}
           await gapiFetch(evPath(p.l.eventId)+'?sendUpdates=all',{method:'PATCH',body:JSON.stringify(body)});
           p.l._synced=true;p.l.mf=p.r.foreman.nick;p.l.mt=truckToken(p.r);p.r._calSynced=true;
           res.push('✅ '+p.l.code+' — '+p.r.foreman.nick+' assigned'+(p.r.foreman.email?', invite sent':'')+', truck '+truckToken(p.r));
@@ -4163,7 +4200,8 @@ function parseCalEvent(ev){
     start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,tripDays,
     piano:String(ev.summary||'').includes('🎹'),
     rescheduled:String(ev.summary||'').toUpperCase().includes('RESCHEDULED'),
-    actH,mf:toks.length>=3?(toks[1].trim()||null):null,mt:toks.length>=4?(toks[2].trim()||null):null
+    actH,mf:toks.length>=3?(toks[1].trim()||null):null,mt:toks.length>=4?(toks[2].trim()||null):null,
+    mfGuest:(function(){try{if(!ev.attendees)return null;for(var _a=0;_a<ev.attendees.length;_a++){var _e=(ev.attendees[_a].email||'').toLowerCase();if(!_e)continue;var _f=(DATA.foremen||[]).find(function(x){return (x.email||'').toLowerCase()===_e;});if(_f)return _f.nick;}return null;}catch(_e){return null;}})()
   };
 }
 function removeJobByEventId(id){
