@@ -675,6 +675,20 @@ a.calopen{border-radius:8px;padding:3px 9px;font-size:14px}
 .mlbar{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:12px;color:var(--dim);margin:2px 0 7px}
 .mlbar .mlbtg{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-weight:600;color:var(--ink)}
 .mlbar .mlbtg input{margin:0;cursor:pointer}
+.rclick{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}
+.rclick:hover{color:var(--fleet)}
+.fdgear{opacity:.6;font-size:11px}
+.fdsec{margin:4px 0 12px}
+.fdsec h4{margin:0 0 6px;font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.fdrow{display:flex;justify-content:space-between;gap:14px;padding:4px 0;border-bottom:1px solid var(--line2);font-size:13px}
+.fdrow b{font-weight:700;text-align:right}
+.fdf{display:flex;align-items:center;gap:10px;margin:7px 0}
+.fdf>label{width:118px;font-weight:600;font-size:13px}
+.fdf input[type=number]{width:140px;padding:6px 8px;border:1px solid var(--line2);border-radius:7px;font-family:inherit}
+.fddays{display:flex;flex-wrap:wrap;gap:10px}
+.fdday{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;cursor:pointer}
+.gbtn{background:var(--fleet);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px}
+
 .confchip{background:#EAF3D2!important;border-color:#B7CD7A!important;color:#3F5410!important;font-weight:800}
 .confbox{background:#F4F9E6;border:1.5px solid #B7CD7A;border-radius:11px;padding:12px 15px;font-size:14.5px;color:#3F5410;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .confbox .uncfbtn{margin-left:auto;background:#fff;border:1.5px solid #B7CD7A;border-radius:8px;padding:6px 13px;font-size:13.5px;font-weight:700;color:#3F5410;cursor:pointer}
@@ -1216,6 +1230,7 @@ function assignAll(routes,w,baseMode){
     for(const f of DATA.foremen){
       if(f.status==='Cancelled')continue;
       if(isOff(f.name))continue;
+      if(!foremanSpecAllows(f,r)&&f.name!==r.pinForeman)continue;
       const busy=!freeF(f.name,r);
       const e=evalForeman(f,r,ctx); e.busy=busy;
       evals.push(e);
@@ -1454,7 +1469,7 @@ function computeAutoOff(){
   }
 }
 computeAutoOff();
-function isOff(n){return DAYOFF.has(n)||AUTO_OFF.has(n)||!!TRIPAWAY[n];}
+function isOff(n){return DAYOFF.has(n)||AUTO_OFF.has(n)||!!TRIPAWAY[n]||notWorkDay(n);}
 function isRentalTruck(t){
   if(t.rented)return true;
   return /^(ENT|R\d|RENT)/i.test(String(t.n).replace('#',''))||/rental|enterprise|penske|ryder|budget/i.test(String(t.model||'')+' '+String(t.reg||''));
@@ -2328,20 +2343,22 @@ function candsHTML(r){
 function renderRoster(){
   const box=document.getElementById('roster');
   if(!box)return;
+  if(GTOKEN&&!DATA._specsLoaded&&!DATA._specsLoading)loadForemanSpecs();
   const assigned={};routes.forEach(r=>{if(r.foreman)(assigned[r.foreman.name]=assigned[r.foreman.name]||[]).push(r.id);});
   const frows=DATA.foremen.filter(f=>f.status==='Active').sort((a,b)=>a.nick.localeCompare(b.nick)).map(f=>{
-    const auto=AUTO_OFF.has(f.name);
+    const wdoff=notWorkDay(f.name);
+    const auto=AUTO_OFF.has(f.name)||wdoff;
     const off=isOff(f.name);
     const rts=assigned[f.name];
     const bench=BENCH.foremen.find(x=>x.f.name===f.name);
     let st,cls;
-    if(off){st='Day off'+(auto?' — sheet ('+esc(AUTO_NOTE[f.name]||'')+')':'');cls='roff';}
+    if(off){st='Day off'+(wdoff?' — not a work day':(AUTO_OFF.has(f.name)?' — sheet ('+esc(AUTO_NOTE[f.name]||'')+')':''));cls='roff';}
     else if(rts){st='On '+rts.join(', ');cls='ron';}
     else{st='Free — '+(bench?bench.reason:'available');cls='rfree';}
     const stk=STREAKS[f.name]||0;
     if(stk>=6&&!off)st+=' · '+stk+' days straight — rest due';
     return '<div class="rrow"><label class="rtog"><input type="checkbox" data-f="'+esc(f.name)+'"'+(off?' checked':'')+(auto?' disabled':'')+'><span>off</span></label>'
-      +'<span class="rnick">'+esc(f.name)+'</span><span class="rbase">'+(f.base||'—')+'</span><span class="rst '+cls+'">'+esc(st)+'</span></div>';
+      +'<span class="rnick rclick" data-fdetail="'+esc(f.name)+'" title="View / edit specs">'+esc(f.name)+(f.spec?' <span class="fdgear">⚙</span>':'')+'</span><span class="rbase">'+(f.base||'—')+'</span><span class="rst '+cls+'">'+esc(st)+'</span></div>';
   }).join('');
   const usedT=new Set(routes.flatMap(r=>r.vehicles.filter(v=>v.kind==='fleet').map(v=>v.t.n)));
   const trows=DATA.trucks.filter(k=>k.status==='Active').sort((a,b)=>a.n.localeCompare(b.n,undefined,{numeric:true})).map(k=>{
@@ -2358,6 +2375,7 @@ function renderRoster(){
     +'<p class="helpnote">Tick "off" to block a foreman for today — the whole board recomputes. Reasons explain why a free foreman lost out. With multi-day history connected, rest-day rotation and fair distribution will feed these automatically.</p></details>';
   const d=box.querySelector('details');
   d.addEventListener('toggle',()=>{rosterOpen=d.open;});
+  box.querySelectorAll('.rclick[data-fdetail]').forEach(el=>el.addEventListener('click',()=>foremanDetail(el.dataset.fdetail)));
   box.querySelectorAll('input[data-f]').forEach(c=>c.addEventListener('change',()=>{
     const n=c.dataset.f;
     applyWithDiff(null,()=>{if(c.checked)DAYOFF.add(n);else DAYOFF.delete(n);});
@@ -3092,7 +3110,7 @@ function ensureGToken(cb){
     if(resp&&resp.access_token){
       GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);
       try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP,scope:GSCOPE_VER}));localStorage.setItem('zd_gconn',GSCOPE_VER);}catch(e){}
-      updateGcalUI();cb();
+      updateGcalUI();DATA._specsLoaded=false;loadForemanSpecs(true);cb();
     } else if(window._silentTok){window._silentTok=0;}
     else gModal('Sign-in failed',esc((resp&&resp.error)||'no token returned'));
   };
@@ -3243,6 +3261,94 @@ async function shUpdateCellByMatch(tab,match,setCol,setVal){
 }
 function colA1(i){let s='';i++;while(i){s=String.fromCharCode(65+(i-1)%26)+s;i=Math.floor((i-1)/26);}return s;}
 function mdy(iso){const [y,m,d]=iso.split('-');return (+m)+'/'+(+d)+'/'+y;}
+function specFromRow(row){
+  var d=function(k){var v=String(row[k]!=null?row[k]:'').trim().toLowerCase();if(v==='')return true;return (v==='y'||v==='yes'||v==='true'||v==='1'||v==='x');};
+  var num=function(k){var v=parseFloat(String(row[k]!=null?row[k]:'').replace(/[^0-9.]/g,''));return isFinite(v)?v:0;};
+  return {minCF:num('Min CF'),maxCF:num('Max CF'),maxJobs:num('Max Jobs'),days:{mon:d('Mon'),tue:d('Tue'),wed:d('Wed'),thu:d('Thu'),fri:d('Fri'),sat:d('Sat'),sun:d('Sun')}};
+}
+function applySpecsToForemen(){var S=DATA.fmSpecs||{};(DATA.foremen||[]).forEach(function(f){f.spec=S[f.nick]||S[f.name]||null;});}
+async function loadForemanSpecs(force){
+  if(!GTOKEN)return;
+  if(DATA._specsLoading)return;
+  if(DATA._specsLoaded&&!force)return;
+  DATA._specsLoading=true;
+  try{
+    var vals=await shValues('Foreman Specs');
+    var specs={};
+    if(vals&&vals.length){var H=vals[0];for(var i=1;i<vals.length;i++){var row={};H.forEach(function(h,j){row[h]=(vals[i][j]!=null?vals[i][j]:'');});var key=String(row['Foreman']||'').trim();if(key)specs[key]=specFromRow(row);}}
+    DATA.fmSpecs=specs;DATA._specsLoaded=true;applySpecsToForemen();
+    if(typeof rebuildRoutes==='function'){rebuildRoutes();if(typeof render==='function')render();}
+  }catch(e){}
+  DATA._specsLoading=false;
+}
+function notWorkDay(name){
+  var f=(DATA.foremen||[]).find(function(x){return x.name===name||x.nick===name;});
+  if(!f||!f.spec||!f.spec.days)return false;
+  var wd=['sun','mon','tue','wed','thu','fri','sat'][new Date(currentDay+'T12:00').getDay()];
+  return f.spec.days[wd]===false;
+}
+function foremanSpecAllows(f,r){
+  var sp=f&&f.spec;if(!sp)return true;
+  if(sp.maxCF&&r.totalCF>sp.maxCF)return false;
+  if(sp.minCF&&r.totalCF<sp.minCF)return false;
+  if(sp.maxJobs&&r.legs&&r.legs.length>sp.maxJobs)return false;
+  return true;
+}
+async function shUpsertRow(tab,keyCol,keyVal,obj){
+  var vals=[];try{vals=await shValues(tab);}catch(e){vals=[];}
+  if(!vals.length){await shAppendRow(tab,obj);return;}
+  var H=vals[0].slice();
+  var add=Object.keys(obj).filter(function(k){return H.indexOf(k)<0;});
+  if(add.length){H=H.concat(add);await shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[H]})});}
+  var ki=H.indexOf(keyCol),ri=-1;
+  for(var i=1;i<vals.length;i++){if(String((vals[i][ki]!=null?vals[i][ki]:'')).trim()===String(keyVal).trim()){ri=i;break;}}
+  var existing=ri>=0?vals[ri]:[];
+  var row=H.map(function(h,idx){return (h in obj)?(obj[h]!=null?String(obj[h]):''):(existing[idx]!=null?existing[idx]:'');});
+  if(ri<0)await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});
+  else await shFetch('/values/'+encodeURIComponent("'"+tab+"'!A"+(ri+1))+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[row]})});
+}
+async function saveForemanSpec(f,spec){
+  DATA.fmSpecs=DATA.fmSpecs||{};DATA.fmSpecs[f.nick]=spec;applySpecsToForemen();
+  if(typeof rebuildRoutes==='function'){rebuildRoutes();if(typeof render==='function')render();}
+  if(!GTOKEN){toast('Specs saved on the board. Connect the calendar button to also save them to the team sheet.');return;}
+  var obj={'Foreman':f.nick,'Min CF':spec.minCF||'','Max CF':spec.maxCF||'','Mon':spec.days.mon?'Y':'N','Tue':spec.days.tue?'Y':'N','Wed':spec.days.wed?'Y':'N','Thu':spec.days.thu?'Y':'N','Fri':spec.days.fri?'Y':'N','Sat':spec.days.sat?'Y':'N','Sun':spec.days.sun?'Y':'N','Max Jobs':spec.maxJobs||'','Note':SHEET_WRITE_NOTE};
+  try{await shUpsertRow('Foreman Specs','Foreman',f.nick,obj);sheetSaved(f.nick+' specs');}catch(e){sheetSaveFailed('foreman specs',e);}
+}
+function foremanDetail(name){
+  var f=(DATA.foremen||[]).find(function(x){return x.name===name||x.nick===name;});if(!f)return;
+  var sp=f.spec||null;
+  var sk=[];
+  if(f.bigJob)sk.push('Big jobs ★'+f.bigJob);
+  if(f.packSell)sk.push('Packing ★'+f.packSell);
+  if(f.stacking)sk.push('Stacking ★'+f.stacking);
+  if(f.multiTruck)sk.push('Multi-truck ★'+f.multiTruck);
+  if(f.ldPickup)sk.push('LD pickup ★'+f.ldPickup);
+  if(f.piano)sk.push('Piano');if(f.driver)sk.push('Driver');if(f.canLD)sk.push('Can LD');
+  var rates=(f.hourly?'$'+f.hourly+'/hr':'')+(f.daily?((f.hourly?' · ':'')+'$'+f.daily+'/day'):'');
+  var rr=function(k,v){return '<div class="fdrow"><span>'+k+'</span><b>'+v+'</b></div>';};
+  var ro='<div class="fdsec"><h4>From the team sheet (read-only)</h4>'
+    +rr('Nickname',esc(f.nick))+rr('Status',esc(f.status||'—'))+rr('Base',esc(f.base||'—'))
+    +rr('States',esc((f.states||[]).join(', ')||'—'))+rr('Skills',esc(sk.join(' · ')||'—'))
+    +rr('Rates',rates||'—')+rr('Email',esc(f.email||'—'))+'</div>';
+  var days=[['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat'],['sun','Sun']];
+  var dayboxes=days.map(function(p){var on=!(sp&&sp.days&&sp.days[p[0]]===false);return '<label class="fdday"><input type="checkbox" class="fdday-in" data-d="'+p[0]+'"'+(on?' checked':'')+'>'+p[1]+'</label>';}).join('');
+  var ed='<div class="fdsec"><h4>System specs (editable)</h4>'
+    +'<div class="fdf"><label>Min CF</label><input type="number" id="fd-min" min="0" step="50" value="'+(sp&&sp.minCF?sp.minCF:'')+'" placeholder="no minimum"></div>'
+    +'<div class="fdf"><label>Max CF</label><input type="number" id="fd-max" min="0" step="50" value="'+(sp&&sp.maxCF?sp.maxCF:'')+'" placeholder="no maximum"></div>'
+    +'<div class="fdf"><label>Max jobs/day</label><input type="number" id="fd-jobs" min="0" step="1" value="'+(sp&&sp.maxJobs?sp.maxJobs:'')+'" placeholder="no cap"></div>'
+    +'<div class="fdf"><label>Working days</label><div class="fddays">'+dayboxes+'</div></div>'
+    +'<div class="gsub" style="margin-top:8px">Hard limits: the engine will not assign this foreman to a route over/under their CF range, beyond their max jobs, or on a non-working day.</div></div>';
+  gModal('Foreman — '+esc(f.name),ro+ed,'<button class="gbtn" id="fd-save">Save specs</button>');
+  var sv=document.getElementById('fd-save');
+  if(sv)sv.addEventListener('click',function(){
+    var g=function(id){return document.getElementById(id);};
+    var spec={minCF:+(g('fd-min').value)||0,maxCF:+(g('fd-max').value)||0,maxJobs:+(g('fd-jobs').value)||0,days:{}};
+    Array.prototype.forEach.call(document.querySelectorAll('.fdday-in'),function(c){spec.days[c.getAttribute('data-d')]=c.checked;});
+    saveForemanSpec(f,spec);
+    var mm=document.getElementById('gmodal');if(mm)mm.classList.remove('show');
+  });
+}
+
 function sheetSaved(what){toast('✓ '+what+' — saved to the team sheet.');}
 function sheetSaveFailed(what,e){
   gModal('⚠ Saved on the board — but NOT in the team sheet',
