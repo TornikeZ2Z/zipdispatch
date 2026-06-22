@@ -26,8 +26,8 @@
   .brand .mark{width:30px;height:30px;border-radius:9px;flex:0 0 auto;background:linear-gradient(135deg,#2563eb,#4f46e5);
     display:grid;place-items:center;color:#fff;font-size:13px;font-weight:800;box-shadow:0 4px 12px rgba(37,99,235,.35)}
   .brand small{display:block;font-family:"Inter";font-weight:500;font-size:11.5px;color:var(--muted);letter-spacing:0}
-  .stats{display:flex;gap:8px;flex-wrap:wrap}
-  .stat{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px;line-height:1.05;min-width:60px}
+  .stats{display:flex;gap:10px;flex-wrap:wrap}
+  .stat{flex:1 1 0;text-align:center;background:#f8fafc;border:1px solid #e8edf3;border-radius:11px;padding:9px 12px;line-height:1.1;min-width:92px;box-shadow:0 1px 1px rgba(15,23,42,.03)}
   .stat b{font-family:"Plus Jakarta Sans";font-size:17px;font-weight:800;display:block}
   .stat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
 
@@ -166,7 +166,7 @@
 .dv-side-lead{display:flex;justify-content:center;margin-bottom:4px}
 .dv-cols{overflow-x:auto;padding-bottom:8px;align-items:flex-start}
 .dv-side-cols{align-items:flex-start}
-#stats .stat.total{background:#EAF0FE;border-radius:9px;padding:2px 12px}
+#stats .stat.total{background:#EAF0FE;border-color:#C7D8FB}
 #stats .stat.total b{color:#2563eb}
 .dv-chain{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:14px;position:relative}
 .dv-chain::before{content:'';position:absolute;top:-14px;left:50%;width:2px;height:14px;background:#cbd5e1}
@@ -1455,7 +1455,7 @@ function buildStatsLegend(){
   const back=PEOPLE.filter(p=>ops.indexOf(p.dept)<0 && !CO_LEADS.includes(p.name)).length;
   const fleet=(PEOPLE.length-back)+CREW.length;
   const total=PEOPLE.length+CREW.length;
-  statsLine.innerHTML=`<div class="stat total"><b>${total}</b><span>Total — everyone</span></div><div class="stat"><b>${depts.size}</b><span>Departments</span></div><div class="stat"><b>${mgr.size}</b><span>Managers</span></div><div class="stat"><b>${back}</b><span>Back office</span></div><div class="stat"><b>${fleet}</b><span>Fleet</span></div><div class="stat"><b>${fm}</b><span>Foremen</span></div>`;
+  statsLine.innerHTML=`<div class="stat total"><b>${total}</b><span>Total — everyone</span></div><div class="stat"><b>${depts.size}</b><span>Departments</span></div><div class="stat"><b>${mgr.size}</b><span>Managers</span></div><div class="stat"><b>${back}</b><span>Back office</span></div><div class="stat"><b>${fleet}</b><span>Total Movers</span></div><div class="stat"><b>${fm}</b><span>Foremen</span></div>`;
 }
 let rT=null;
 window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(fit,160); });
