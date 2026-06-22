@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+<title>Zip to Zip — Org Chart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --canvas:#e9edf3; --panel:#fff; --ink:#16202e; --muted:#64748b; --faint:#94a3b8;
+    --line:#c3cdda; --card-border:#e2e8f0; --accent:#1d4ed8; --radius:13px;
+    --shadow:0 1px 2px rgba(15,23,42,.05), 0 6px 18px rgba(15,23,42,.06);
+    --shadow-lg:0 10px 34px rgba(15,23,42,.16); --tick:21px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);
+    background:var(--canvas);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  .name,.brand,.rname>span,.node .name{font-family:"Plus Jakarta Sans","Inter",system-ui,sans-serif}
+
+  header{background:var(--panel);border-bottom:1px solid var(--card-border);padding:14px 18px 0;flex:0 0 auto;z-index:5}
+  .top{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;justify-content:space-between}
+  .brand{font-size:20px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:11px}
+  .brand .mark{width:30px;height:30px;border-radius:9px;flex:0 0 auto;background:linear-gradient(135deg,#2563eb,#4f46e5);
+    display:grid;place-items:center;color:#fff;font-size:13px;font-weight:800;box-shadow:0 4px 12px rgba(37,99,235,.35)}
+  .brand small{display:block;font-family:"Inter";font-weight:500;font-size:11.5px;color:var(--muted);letter-spacing:0}
+  .stats{display:flex;gap:8px;flex-wrap:wrap}
+  .stat{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px;line-height:1.05;min-width:60px}
+  .stat b{font-family:"Plus Jakarta Sans";font-size:17px;font-weight:800;display:block}
+  .stat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+
+  .controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:12px 0}
+  .search{position:relative;flex:1 1 200px;max-width:320px;min-width:150px}
+  .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--faint);pointer-events:none}
+  .search input{width:100%;padding:9px 30px 9px 33px;border:1px solid #d4dbe5;border-radius:10px;font-size:13.5px;
+    font-family:inherit;background:#fff;color:var(--ink);outline:none;transition:.15s}
+  .search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(29,78,216,.13)}
+  .search .clr{position:absolute;right:7px;top:50%;transform:translateY(-50%);border:0;background:#eef2f7;color:var(--muted);
+    width:20px;height:20px;border-radius:6px;cursor:pointer;display:none;font-size:13px;line-height:1}
+  .btn{border:1px solid #d4dbe5;background:#fff;color:#334155;cursor:pointer;font-family:inherit;font-size:12.5px;
+    font-weight:600;padding:8px 12px;border-radius:9px;transition:.13s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:#f1f5f9;border-color:#b9c4d2}.btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.primary:hover{background:#1a44bd}
+  .btn-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .group{display:flex;align-items:center;border:1px solid #d4dbe5;border-radius:9px;background:#fff;overflow:hidden}
+  .group .btn{border:0;border-radius:0;padding:8px 11px}.group .btn+.btn{border-left:1px solid #e6ebf1}
+  .zoomval{font-size:12.5px;font-weight:700;color:#475569;min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+  .seg{display:inline-flex;border:1px solid #d4dbe5;border-radius:9px;overflow:hidden;background:#fff;flex:0 0 auto}
+  .seg-btn{border:0;background:#fff;color:#475569;font-family:inherit;font-size:12.5px;font-weight:600;padding:8px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.12s}
+  .seg-btn+.seg-btn{border-left:1px solid #e6ebf1}
+  .seg-btn:not(.active):hover{background:#f1f5f9}
+  .seg-btn.active{background:var(--accent);color:#fff}
+  .seg-btn svg{opacity:.85}
+  .spacer{flex:1 1 auto}
+  .zoom-group.hide{display:none}
+  .hide{display:none!important}
+
+  .legend{display:flex;gap:7px;flex-wrap:wrap;padding:0 0 12px}
+  .chip{display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;border:1px solid #e2e8f0;background:#fff;
+    border-radius:999px;padding:5px 11px 5px 9px;font-size:12px;font-weight:600;color:#475569;transition:.13s}
+  .chip:hover{background:#f8fafc;border-color:#cbd5e1}
+  .chip .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+  .chip .ct{color:var(--faint);font-weight:700;font-variant-numeric:tabular-nums}
+  .chip.active{color:#fff;border-color:transparent}.chip.active .ct{color:rgba(255,255,255,.82)}.chip.active .dot{box-shadow:0 0 0 2px rgba(255,255,255,.6)}
+  .legend .hint{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);padding:5px 4px}
+  .legend .hint .dl{width:18px;height:0;border-top:2px dashed #94a3b8}
+
+  #viewport{flex:1 1 auto;overflow:auto;position:relative;cursor:grab;
+    background:radial-gradient(circle at 1px 1px, rgba(100,116,139,.16) 1px, transparent 0);background-size:22px 22px}
+  #viewport.grabbing{cursor:grabbing}
+  #zoomwrap{transform-origin:50% 0;transition:transform .12s ease-out;will-change:transform;display:inline-block;min-width:100%}
+  .stage{display:flex;justify-content:center;padding:28px 36px 80px}
+
+  /* ===== desktop hybrid tree (only the leadership row is a horizontal tree) ===== */
+  .tree,.tree ul{list-style:none;margin:0;padding:0}
+  .tree>li.ceo{position:relative;display:flex;flex-direction:column;align-items:center}
+  .tree ul.leaders{display:flex;justify-content:center;padding-top:26px;position:relative}
+  .tree ul.leaders::before{content:'';position:absolute;top:0;left:50%;border-left:2px solid var(--line);width:0;height:26px}
+  .tree li.col{position:relative;padding:26px 13px 0;display:flex;flex-direction:column;align-items:center}
+  .tree li.col::before,.tree li.col::after{content:'';position:absolute;top:0;right:50%;border-top:2px solid var(--line);width:50%;height:26px}
+  .tree li.col::after{right:auto;left:50%;border-left:2px solid var(--line)}
+  .tree li.col:first-child::before,.tree li.col:last-child::after{border:0 none}
+  .tree li.col:last-child::before{border-right:2px solid var(--line);border-radius:0 7px 0 0}
+  .tree li.col:first-child::after{border-radius:7px 0 0 0}
+  .tree li.ceo.collapsed>ul.leaders{display:none}
+  .tree li.col.collapsed>.rtree{display:none}
+  /* co-CEOs side by side */
+  .cofork{display:flex;align-items:flex-start;justify-content:center;gap:54px;position:relative}
+  .cofork>ul.tree{flex:0 0 auto}
+  .colink{position:absolute;height:0;border-top:2px dashed var(--line);z-index:0}
+  .colink-tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#eef2f7;border:1px solid #d4dbe5;
+    color:#475569;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+
+  /* left-to-right tree */
+  .lrtree{position:relative;display:inline-block;padding:10px 6px 16px 22px}
+  .lrtree ul{list-style:none;margin:0;padding:0}
+  .lrnode{position:relative;display:flex;align-items:flex-start}
+  .lrnode>.rrow{flex:0 0 204px;width:204px;margin:4px 0}
+  .lrkids{margin-left:42px;position:relative}
+  .lrkids::before{content:'';position:absolute;left:-42px;top:26px;width:42px;height:2px;background:var(--line)}
+  .lrkids>.lrnode,.lrkids>.lrgrid{position:relative;padding-left:22px}
+  .lrkids>.lrnode::before,.lrkids>.lrgrid::before{content:'';position:absolute;left:0;top:0;width:2px;height:100%;background:var(--line)}
+  .lrkids>.lrnode:first-child::before,.lrkids>.lrgrid:first-child::before{top:26px;height:calc(100% - 26px)}
+  .lrkids>.lrnode:last-child::before,.lrkids>.lrgrid:last-child::before{top:0;height:26px}
+  .lrkids>.lrnode::after,.lrkids>.lrgrid::after{content:'';position:absolute;left:0;top:26px;width:22px;height:2px;background:var(--line)}
+  .lrkids>.lrnode:only-child::before,.lrkids>.lrgrid:only-child::before{display:none}
+  .lrgrid{display:block}
+  .lrteam{display:flex;flex-wrap:wrap;gap:8px;max-width:762px;align-content:flex-start;
+    background:rgba(100,116,139,.05);border:1px solid rgba(100,116,139,.26);border-radius:14px;padding:9px}
+  .lrteam>.rrow{flex:0 0 172px;width:172px;margin:0}
+  .lrnode.collapsed>.lrkids{display:none}
+  .lrnode.collapsed>.rrow .caret{transform:rotate(0)}
+  .rrow.lr-top{position:relative;border-width:2px;padding-top:9px}
+  .lr-crown{position:absolute;top:-8px;left:10px;background:var(--c,#4f46e5);color:#fff;font-size:8.5px;font-weight:800;
+    letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:999px;z-index:2}
+  .colink-v{position:absolute;width:0;border-left:2px dashed var(--line);z-index:0}
+  .colink-tick{position:absolute;height:2px;background:var(--line)}
+
+  /* ===== department-column view (Organizational) & crew view ===== */
+  .deptview,.crewview{position:relative;display:inline-flex;flex-direction:column;align-items:center;padding:12px 8px 8px}
+  .dv-exec{display:flex;align-items:center;gap:13px;width:330px;padding:13px 18px;border-radius:15px;color:#fff;box-shadow:0 6px 18px rgba(15,23,42,.16)}
+  .dv-exec.ceo{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+  .dv-exec.coo{background:linear-gradient(135deg,#7c3aed,#6d28d9)}
+  .dv-exec .ava{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.22);display:grid;place-items:center;color:#fff;flex:0 0 40px}
+  .dv-exec .ava svg{width:22px;height:22px}
+  .dv-exec-name{font-weight:800;font-size:16px;letter-spacing:.01em}
+  .dv-exec-title{font-size:11.5px;opacity:.9;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+  .dv-vlink{width:2px;height:20px;background:var(--line)}
+  .dv-cols,.cv-cols{position:relative;display:flex;gap:16px;align-items:flex-start;padding-top:22px}
+  .dv-cols::before{content:'';position:absolute;top:0;left:132px;right:132px;height:2px;background:var(--line)}
+  .dv-col{position:relative;width:272px;background:#fff;border:1px solid var(--card-border);border-top:4px solid var(--c);
+    border-radius:16px;box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden}
+  .dv-col::before{content:'';position:absolute;top:-22px;left:50%;width:2px;height:22px;margin-left:-1px;background:var(--line)}
+  .dv-col-head{display:flex;align-items:center;gap:10px;padding:14px 15px 12px}
+  .dv-col-icon{width:34px;height:34px;border-radius:10px;background:var(--c);display:grid;place-items:center;color:#fff;flex:0 0 34px}
+  .dv-col-icon svg{width:19px;height:19px}
+  .dv-col-title{font-weight:800;font-size:11px;letter-spacing:.02em;text-transform:uppercase;color:var(--c);line-height:1.2;white-space:nowrap}
+  .dv-col-body{padding:2px 15px 14px}
+  .cmem{margin:0}
+  .cmem-row{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-radius:8px;transition:.12s}
+  .cmem-row .ava{width:30px;height:30px;border-radius:50%;background:#eef2f7;display:grid;place-items:center;color:#64748b;flex:0 0 30px;margin-top:1px}
+  .cmem-row .ava svg{width:17px;height:17px}
+  .cmem-row .cdot{width:9px;height:9px;border-radius:50%;background:var(--pc,#94a3b8);flex:0 0 9px;margin:6px 10px 0 10px}
+  .cmem-name{font-weight:700;font-size:13px;color:#0f172a;line-height:1.25}
+  .cmem-alias{font-style:italic;color:#94a3b8;font-size:11px;line-height:1.2;margin:1px 0}
+  .cmem-title{font-size:11.5px;color:#64748b;line-height:1.3}
+  .cmem-row.mgr .cmem-title{color:var(--pc);font-weight:600}
+  .cmem-foot{font-size:10.5px;color:#94a3b8;margin-top:2px}
+  .cmem-foot .ar{color:var(--pc);font-weight:700;margin-right:3px}
+  .csub{margin:1px 0 3px 7px;padding-left:9px;border-left:1.5px dashed #e2e8f0}
+  .csub .csub{margin-left:5px}
+  .team-label{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;margin:3px 0 1px}
+  .team-gap{margin-top:13px}
+  .cmem-row.sales-split{margin-top:15px}
+  .team-roll{font-weight:600;color:#cbd5e1;margin-left:6px;text-transform:none;letter-spacing:0}
+  .cmem-row.dim{opacity:.26}
+  .cmem-row.match{background:#fff7ed;box-shadow:inset 0 0 0 1.5px #f59e0b}
+
+  /* crew */
+  .cv-banner{display:flex;align-items:center;gap:12px;padding:12px 22px;border-radius:14px;color:#fff;background:linear-gradient(135deg,#0f766e,#0d9488);box-shadow:0 6px 18px rgba(15,23,42,.16)}
+  .cv-banner .ava{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.2);display:grid;place-items:center;flex:0 0 38px}
+  .cv-banner-name{font-weight:800;font-size:16px}
+  .cv-banner-sub{font-size:11.5px;opacity:.9}
+  /* base summary strip */
+  .cv-sec-label{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#64748b;margin:18px 0 9px;text-align:center}
+  .cv-sec-label span{font-weight:600;text-transform:none;letter-spacing:0;color:#94a3b8}
+  .cv-summary{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:0 0 2px;max-width:980px}
+  .cv-sumcard{width:210px;background:#fff;border:1px solid var(--card-border);border-left:4px solid var(--c);border-radius:13px;
+    box-shadow:0 3px 12px rgba(15,23,42,.06);padding:12px 15px}
+  .cv-sum-name{font-weight:800;font-size:13px;color:#0f172a;letter-spacing:.01em}
+  .cv-sum-total{margin:3px 0 7px;color:var(--c)}
+  .cv-sum-total b{font-size:22px;line-height:1}.cv-sum-total span{font-size:11px;color:#94a3b8;font-weight:600;margin-left:5px}
+  .cv-sum-break{display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:#64748b}
+  .cv-sum-break b{color:#0f172a}
+  .cv-sum-break .b-f b{color:#ea580c}.cv-sum-break .b-d b{color:#2563eb}.cv-sum-break .b-h b{color:#0d9488}
+  .cv-sum-break .b-t{color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
+  .cv-sumcard.nocrew{opacity:.72}.cv-sumcard.nocrew .cv-sum-total{color:#94a3b8}
+  .cv-sum-status{margin-top:7px;padding-top:7px;border-top:1px solid #f1f5f9;font-size:11px;color:#64748b}
+  /* job coverage by state — capacity bars */
+  .cv-coverage{width:min(600px,92vw);background:#fff;border:1px solid var(--card-border);border-radius:14px;
+    box-shadow:0 3px 12px rgba(15,23,42,.06);padding:15px 20px;display:flex;flex-direction:column;gap:12px}
+  .cv-covrow{display:flex;align-items:center;gap:13px}
+  .cv-cov-name{flex:0 0 124px;width:124px;font-weight:700;font-size:12.5px;color:#0f172a;display:flex;align-items:center;gap:8px}
+  .cv-cov-dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+  .cv-cov-track{flex:1;height:10px;background:#eef2f7;border-radius:999px;overflow:hidden}
+  .cv-cov-fill{height:100%;border-radius:999px;transition:width .4s ease}
+  .cv-cov-val{flex:0 0 132px;width:132px;text-align:right;font-size:12px;color:#64748b}
+  .cv-cov-val .n{font-size:16px;font-weight:800;color:#0f172a;margin-right:3px}
+  .cv-cov-sub{font-size:10px;color:#94a3b8;margin-top:1px}
+  .cv-cov-sub b{color:#475569}
+  .cv-cov-sub .warn{color:#dc2626;font-weight:700}
+  .cv-covrow.zero .cv-cov-track{background:#fff1f2}
+  .cv-covrow.zero .cv-cov-val .n{color:#dc2626}
+  .cv-cols::before{content:'';position:absolute;top:0;left:150px;right:150px;height:2px;background:var(--line)}
+  .cv-col{position:relative;width:300px;background:#fff;border:1px solid var(--card-border);border-top:4px solid var(--c);
+    border-radius:16px;box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden}
+  .cv-col::before{content:'';position:absolute;top:-22px;left:50%;width:2px;height:22px;margin-left:-1px;background:var(--line)}
+  .cv-col-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 11px;border-bottom:1px solid #eef2f6}
+  .cv-loc{display:flex;align-items:center;gap:10px}
+  .cv-loc-icon{width:32px;height:32px;border-radius:9px;background:var(--c);display:grid;place-items:center;color:#fff;flex:0 0 32px}
+  .cv-loc-icon svg{width:18px;height:18px}
+  .cv-loc-name{font-weight:800;font-size:14px;color:#0f172a}
+  .cv-loc-sub{font-size:11px;color:#94a3b8}
+  .cv-count{font-size:12px;font-weight:800;color:var(--c);background:color-mix(in srgb,var(--c) 12%,#fff);padding:3px 10px;border-radius:999px}
+  .cv-col-body{padding:4px 14px 12px;max-height:none}
+  /* max-availability block at the top of each state column */
+  .cv-avail{margin:0 14px;padding:11px 13px;background:color-mix(in srgb,var(--c) 7%,#fff);border:1px solid color-mix(in srgb,var(--c) 22%,#fff);border-radius:11px}
+  .cv-avail-lbl{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:3px}
+  .cv-avail-main{font-size:13px;color:#334155}.cv-avail-main b{font-size:21px;color:var(--c);margin-right:3px;vertical-align:-1px}
+  .cv-avail-cover{font-size:11.5px;color:#475569;margin-top:3px}.cv-avail-cover b{color:#0f172a}.cv-avail-cover span{color:#94a3b8}
+  .cv-avail-sup{font-size:11px;color:#64748b;margin-top:6px;padding-top:6px;border-top:1px dashed color-mix(in srgb,var(--c) 25%,#fff)}.cv-avail-sup b{color:#334155}
+  /* coverage-only columns (no home base) */
+  .cv-cov-col{width:212px;border-top-style:dashed}
+  .cv-cov-col .cv-loc-sub{color:var(--c);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:9.5px}
+  .cv-avail.zero{background:#fff1f2;border-color:#fecdd3}
+  .cv-avail-main.zero b{color:#dc2626}
+  .cv-avail-cover.warn{color:#dc2626;font-weight:700}
+  .crew{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f4f6f9}
+  .crew:last-child{border-bottom:0}
+  .crew-av{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:11px;color:#fff;flex:0 0 30px;margin-top:1px}
+  .crew-main{flex:1;min-width:0}
+  .crew-name{font-weight:700;font-size:13px;color:#0f172a;line-height:1.2}
+  .crew-meta{font-size:11px;color:#64748b}
+  .crew-also{font-size:10.5px;color:#94a3b8;margin-top:2px}
+  .crew-also .ar{color:var(--c);font-weight:800;margin-right:2px}
+  .cv-none{font-size:11.5px;color:#94a3b8;font-style:italic;padding:10px 2px}
+  .cv-unassigned{margin-top:16px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:11px;padding:9px 15px;font-size:12px;max-width:680px;text-align:center}
+  .cv-unassigned .ar{font-weight:800;margin-right:4px}
+  .crew-badge{font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;flex:0 0 auto}
+  .crew-badge.active{background:#dcfce7;color:#15803d}
+  .crew-badge.potential{background:#fef3c7;color:#b45309}
+  .crew.dim{opacity:.26}
+  .crew.match{background:#fff7ed;box-shadow:inset 0 0 0 1.5px #f59e0b;border-radius:8px}
+  .cv-col-foot{margin-top:6px;padding-top:9px;border-top:1.5px dashed #e2e8f0;font-size:11.5px;color:#64748b}
+  .cv-col-foot b{color:#0f172a}.cv-col-foot .ar{color:var(--c);font-weight:800;margin-right:2px}
+  .dv-foot{margin-top:22px;display:inline-flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--card-border);
+    border-radius:999px;padding:9px 20px;box-shadow:0 3px 12px rgba(15,23,42,.07)}
+  .dv-foot .ava{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff;flex:0 0 30px}
+  .dv-foot b{font-size:15px;color:#0f172a}
+  .dv-foot span{font-size:12px;color:#64748b;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+  .dv-foot .asof{color:#94a3b8;font-weight:500;text-transform:none;letter-spacing:0}
+
+  /* ===== cards ===== */
+  .node{position:relative;background:#fff;border:1px solid var(--card-border);border-left:4px solid var(--c,#94a3b8);
+    border-radius:var(--radius);box-shadow:var(--shadow);padding:11px 13px 11px 12px;text-align:left;width:230px;
+    transition:box-shadow .15s,transform .15s,opacity .15s,filter .15s;z-index:1}
+  .node.haskids{cursor:pointer}.node.haskids:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+  .node:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(29,78,216,.45),var(--shadow)}
+  .col>.node{width:252px}
+  .node.mob{width:100%;max-width:560px}
+  .name-row{display:flex;align-items:center;gap:6px}
+  .caret{flex:0 0 auto;color:var(--c,#64748b);font-size:9px;width:13px;height:13px;display:grid;place-items:center;transition:transform .15s;transform:rotate(90deg)}
+  li.collapsed>.node .caret,.ohead.collapsed .caret{transform:rotate(0)}
+  .caret.empty{visibility:hidden}
+  .name{font-weight:700;font-size:13.5px;letter-spacing:-.01em;line-height:1.18}
+  .node.root .name,.node.mob .name{font-size:15px}
+  .alias{font-size:11px;color:var(--faint);margin:1px 0 0 19px;font-style:italic}
+  .title{font-size:12px;color:#334155;margin:5px 0 0;font-weight:500;line-height:1.25}
+  .meta{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
+  .deptlabel{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:var(--muted)}
+  .deptlabel .dot{width:8px;height:8px;border-radius:50%;background:var(--c)}
+  .reports{font-size:10.5px;color:var(--faint);font-weight:600}.reports b{color:var(--c)}
+  .footer{display:flex;align-items:flex-start;gap:6px;margin-top:8px;padding-top:7px;border-top:1px dashed #dbe2ea;font-size:10.5px;color:#7c8898;line-height:1.32}
+  .footer .ar{font-weight:800;flex:0 0 auto}
+  .footer.out .ar{color:#d97706}.footer.into .ar{color:#0ea5e9}.footer.warn .ar{color:#dc2626}.footer.warn{color:#b91c1c}
+  .norep{margin-top:8px;padding-top:7px;border-top:1px dashed #e2e8f0;font-size:10.5px;color:var(--faint);font-style:italic}
+  .node.root{box-shadow:0 0 0 1px rgba(79,70,229,.2),0 10px 30px rgba(79,70,229,.18)}
+  .crown{position:absolute;top:-9px;left:12px;background:var(--c);color:#fff;font-size:9px;font-weight:800;letter-spacing:.08em;padding:2px 8px;border-radius:999px;text-transform:uppercase}
+
+  /* ===== vertical outline (used for teams on desktop, whole chart on mobile) ===== */
+  .outline{width:100%;max-width:600px;margin:0 auto}
+  .ohead{position:relative}
+  .outline .ohead + .ohead{margin-top:18px;padding-top:18px;border-top:1px dashed #d4dbe5}
+  .ohead.collapsed>.rtree{display:none}
+  .rtree{width:252px;margin-top:4px;position:relative}
+  .rtree.full{width:100%}
+  .rtree ul{list-style:none;margin:0;padding:0;position:relative}
+  .rtree>ul{margin-left:18px}
+  .rtree ul ul{margin-left:19px}
+  .rtree li{position:relative;padding-left:15px}
+  .rtree li::before{content:'';position:absolute;left:0;top:0;width:2px;height:100%;background:var(--line)}
+  .rtree li:last-child::before{height:var(--tick)}
+  .rtree li::after{content:'';position:absolute;left:0;top:var(--tick);width:12px;height:2px;background:var(--line)}
+  .rtree li.collapsed>ul{display:none}
+  .rrow{display:flex;align-items:flex-start;gap:9px;background:#fff;border:1px solid var(--card-border);border-left:3px solid var(--c,#94a3b8);
+    border-radius:9px;padding:7px 10px;margin:5px 0;transition:box-shadow .15s,transform .12s,opacity .15s,filter .15s}
+  .rrow.haskids{cursor:pointer}.rrow.haskids:hover{box-shadow:var(--shadow);transform:translateX(1px)}
+  .rrow:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(29,78,216,.4)}
+  .rdot{width:9px;height:9px;border-radius:50%;background:var(--c);margin-top:4px;flex:0 0 auto}
+  .rinfo{min-width:0;flex:1 1 auto}
+  .rname{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;letter-spacing:-.01em;line-height:1.15;flex-wrap:wrap}
+  .rname .caret{font-size:8px;width:12px;height:12px}
+  .rname .ralias{font-family:"Inter";font-weight:500;font-size:10.5px;color:var(--faint);font-style:italic}
+  .rname .ct{font-family:"Inter";margin-left:auto;font-size:10px;font-weight:700;color:#fff;background:var(--c);border-radius:999px;padding:1px 7px;flex:0 0 auto}
+  .rtitle{font-size:11px;color:#5b6776;margin-top:2px;font-weight:500;line-height:1.25}
+  .rfoot{display:flex;gap:5px;margin-top:4px;font-size:10px;color:#8b96a4;line-height:1.3}
+  .rfoot .ar{font-weight:800;color:#d97706;flex:0 0 auto}
+  .rfoot.into .ar{color:#0ea5e9}.rfoot.warn .ar{color:#dc2626}.rfoot.warn{color:#b91c1c}
+
+  .node.dim,.rrow.dim{opacity:.2;filter:saturate(.4)}
+  .node.match,.rrow.match{box-shadow:0 0 0 3px var(--accent),var(--shadow-lg)!important;opacity:1!important;filter:none!important}
+  .node.deptmatch,.rrow.deptmatch{box-shadow:0 0 0 3px var(--c),var(--shadow-lg)!important;opacity:1!important;filter:none!important}
+  .empty-note{display:none;position:absolute;inset:0;place-items:center;pointer-events:none}
+  .empty-note.show{display:grid}
+  .empty-note span{background:#fff;border:1px solid var(--card-border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--muted);box-shadow:var(--shadow)}
+
+  /* ===== editor ===== */
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;z-index:50;padding:18px}
+  .overlay.show{display:grid;place-items:center}
+  .sheet{background:#fff;border-radius:16px;width:min(940px,100%);max-height:90vh;display:flex;flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+  .sheet h2{margin:0;font-family:"Plus Jakarta Sans";font-size:16px;font-weight:800}
+  .sheet .head{padding:16px 18px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .sheet .head p{margin:3px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
+  .sheet .body{padding:14px 18px;overflow:auto;display:flex;flex-direction:column;min-height:0}
+  .grid-wrap{overflow:auto;border:1px solid var(--card-border);border-radius:10px;flex:1 1 auto;min-height:200px}
+  table.grid{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px;background:#fff}
+  table.grid th{position:sticky;top:0;background:#eef2f7;text-align:left;font-weight:700;font-size:10.5px;letter-spacing:.02em;
+    text-transform:uppercase;color:#5b6776;padding:9px 9px;border-bottom:1px solid var(--card-border);white-space:nowrap;z-index:2}
+  table.grid td{border-bottom:1px solid #eef2f7;border-right:1px solid #f1f5f9;padding:0;vertical-align:middle}
+  table.grid td:last-child{border-right:0}
+  table.grid tr:last-child td{border-bottom:0}
+  table.grid tbody tr:hover td{background:#fafbfd}
+  table.grid input{width:100%;border:0;background:transparent;padding:7px 9px;font-family:inherit;font-size:12.5px;color:#1e293b;outline:none}
+  table.grid input::placeholder{color:#cbd5e1;font-style:italic}
+  table.grid input:focus{background:#eff5ff;box-shadow:inset 0 0 0 2px var(--accent);border-radius:4px;position:relative;z-index:1}
+  table.grid th:nth-child(1),table.grid td:nth-child(1){min-width:150px}
+  table.grid th:nth-child(2),table.grid td:nth-child(2){min-width:115px}
+  table.grid th:nth-child(3),table.grid td:nth-child(3){min-width:150px}
+  table.grid th:nth-child(4),table.grid td:nth-child(4){min-width:130px}
+  table.grid th:nth-child(5),table.grid td:nth-child(5){min-width:150px}
+  table.grid th:nth-child(6),table.grid td:nth-child(6){min-width:135px}
+  table.grid td.del{min-width:34px;width:34px;text-align:center}
+  .rowdel{border:0;background:transparent;color:#cbd5e1;cursor:pointer;font-size:13px;line-height:1;padding:6px 7px;border-radius:6px}
+  .rowdel:hover{color:#dc2626;background:#fef2f2}
+  .addrow{margin-top:10px;align-self:flex-start;border-style:dashed}
+  .sheet.pw{width:min(400px,100%)}
+  .pwfield{width:100%;border:1px solid #d4dbe5;border-radius:10px;padding:11px 12px;font-family:inherit;font-size:14px;color:#1e293b;background:#fbfcfe;outline:none}
+  .pwfield:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
+  .pwerr{min-height:16px;margin-top:8px;font-size:12px;color:#dc2626;font-weight:600}
+  .sheet .foot{padding:13px 18px;border-top:1px solid var(--card-border);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .sheet .status{font-size:12px;color:var(--muted);margin-right:auto}
+  .sheet .status.err{color:#dc2626;font-weight:600}.sheet .status.ok{color:#15803d;font-weight:600}
+  .iconbtn{border:0;background:#eef2f7;color:#475569;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px}
+  .iconbtn:hover{background:#e2e8f0}
+
+  @media (max-width:640px){
+    header{padding:11px 13px 0}
+    .brand{font-size:17px}.stat{min-width:0;padding:5px 9px}.stat b{font-size:15px}
+    .stage{padding:16px 12px 70px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media print{header .controls,header .legend{display:none}#viewport{overflow:visible;height:auto}#zoomwrap{transform:none!important}body{height:auto;overflow:visible}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand">
+      <img src="logo.png" alt="Zip to Zip" style="height:30px;width:auto;vertical-align:middle;margin-right:7px" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+      <span class="mark" style="display:none">Z2Z</span>
+      <span>Zip to Zip — Organization Chart
+        <small id="sub">Tap a card to expand · dashed = matrix link</small>
+      </span>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+  <div class="controls">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" type="text" placeholder="Search name, alias, or role…" autocomplete="off" spellcheck="false"/>
+      <button class="clr" id="qclr" title="Clear">✕</button>
+    </div>
+    <div class="seg" id="modeSeg" role="group" aria-label="Dataset">
+      <button class="seg-btn active" id="modeOrgBtn" title="Office organization">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2.5" width="6" height="5" rx="1"/><rect x="2.5" y="15" width="6" height="5" rx="1"/><rect x="15.5" y="15" width="6" height="5" rx="1"/><path d="M12 7.5V11M5.5 15v-2.5h13V15"/></svg>Organization</button>
+      <button class="seg-btn" id="modeCrewBtn" title="Field workforce / fleet">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6h12v9H1z"/><path d="M13 9h4l3 3v3h-7z"/><circle cx="6" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/></svg>Crew</button>
+    </div>
+    <div class="seg hide" id="viewSeg" role="group" aria-label="Chart view">
+      <button class="seg-btn" id="viewHybridBtn">Hybrid</button>
+      <button class="seg-btn" id="viewOutlineBtn">Outline</button>
+      <button class="seg-btn" id="viewLrBtn">Left→Right</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn hide" id="expandAll">Expand all</button>
+      <button class="btn hide" id="collapseAll">Collapse teams</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="group zoom-group" id="zoomGroup">
+      <button class="btn" id="zout" title="Zoom out">−</button>
+      <span class="zoomval" id="zval">100%</span>
+      <button class="btn" id="zin" title="Zoom in">+</button>
+      <button class="btn" id="zfit" title="Fit to screen">Fit</button>
+    </div>
+  </div>
+</header>
+
+<div id="viewport">
+  <div id="zoomwrap"><div class="stage"><div id="tree"></div></div></div>
+  <div class="empty-note" id="emptyNote"><span>No one matches that search.</span></div>
+</div>
+
+<!-- ===== data editor ===== -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="head">
+      <div>
+        <h2 id="editTitle">Edit organization data</h2>
+        <p id="editHelp">Each row is one person. <b>Reports To</b> must match a Name exactly — start typing and it autocompletes. Leave it blank for the one person at the top. You can paste rows straight from Excel/Sheets.</p>
+      </div>
+      <button class="iconbtn" id="closeBtn" title="Close">✕</button>
+    </div>
+    <div class="body">
+      <div class="grid-wrap">
+        <table class="grid">
+          <thead><tr id="gridHead"></tr></thead>
+          <tbody id="gridBody"></tbody>
+        </table>
+      </div>
+      <button class="btn addrow" id="addRowBtn">+ Add row</button>
+      <datalist id="dlNames"></datalist>
+      <datalist id="dlDepts"></datalist>
+      <datalist id="dlBase"></datalist>
+      <datalist id="dlStatus"><option value="Active"></option><option value="Potential"></option></datalist>
+    </div>
+    <div class="foot">
+      <span class="status" id="editStatus">Edit cells, then Apply to redraw.</span>
+      <button class="btn" id="copyBtn">Copy as text</button>
+      <button class="btn primary" id="applyBtn">Apply changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =======================================================================
+   ====================  EDIT YOUR PEOPLE HERE  ==========================
+   Each entry is one person. To change the chart, edit this list (or use
+   the in-app "Edit data" button). Rules:
+     • reportsTo must EXACTLY match another person's name.
+     • Leave reportsTo empty ("") for the single person at the very top.
+     • alsoReportsTo = optional matrix/dotted manager (comma-separate if more
+       than one). It does NOT move the person in the tree; it draws a dashed link.
+     • dept can be anything; unknown departments get an auto color.
+   ======================================================================= */
+let PEOPLE = [
+  { name:"Giga Parulava",          title:"Chief Executive Officer",   dept:"Executive",        reportsTo:"" },
+  { name:"Kakha Kaketelidze",      title:"Chief Operating Officer",   dept:"Executive",        reportsTo:"Giga Parulava" },
+  { name:"Ramaz Kiknadze",         title:"Chief Logistics Officer",   dept:"Operations",       reportsTo:"Kakha Kaketelidze" },
+  { name:"Irakli Khurtsilava",     title:"Deputy Dispatch Manager",   dept:"Operations",       reportsTo:"Ramaz Kiknadze" },
+
+  { name:"Sopo Davitashvili",      title:"Chief Marketing Officer",   dept:"Marketing",        reportsTo:"Giga Parulava" },
+  { name:"Giorgi Geladze",         title:"Digital Advertiser",        dept:"Marketing",        reportsTo:"Sopo Davitashvili" },
+  { name:"Keti Mekvabishvili",     title:"Social Media Manager",      dept:"Marketing",        reportsTo:"Sopo Davitashvili" },
+  { name:"Dimitri Tchitchinadze",  title:"SEO Specialist",            dept:"Marketing",        reportsTo:"Sopo Davitashvili" },
+  { name:"Tinatin Gigauri",        title:"Copywriter",                dept:"Marketing",        reportsTo:"Sopo Davitashvili" },
+  { name:"Nikita Bespalov",        title:"Graphic Designer",          dept:"Marketing",        reportsTo:"Sopo Davitashvili" },
+  { name:"Ben Slaughter",          title:"Copywriter",                dept:"Marketing",        reportsTo:"Sopo Davitashvili" },
+  { name:"Nikoloz Tsigriashvili",  title:"Junior SEO Specialist",     dept:"Marketing",        reportsTo:"Sopo Davitashvili" },
+  { name:"Salome Gurgenidze",      title:"Researcher",                dept:"Marketing",        reportsTo:"Sopo Davitashvili" },
+  { name:"Elene Burtchuladze",     title:"Content Creator & SM Manager", dept:"Marketing",     reportsTo:"Sopo Davitashvili" },
+  { name:"Tako Berikashvili",      title:"Reputation",                dept:"Marketing",        reportsTo:"Sopo Davitashvili", alsoReportsTo:"Russo Mdzeluri" },
+
+  { name:"Russo Mdzeluri",         alias:"",               title:"Chief Commercial Officer",   dept:"Sales", reportsTo:"Giga Parulava" },
+  { name:"Giorgi Erikashvili",     alias:"George Davis",    title:"Sales Rep",       dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Dea Parulava",           alias:"Daniella Pelowski", title:"Sales Rep",     dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Alex Koval",             title:"Sales Rep",      dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Lika Shubitidze",        alias:"Lisa",           title:"Sales Rep",        dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Tato Gheghechkori",      alias:"Nick Hess",      title:"Sales Rep",        dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Mako Chichinadze",       alias:"Maya Zorc",      title:"Sales Rep",        dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Gogliko Dolidze",        alias:"David Barta",    title:"Sales Rep",        dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Ana Akhalia",            alias:"Amy Ollson",     title:"Sales Rep",        dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Allana Brown",           title:"Sales Rep",      dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Irakli Goliadze",        title:"Shift Manager",  dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Rezi Machaidze",         alias:"Micke",          title:"Shift Manager",    dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Elnur Alakhverdiev",     title:"Sales Rep",      dept:"Sales", reportsTo:"Russo Mdzeluri" },
+  { name:"Zurab Khurtsilava",      title:"Building Administrator", dept:"Sales", reportsTo:"Russo Mdzeluri", alsoReportsTo:"Gvanca Lotikashvili" },
+  { name:"Mariam Ninidze",         title:"Head of Support", dept:"Customer Service", reportsTo:"Russo Mdzeluri" },
+  { name:"Avto Samadalashvili",    alias:"Nova",           title:"Support",          dept:"Customer Service", reportsTo:"Mariam Ninidze" },
+  { name:"Nikoloz Gogoladze",      title:"Support",        dept:"Customer Service", reportsTo:"Mariam Ninidze" },
+
+  { name:"Gvanca Lotikashvili",    title:"Chief Financial Officer",   dept:"Finance",          reportsTo:"Giga Parulava" },
+  { name:"Tornike Kvinikadze",     title:"Chief Technology Officer", dept:"Systems",          reportsTo:"Giga Parulava" },
+  { name:"Aleksandre Digmelashvili", title:"Data & Control Manager", dept:"Data & Control", reportsTo:"Tornike Kvinikadze", alsoReportsTo:"Gvanca Lotikashvili" },
+  { name:"Eka Kenchadze",          title:"Chief People Officer",      dept:"HR",            reportsTo:"Giga Parulava" }
+];
+
+/* department colors — add or change as you like; unknown depts auto-assign one */
+const DEPTS = {
+  "Executive":"#4f46e5","Sales":"#2563eb","Marketing":"#9333ea","Customer Service":"#0d9488",
+  "Data & Control":"#16a34a","Finance":"#d97706","Systems":"#0891b2","HR":"#e11d48","Operations":"#16a34a"
+};
+const FALLBACK = ["#7c3aed","#0ea5e9","#db2777","#65a30d","#0f766e","#b45309","#4338ca","#be123c"];
+
+/* Co-CEOs: shown side-by-side at the very top, next to the main CEO. */
+let CO_LEADS = ["Kakha Kaketelidze"];
+
+/* ====================  CREW  /  FLEET  (field workforce)  ===================
+   These are the on-the-job movers, kept separate from the office org. Edit in
+   the app via the "Edit data" button while in Crew view, or edit this list. */
+
+let CREW = [
+  { role:"Forman", status:"Active", first:"Gurami", last:"Sabiashvili", base:"CT", states:"CT" },
+  { role:"Helper", status:"Potential", first:"Nikoloz", last:"Sabiashvili", base:"CT", states:"CT" },
+  { role:"Driver, Helper", status:"Potential", first:"Grigol", last:"Khvistani", base:"CT", states:"CT" },
+  { role:"Forman, Driver", status:"Potential", first:"Ilia", last:"Tabatadze", base:"PA", states:"PA" },
+  { role:"Forman, Driver", status:"Active", first:"Giorgi", last:"Kolbaia", base:"CT", states:"NJ, CT, NY, MA" },
+  { role:"Driver, Helper", status:"Active", first:"Lasha", last:"Gobuzashvili", base:"CT", states:"NJ, NY, CT, MA" },
+  { role:"Driver, Helper", status:"Active", first:"Vladimer", last:"Bukuri", base:"CT", states:"NJ, NY, CT, MA" },
+  { role:"Forman", status:"Active", first:"Zaza", last:"Zvanbaia", base:"CT", states:"NJ, NY, CT, MA" },
+  { role:"Forman, Driver", status:"Active", first:"Vaska", last:"Buadze", base:"PA", states:"NJ, PA" },
+  { role:"Helper", status:"Active", first:"Kosta", last:"Arveladze", base:"NJ", states:"NJ, PA" },
+  { role:"Helper", status:"Active", first:"Gela", last:"Zhizhiashvili", base:"PA", states:"NJ" },
+  { role:"Helper", status:"Potential", first:"Badri", last:"Khvadagiani", base:"NJ", states:"NJ" },
+  { role:"Forman, Driver", status:"Active", first:"Giorgi", last:"Abazadze", base:"NJ", states:"NJ" },
+  { role:"Driver", status:"Active", first:"Levan", last:"Khekhelashvili", base:"NJ", states:"NJ" },
+  { role:"Helper", status:"Active", first:"Mikheil", last:"Bleshinksy", base:"NJ", states:"NJ" },
+  { role:"Forman, Driver", status:"Potential", first:"Shota", last:"Zivzivadze", base:"NJ", states:"NJ" },
+  { role:"Helper", status:"Potential", first:"Tornike", last:"Dundua", base:"NJ", states:"NJ" },
+  { role:"Helper", status:"Potential", first:"Zura", last:"Gvalia", base:"NJ", states:"NJ" },
+  { role:"Forman", status:"Active", first:"Oto", last:"Chapurishvili", base:"NJ", states:"NJ, PA, NY" },
+  { role:"Driver, Helper", status:"Active", first:"Gigi", last:"Kiknkladze", base:"NJ", states:"NJ" },
+  { role:"Driver", status:"Active", first:"Zurabi", last:"Makhauri", base:"NJ", states:"NJ" },
+  { role:"Forman", status:"Active", first:"Shalva", last:"Khundzakishvili", base:"PA", states:"PA" },
+  { role:"Driver, Helper", status:"Active", first:"Tornike", last:"Taniashvili", base:"PA", states:"PA" },
+  { role:"Driver", status:"Active", first:"Vladimer", last:"Tabutsadze", base:"PA", states:"PA" },
+  { role:"Forman, Driver", status:"Active", first:"Bachi", last:"Bolkvadze", base:"NJ", states:"NJ" },
+  { role:"Forman, Driver", status:"Active", first:"Mostafa", last:"Walid", base:"NJ", states:"NJ" },
+  { role:"Forman, Driver", status:"Active", first:"Sergejs", last:"Sasins", base:"NJ", states:"NJ" },
+  { role:"Forman, Driver", status:"Active", first:"Bacho", last:"Kiknavelidze", base:"PA", states:"PA" },
+  { role:"Driver, Helper", status:"Active", first:"Archil", last:"Beridze", base:"PA", states:"PA" },
+  { role:"Driver, Helper", status:"Active", first:"Irakli", last:"Memanishvili", base:"PA", states:"PA" },
+  { role:"Forman, Driver", status:"Active", first:"Irakli", last:"Kazaishvili", base:"PA", states:"PA" },
+  { role:"Helper", status:"Active", first:"Ioseb", last:"Khachidze", base:"PA", states:"PA" },
+  { role:"Forman", status:"Active", first:"Misho", last:"Bokeria", base:"PA", states:"PA" },
+  { role:"Helper", status:"Active", first:"Levan", last:"Kvanchiani", base:"PA", states:"PA" },
+  { role:"Forman", status:"Potential", first:"Guga", last:"Natelashvili", base:"PA", states:"PA" },
+  { role:"Driver, Helper", status:"Active", first:"Badri", last:"Cherqezishvili", base:"PA", states:"PA" },
+  { role:"Forman, Driver", status:"Potential", first:"Kaki", last:"Kakhetelidze", base:"NJ", states:"NJ" },
+  { role:"Driver, Helper", status:"Active", first:"Jose Daniel", last:"Javier", base:"NJ", states:"NJ" },
+  { role:"Forman", status:"Active", first:"Rezy", last:"Todidze", base:"PA", states:"PA" },
+  { role:"Driver, Helper", status:"Active", first:"Guram", last:"Polodashvili", base:"PA", states:"PA" },
+  { role:"Helper", status:"Active", first:"Luarsab", last:"Doreuli", base:"PA", states:"PA" },
+  { role:"Helper", status:"Active", first:"Teimuraz", last:"Sarjveladze", base:"", states:"" },
+  { role:"Forman", status:"Active", first:"Arsen", last:"Gvishiani", base:"PA", states:"PA" },
+  { role:"Helper", status:"Active", first:"Elguja", last:"Khaladze", base:"PA", states:"PA" },
+  { role:"Driver", status:"Active", first:"Zura", last:"Salukvadze", base:"PA", states:"PA" },
+  { role:"Forman, Driver", status:"Active", first:"Giorgi", last:"Bulia", base:"NJ", states:"NJ, NY, CT" },
+  { role:"Forman", status:"Active", first:"Giorgi", last:"Onikauri", base:"NJ", states:"NY, NJ" },
+  { role:"Driver", status:"Active", first:"Giorgi", last:"Leselidze", base:"NJ", states:"NJ, NY" },
+  { role:"Helper", status:"Active", first:"Lasha", last:"Sujashvili", base:"NJ", states:"NY, NJ" },
+  { role:"Forman, Driver", status:"Active", first:"Kakhaber", last:"Hagemann", base:"NJ", states:"NJ, NY, CT, MA" },
+  { role:"Helper", status:"Active", first:"Dimitri", last:"Gostamashvili", base:"NJ", states:"NJ, NY" },
+  { role:"Helper", status:"Active", first:"Levan", last:"Andguladze", base:"PA", states:"NJ, PA" },
+  { role:"Driver", status:"Active", first:"Nugzar", last:"Chikviladze", base:"CT", states:"NJ, NY, CT, MA" },
+  { role:"Helper", status:"Active", first:"Tornike", last:"Rizhamadze", base:"CT", states:"NJ, NY, CT, MA" },
+  { role:"Driver, Helper", status:"Active", first:"Beka", last:"Mtchedlishvili", base:"PA", states:"PA, NJ, DE" },
+  { role:"Driver, Helper", status:"Active", first:"Giorgi", last:"Khositashvili", base:"PA", states:"PA, NJ" },
+  { role:"Driver, Helper", status:"Active", first:"Vaxo", last:"Machaidze", base:"PA", states:"NJ, PA" },
+  { role:"Driver, Helper", status:"Active", first:"Paata", last:"Zhvania", base:"NJ", states:"NJ, NY" },
+  { role:"Helper", status:"Active", first:"Lasha", last:"Kokosashvili", base:"NJ", states:"NJ, NY" },
+  { role:"Driver, Helper", status:"Active", first:"Nikoloz", last:"Partsvania", base:"NJ", states:"NJ, NY" },
+  { role:"Helper", status:"Active", first:"Luka", last:"Kveselava", base:"NJ", states:"NJ, NY" },
+  { role:"Helper", status:"Active", first:"Lasha", last:"Jeladze", base:"NJ", states:"NJ, NY, PA, CT" },
+  { role:"Helper", status:"Active", first:"Simon", last:"Em", base:"NJ", states:"NJ, NY, CT, PA" },
+  { role:"Helper", status:"Active", first:"Vasil", last:"Gogaladze", base:"PA", states:"NJ, PA, NY, DE" },
+  { role:"Driver, Helper", status:"Active", first:"Nukri", last:"Khitarishvili", base:"PA, NJ", states:"NJ, PA, NY, DE" },
+  { role:"Helper", status:"Active", first:"Sergey", last:"Kosach", base:"NJ", states:"NJ, PA, NY, DE, CT" },
+  { role:"Forman", status:"Active", first:"Nikoloz", last:"Kakhoshvili", base:"NJ", states:"NJ, PA, NY" },
+  { role:"Forman", status:"Active", first:"Davit", last:"Sheklashvili", base:"NJ", states:"NJ, PA, NY, CT" },
+  { role:"Driver, Helper", status:"Active", first:"Jemal", last:"Romanadze", base:"NJ", states:"NJ, PA, NY, CT" },
+];
+
+
+/* ====================  END EDITABLE DATA  ============================= */
+
+const BP = 760;
+
+/* ----- helpers ----- */
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const firstName = s => String(s).trim().split(/\s+/)[0];
+const parseList = s => String(s||'').split(',').map(x=>x.trim()).filter(Boolean);
+const hasKids = d => !!(d.children && d.children.length);
+
+/* ----- state ----- */
+let ORG=null, matrixInto={}, deptColors={};
+let view=null, userPickedView=false;
+let mode='org';            /* 'org' = office org · 'crew' = field workforce */
+const records=[];
+const colorOf = d => deptColors[d] || '#94a3b8';
+
+function buildTree(people){
+  const byName=new Map();
+  people.forEach(p=>{ if(p.name) byName.set(p.name, Object.assign({}, p, {children:[]})); });
+  let root=null; const orphans=[];
+  byName.forEach(node=>{
+    const rt=(node.reportsTo||'').trim();
+    if(!rt){ if(!root) root=node; else { node._orphan='Extra top-level (no manager)'; orphans.push(node); } return; }
+    const parent=byName.get(rt);
+    if(parent) parent.children.push(node);
+    else { node._orphan='Unknown manager: '+rt; orphans.push(node); }
+  });
+  if(!root) root={name:'(no top person)', title:'Set one person’s Reports To to blank', dept:'Executive', children:[]};
+  orphans.forEach(o=>root.children.push(o));
+  return root;
+}
+function rebuildMatrix(){ matrixInto={}; PEOPLE.forEach(p=> parseList(p.alsoReportsTo).forEach(t=>{ (matrixInto[t] ||= []).push(p.name); })); }
+function rebuildDeptColors(){
+  deptColors=Object.assign({}, DEPTS); let i=0;
+  PEOPLE.forEach(p=>{ const d=p.dept||'General'; if(!deptColors[d]){ deptColors[d]=FALLBACK[i%FALLBACK.length]; i++; } });
+}
+
+/* ----- records ----- */
+function addRec(data, el, parent, collapseEl, kids){
+  const rec={ data, el, parent, collapseEl, hasKids:kids,
+    searchText:(data.name+' '+(data.alias||'')+' '+data.title+' '+data.dept).toLowerCase() };
+  records.push(rec); return rec;
+}
+const footerInto = name => {
+  const l=matrixInto[name]; if(!l||!l.length) return '';
+  return `<div class="footer into"><span class="ar">⇠</span><span>matrix: ${l.map(firstName).map(esc).join(' · ')}</span></div>`;
+};
+
+/* ----- card builders ----- */
+function topCard(d, kids, mob, opts){
+  opts=opts||{};
+  const isTop = opts.top || d.root;
+  const n = (opts.count!=null) ? opts.count : (d.children?d.children.length:0);
+  const el=document.createElement('div');
+  el.className='node'+(kids?' haskids':'')+(isTop?' root':'')+(mob?' mob':'');
+  el.style.setProperty('--c', colorOf(d.dept));
+  const caret=`<span class="caret${kids?'':' empty'}">▶</span>`;
+  const alias=d.alias?`<div class="alias">aka ${esc(d.alias)}</div>`:'';
+  const crown=isTop?`<span class="crown">${esc(opts.crownText||'Leadership')}</span>`:'';
+  const reports=kids?`<span class="reports"><b>${n}</b> report${n>1?'s':''}</span>`:'';
+  const outs=parseList(d.alsoReportsTo);
+  const out=outs.length?`<div class="footer out"><span class="ar">⇢</span><span>also reports to ${outs.map(firstName).map(esc).join(' · ')}</span></div>`:'';
+  const into=footerInto(d.name);
+  const warn=d._orphan?`<div class="footer warn"><span class="ar">!</span><span>${esc(d._orphan)}</span></div>`:'';
+  const norep=(!kids && !into && !out && !isTop && !warn)?`<div class="norep">No direct reports</div>`:'';
+  el.innerHTML=`${crown}<div class="name-row">${caret}<span class="name">${esc(d.name)}</span></div>${alias}
+    <div class="title">${esc(d.title)}</div>
+    <div class="meta"><span class="deptlabel"><span class="dot"></span>${esc(d.dept)}</span>${reports}</div>${out}${into}${warn}${norep}`;
+  return el;
+}
+function rowEl(d, kids, countOverride){
+  const el=document.createElement('div');
+  el.className='rrow'+(kids?' haskids':'');
+  el.style.setProperty('--c', colorOf(d.dept));
+  const caret=`<span class="caret${kids?'':' empty'}">▶</span>`;
+  const alias=d.alias?`<span class="ralias">aka ${esc(d.alias)}</span>`:'';
+  const n=(countOverride!=null)?countOverride:(d.children?d.children.length:0);
+  const count=kids?`<span class="ct">${n}</span>`:'';
+  const outs=parseList(d.alsoReportsTo);
+  const out=outs.length?`<div class="rfoot"><span class="ar">⇢</span><span>also: ${outs.map(firstName).map(esc).join(' · ')}</span></div>`:'';
+  const il=matrixInto[d.name];
+  const into=(il&&il.length)?`<div class="rfoot into"><span class="ar">⇠</span><span>matrix: ${il.map(firstName).map(esc).join(' · ')}</span></div>`:'';
+  const warn=d._orphan?`<div class="rfoot warn"><span class="ar">!</span><span>${esc(d._orphan)}</span></div>`:'';
+  el.innerHTML=`<span class="rdot"></span><div class="rinfo">
+      <div class="rname">${caret}<span>${esc(d.name)}</span>${alias}${count}</div>
+      <div class="rtitle">${esc(d.title)}</div>${out}${into}${warn}</div>`;
+  return el;
+}
+function buildList(list, parentRec){
+  const ul=document.createElement('ul');
+  list.forEach(d=>{
+    const li=document.createElement('li');
+    const kids=hasKids(d);
+    const row=rowEl(d, kids);
+    li.appendChild(row);
+    const rec=addRec(d, row, parentRec, li, kids);
+    if(kids){
+      li.appendChild(buildList(d.children, rec));
+      const t=e=>{e.stopPropagation();li.classList.toggle('collapsed');};
+      row.addEventListener('click', t); row.tabIndex=0; row.setAttribute('role','button');
+      row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();li.classList.toggle('collapsed');}});
+    }
+    ul.appendChild(li);
+  });
+  return ul;
+}
+
+/* ----- co-CEO helpers ----- */
+const coLeadsOf = root => (root && root.children ? root.children : []).filter(c=>CO_LEADS.includes(c.name));
+function offsetWithin(el, anc){ let x=0,y=0; while(el && el!==anc){ x+=el.offsetLeft; y+=el.offsetTop; el=el.offsetParent; } return {x,y}; }
+function drawCoLink(cf){
+  cf.querySelectorAll('.colink').forEach(e=>e.remove());
+  const cards=[...cf.querySelectorAll(':scope > ul.tree > li.ceo > .node.root')];
+  for(let i=0;i<cards.length-1;i++){
+    const a=cards[i], b=cards[i+1];
+    const pa=offsetWithin(a, cf), pb=offsetWithin(b, cf);
+    const x1=pa.x + a.offsetWidth, x2=pb.x, y=pa.y + a.offsetHeight/2;
+    if(x2<=x1) continue;
+    const link=document.createElement('div'); link.className='colink';
+    link.style.left=x1+'px'; link.style.top=(y-1)+'px'; link.style.width=(x2-x1)+'px';
+    const tag=document.createElement('span'); tag.className='colink-tag'; tag.textContent='co-CEOs';
+    link.appendChild(tag); cf.appendChild(link);
+  }
+}
+function redrawCoLink(){ const cf=document.querySelector('.cofork'); if(cf){ drawCoLink(cf); return; } const lr=document.querySelector('.lrtree'); if(lr) drawLRCoLink(lr); }
+
+/* ----- a single hybrid branch: top card + its leader columns (with vertical teams) ----- */
+function renderBranch(node, leaders, parentRec, opts){
+  opts=opts||{};
+  const tree=document.createElement('ul'); tree.className='tree';
+  const li=document.createElement('li'); li.className='ceo';
+  const hasL=leaders.length>0;
+  const card=topCard(node, hasL, false, {top:true, count:leaders.length, crownText:opts.crownText});
+  li.appendChild(card);
+  const rec=addRec(node, card, parentRec, li, hasL);
+  if(hasL){
+    const ul=document.createElement('ul'); ul.className='leaders';
+    leaders.forEach(L=>{
+      const col=document.createElement('li'); col.className='col';
+      const team=hasKids(L);
+      const lcard=topCard(L, team, false);
+      col.appendChild(lcard);
+      const lrec=addRec(L, lcard, rec, col, team);
+      if(team){
+        const rt=document.createElement('div'); rt.className='rtree';
+        rt.appendChild(buildList(L.children, lrec));
+        col.appendChild(rt);
+        lcard.addEventListener('click',e=>{e.stopPropagation();col.classList.toggle('collapsed');});
+        lcard.tabIndex=0; lcard.setAttribute('role','button');
+        lcard.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();col.classList.toggle('collapsed');}});
+      }
+      ul.appendChild(col);
+    });
+    li.appendChild(ul);
+    card.addEventListener('click',e=>{e.stopPropagation(); li.classList.toggle('collapsed'); redrawCoLink();});
+    card.tabIndex=0; card.setAttribute('role','button');
+    card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault(); li.classList.toggle('collapsed'); redrawCoLink();}});
+  }
+  tree.appendChild(li);
+  return {tree, card, rec};
+}
+
+/* ----- desktop hybrid (supports co-CEOs side by side) ----- */
+function buildHybrid(host){
+  const coLeads=coLeadsOf(ORG);
+  if(coLeads.length===0){
+    host.appendChild(renderBranch(ORG, ORG.children||[], null, {crownText:'CEO'}).tree);
+    return;
+  }
+  const mainKids=(ORG.children||[]).filter(c=>!CO_LEADS.includes(c.name));
+  const cofork=document.createElement('div'); cofork.className='cofork';
+  cofork.appendChild(renderBranch(ORG, mainKids, null, {crownText:'CEO'}).tree);
+  coLeads.forEach(cl=> cofork.appendChild(renderBranch(cl, cl.children||[], null, {crownText:'Co-CEO'}).tree));
+  host.appendChild(cofork);
+  requestAnimationFrame(()=>drawCoLink(cofork));
+}
+
+/* ----- one outline head: top card + its indented subtree ----- */
+function appendOutlineHead(wrap, node, children, crownText){
+  const head=document.createElement('div'); head.className='ohead';
+  const hasK=children.length>0;
+  const card=topCard(node, hasK, true, {top:true, count:children.length, crownText});
+  head.appendChild(card);
+  const rtree=document.createElement('div'); rtree.className='rtree full';
+  const rec=addRec(node, card, null, head, hasK);
+  if(hasK){
+    rtree.appendChild(buildList(children, rec));
+    const t=e=>{e.stopPropagation();head.classList.toggle('collapsed');};
+    card.addEventListener('click',t); card.tabIndex=0; card.setAttribute('role','button');
+    card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();head.classList.toggle('collapsed');}});
+  }
+  head.appendChild(rtree); wrap.appendChild(head);
+}
+
+/* ----- mobile single-column outline (co-CEOs stacked as top-level heads) ----- */
+function buildOutline(host){
+  const wrap=document.createElement('div'); wrap.className='outline';
+  const coLeads=coLeadsOf(ORG);
+  const mainKids=(ORG.children||[]).filter(c=>!CO_LEADS.includes(c.name));
+  appendOutlineHead(wrap, ORG, mainKids, 'CEO');
+  coLeads.forEach(cl=> appendOutlineHead(wrap, cl, cl.children||[], 'Co-CEO'));
+  host.appendChild(wrap);
+}
+
+/* ----- left-to-right tree ----- */
+function buildLeafGrid(leaves, parentRec){
+  const grid=document.createElement('div'); grid.className='lrgrid';
+  const box=document.createElement('div'); box.className='lrteam';
+  leaves.forEach(d=>{ const card=rowEl(d, false); box.appendChild(card); addRec(d, card, parentRec, null, false); });
+  grid.appendChild(box);
+  return grid;
+}
+function lrNode(node, children, parentRec, crownText){
+  const li=document.createElement('li'); li.className='lrnode';
+  const kids=children.length>0;
+  const card=rowEl(node, kids, children.length);
+  if(crownText){ card.classList.add('lr-top'); const cr=document.createElement('span'); cr.className='lr-crown'; cr.textContent=crownText; card.appendChild(cr); }
+  li.appendChild(card);
+  const rec=addRec(node, card, parentRec, li, kids);
+  if(kids){
+    const ul=document.createElement('ul'); ul.className='lrkids';
+    const leaves=children.filter(c=>!hasKids(c));
+    const branches=children.filter(c=>hasKids(c));
+    if(leaves.length>=5){
+      branches.forEach(c=> ul.appendChild(lrNode(c, c.children||[], rec)));
+      ul.appendChild(buildLeafGrid(leaves, rec));
+    } else {
+      children.forEach(c=> ul.appendChild(lrNode(c, c.children||[], rec)));
+    }
+    li.appendChild(ul);
+    card.addEventListener('click',e=>{e.stopPropagation(); li.classList.toggle('collapsed'); redrawCoLink();});
+    card.tabIndex=0; card.setAttribute('role','button');
+    card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault(); li.classList.toggle('collapsed'); redrawCoLink();}});
+  }
+  return li;
+}
+function buildLR(host){
+  const lr=document.createElement('div'); lr.className='lrtree';
+  const root=document.createElement('ul'); root.className='lrroot';
+  const coLeads=coLeadsOf(ORG);
+  if(coLeads.length===0){
+    root.appendChild(lrNode(ORG, ORG.children||[], null, 'CEO'));
+  } else {
+    const mainKids=(ORG.children||[]).filter(c=>!CO_LEADS.includes(c.name));
+    root.appendChild(lrNode(ORG, mainKids, null, 'CEO'));
+    coLeads.forEach(cl=> root.appendChild(lrNode(cl, cl.children||[], null, 'Co-CEO')));
+  }
+  lr.appendChild(root); host.appendChild(lr);
+  if(coLeads.length) requestAnimationFrame(()=>drawLRCoLink(lr));
+}
+function rectWithin(el, anc){ const r=el.getBoundingClientRect(), a=anc.getBoundingClientRect(), z=zoom||1; return {x:(r.left-a.left)/z, y:(r.top-a.top)/z, w:r.width/z, h:r.height/z}; }
+function drawLRCoLink(lr){
+  lr.querySelectorAll('.colink-v').forEach(e=>e.remove());
+  const cards=[...lr.querySelectorAll(':scope > ul.lrroot > li.lrnode > .rrow.lr-top')];
+  if(cards.length<2) return;
+  for(let i=0;i<cards.length-1;i++){
+    const a=rectWithin(cards[i], lr), b=rectWithin(cards[i+1], lr);
+    const ya=a.y+a.h/2, yb=b.y+b.h/2, xLine=Math.max(2, Math.min(a.x,b.x)-13);
+    if(yb<=ya) continue;
+    const v=document.createElement('div'); v.className='colink-v';
+    v.style.left=xLine+'px'; v.style.top=ya+'px'; v.style.height=(yb-ya)+'px';
+    const t1=document.createElement('span'); t1.className='colink-tick'; t1.style.left='0'; t1.style.top='0'; t1.style.width=(a.x-xLine)+'px';
+    const t2=document.createElement('span'); t2.className='colink-tick'; t2.style.left='0'; t2.style.bottom='0'; t2.style.width=(b.x-xLine)+'px';
+    const tag=document.createElement('span'); tag.className='colink-tag'; tag.textContent='co-CEOs';
+    v.appendChild(t1); v.appendChild(t2); v.appendChild(tag); lr.appendChild(v);
+  }
+}
+
+/* =====================================================================
+   ====================  DEPARTMENT-COLUMN (ORG) VIEW  =================
+   ===================================================================== */
+const IC = {
+  person:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>',
+  people:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c0-3.6 2.9-5.8 6.5-5.8s6.5 2.2 6.5 5.8"/><circle cx="17.5" cy="9" r="2.8"/><path d="M16 14.6c3 .2 5.5 2.2 5.5 5.4"/></svg>',
+  megaphone:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4a1 1 0 0 0 1 1h2l4 4V5L6 9H4a1 1 0 0 0-1 1z"/><path d="M14 8a4 4 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16.5 5.5a8 8 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  truck:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 6h12v9H1z"/><path d="M13 9h4l3 3v3h-7z"/><circle cx="6" cy="17.5" r="2" fill="#fff"/><circle cx="17" cy="17.5" r="2" fill="#fff"/><circle cx="6" cy="17.5" r="1.1"/><circle cx="17" cy="17.5" r="1.1"/></svg>',
+  pie:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.5 6.5"/></svg>',
+  monitor:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3.9 0-7 3.1-7 7 0 5 7 13 7 13s7-8 7-13c0-3.9-3.1-7-7-7z"/><circle cx="12" cy="9" r="2.4" fill="#fff"/></svg>',
+  hard:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 16h16v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M6 16c0-4 2.5-6 6-6s6 2 6 6"/><rect x="10.5" y="5" width="3" height="5" rx="1"/></svg>'
+};
+/* office-org super-departments → which granular depts feed each column */
+const ORG_COLUMNS = [
+  { label:'Marketing',                 color:'#9333ea', icon:IC.megaphone, depts:['Marketing'] },
+  { label:'Sales & Customer Support',  color:'#2563eb', icon:IC.people,    depts:['Sales','Customer Service'],
+    teams:[ {label:'Sales Team', depts:['Sales'], short:'Sales'},
+            {label:'Support Team', depts:['Customer Service'], under:true} ] },
+  { label:'Operations & Dispatch',     color:'#16a34a', icon:IC.truck,     depts:['Operations','Moving'] },
+  { label:'Finance & HR',              color:'#ea580c', icon:IC.pie,       depts:['Finance','HR'] },
+  { label:'Technology & Data',         color:'#0891b2', icon:IC.monitor,   depts:['Systems','Data & Control'] }
+];
+
+function execCard(p, cls){
+  const el=document.createElement('div'); el.className='dv-exec '+cls;
+  el.innerHTML=`<div class="ava">${IC.person}</div><div><div class="dv-exec-name">${esc(p.name)}</div><div class="dv-exec-title">${esc(p.title)}</div></div>`;
+  addRec(p, el, null, null, false);
+  return el;
+}
+/* one person row inside a department column; managers get an avatar, leaves a dot. aka sits on its own line. */
+function memberRow(person, isMgr, color){
+  const row=document.createElement('div'); row.className='cmem-row'+(isMgr?' mgr':'');
+  row.style.setProperty('--pc', colorOf(person.dept));
+  const aka=person.alias?`<div class="cmem-alias">aka ${esc(person.alias)}</div>`:'';
+  const lead = isMgr ? `<div class="ava">${IC.person}</div>` : `<span class="cdot"></span>`;
+  row.innerHTML=`${lead}<div class="cmem-txt"><div class="cmem-name">${esc(person.name)}</div>${aka}<div class="cmem-title">${esc(person.title)}</div></div>`;
+  addRec(person, row, null, null, false);
+  return row;
+}
+function colNode(person, inCol, color){
+  const kids = inCol.filter(p=>(p.reportsTo||'').trim()===person.name);
+  const cont=document.createElement('div'); cont.className='cmem';
+  cont.appendChild(memberRow(person, kids.length>0, color));
+  if(kids.length){ const sub=document.createElement('div'); sub.className='csub'; kids.forEach(k=>sub.appendChild(colNode(k, inCol, color))); cont.appendChild(sub); }
+  return cont;
+}
+function buildColumn(C, inCol){
+  const col=document.createElement('div'); col.className='dv-col'; col.style.setProperty('--c',C.color);
+  col.innerHTML=`<div class="dv-col-head"><div class="dv-col-icon">${C.icon}</div><div class="dv-col-title">${esc(C.label)}</div></div>`;
+  const body=document.createElement('div'); body.className='dv-col-body';
+  const names=new Set(inCol.map(p=>p.name));
+  const heads = inCol.filter(p=>!names.has((p.reportsTo||'').trim()));
+  if(C.teams){
+    const head=heads[0];
+    if(head) body.appendChild(memberRow(head, true, C.color));
+    const sub=document.createElement('div'); sub.className='csub';
+    C.teams.forEach((t,i)=>{
+      const block=document.createElement('div'); block.className='team'+(i>0?' team-gap':'');
+      const roll = t.under?`<span class="team-roll">↳ under ${esc(C.teams[0].short||head&&firstName(head.name)||'')}</span>`:'';
+      block.innerHTML=`<div class="team-label">${esc(t.label)}${roll}</div>`;
+      const mem=inCol.filter(p=>t.depts.includes(p.dept) && (!head||p.name!==head.name));
+      const rank=p=>{ const x=(p.title||'').toLowerCase(); if(x.includes('sales rep'))return 0; if(x.includes('shift'))return 2; if(x.includes('building'))return 3; return 1; };
+      mem.sort((a,b)=>{ const la=mem.some(o=>(o.reportsTo||'').trim()===a.name)?1:0, lb=mem.some(o=>(o.reportsTo||'').trim()===b.name)?1:0; if(lb!==la)return lb-la; return rank(a)-rank(b); });
+      let prev=-1;
+      mem.forEach(p=>{ const isLead=mem.some(o=>(o.reportsTo||'').trim()===p.name); const r=memberRow(p, isLead, C.color); const rk=rank(p); if(prev===0 && rk>0) r.classList.add('sales-split'); prev=rk; block.appendChild(r); });
+      sub.appendChild(block);
+    });
+    body.appendChild(sub);
+  } else {
+    heads.forEach(h=>body.appendChild(colNode(h, inCol, C.color)));
+  }
+  col.appendChild(body); return col;
+}
+function buildOrgColumns(host){
+  const wrap=document.createElement('div'); wrap.className='deptview';
+  const ceo=PEOPLE.find(p=>!(p.reportsTo||'').trim());
+  const coo=PEOPLE.find(p=>CO_LEADS.includes(p.name));
+  if(ceo) wrap.appendChild(execCard(ceo,'ceo'));
+  if(coo){ const l=document.createElement('div'); l.className='dv-vlink'; wrap.appendChild(l); wrap.appendChild(execCard(coo,'coo')); }
+  const link=document.createElement('div'); link.className='dv-vlink'; wrap.appendChild(link);
+  const top = new Set([ceo&&ceo.name, coo&&coo.name].filter(Boolean));
+  const cols=document.createElement('div'); cols.className='dv-cols';
+  ORG_COLUMNS.forEach(C=>{
+    const inCol = PEOPLE.filter(p=>C.depts.includes(p.dept) && !top.has(p.name));
+    if(!inCol.length) return;
+    cols.appendChild(buildColumn(C, inCol));
+  });
+  wrap.appendChild(cols);
+  const foot=document.createElement('div'); foot.className='dv-foot';
+  foot.innerHTML=`<div class="ava">${IC.people}</div><b>${PEOPLE.length}</b><span>Total team members</span>`;
+  wrap.appendChild(foot);
+  host.appendChild(wrap);
+}
+
+/* =====================================================================
+   ====================  CREW VIEW (foremen-led, by base)  ============
+   ===================================================================== */
+const CREW_LOC = { 'NJ':'#2563eb','PA':'#9333ea','CT':'#0d9488','NY':'#0ea5e9','MA':'#db2777','DE':'#65a30d' };
+const STATE_NAME = { 'NJ':'New Jersey','PA':'Pennsylvania','CT':'Connecticut','NY':'New York','MA':'Massachusetts','DE':'Delaware' };
+const CREW_LOC_ORDER = ['NJ','PA','CT'];
+/* foreman > driver > helper — a person is classed at their highest role */
+function crewLevel(role){ const r=(role||'').toLowerCase(); if(r.includes('forman')||r.includes('foreman'))return 'foreman'; if(r.includes('driver'))return 'driver'; return 'helper'; }
+function baseKey(b){ b=(b||'').trim(); if(!b)return ''; return b.split(',')[0].trim().toUpperCase(); }
+function baseFull(k){ return k? (STATE_NAME[k]||k) : 'Unassigned'; }
+function crewCounts(list){ const lv=list.map(c=>crewLevel(c.role));
+  return { total:list.length, f:lv.filter(x=>x==='foreman').length, d:lv.filter(x=>x==='driver').length, h:lv.filter(x=>x==='helper').length,
+           act:list.filter(c=>(c.status||'').toLowerCase().startsWith('act')).length }; }
+/* how many crew can work in each state — someone covering N states counts in all N (a capacity cap, not a headcount) */
+function coverageByState(){
+  const S={};
+  CREW.forEach(c=>{
+    const parts=(c.states||'').split(/[,/;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
+    const lv=crewLevel(c.role); const a=(c.status||'').toLowerCase().startsWith('act');
+    parts.forEach(p=>{ const s=(S[p] ||= {f:0,d:0,h:0,fAct:0,total:0}); s[lv==='foreman'?'f':lv==='driver'?'d':'h']++; s.total++; if(lv==='foreman'&&a)s.fAct++; });
+  });
+  return S;
+}
+function foremanCard(c){
+  const row=document.createElement('div'); row.className='crew';
+  const name=`${esc(c.first)} ${esc(c.last)}`.trim();
+  const home=baseKey(c.base);
+  const others=(c.states||'').split(/[,/;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean).filter(s=>s&&s!==home);
+  const also = others.length ? `<div class="crew-also"><span class="ar">↳</span> also covers ${others.map(esc).join(', ')}</div>` : '';
+  row.innerHTML=`<div class="crew-main"><div class="crew-name">${name||'—'}</div>${also}</div>`;
+  records.push({ data:{name,alias:'',title:c.role||'',dept:''}, el:row, parent:null, collapseEl:null, hasKids:false,
+    searchText:(name+' '+(c.role||'')+' foreman crew '+(c.base||'')+' '+(c.states||'')).toLowerCase() });
+  return row;
+}
+/* foreman who can cover a non-base state — shown as "visiting" from their home base */
+function coverCard(c){
+  const row=document.createElement('div'); row.className='crew';
+  const name=`${esc(c.first)} ${esc(c.last)}`.trim();
+  row.innerHTML=`<div class="crew-main"><div class="crew-name">${name||'—'}</div>
+    <div class="crew-also"><span class="ar">⤴</span> travels from ${esc(baseFull(baseKey(c.base)))}</div></div>`;
+  records.push({ data:{name,alias:'',title:c.role||'',dept:''}, el:row, parent:null, collapseEl:null, hasKids:false,
+    searchText:(name+' '+(c.role||'')+' foreman crew '+(c.base||'')+' '+(c.states||'')).toLowerCase() });
+  return row;
+}
+function coveringForemen(state){
+  return CREW.filter(c=>crewLevel(c.role)==='foreman' && (c.states||'').split(/[,/;]+/).map(x=>x.trim().toUpperCase()).includes(state));
+}
+function buildCrewColumns(host){
+  const wrap=document.createElement('div'); wrap.className='crewview';
+  const banner=document.createElement('div'); banner.className='cv-banner';
+  banner.innerHTML=`<div class="ava">${IC.hard}</div><div><div class="cv-banner-name">Deployable Crews — by base state</div><div class="cv-banner-sub">A crew = one foreman · drivers &amp; helpers are the shared support pool · each person sits in their home state</div></div>`;
+  wrap.appendChild(banner);
+  const groups={}; CREW.forEach(c=>{ (groups[baseKey(c.base)] ||= []).push(c); });
+  const cov=coverageByState();
+  const keys=Object.keys(groups).filter(k=>k!=='').sort((a,b)=>{ const ia=CREW_LOC_ORDER.indexOf(a),ib=CREW_LOC_ORDER.indexOf(b); if(ia<0&&ib<0)return a.localeCompare(b); if(ia<0)return 1; if(ib<0)return -1; return ia-ib; });
+  const link=document.createElement('div'); link.className='dv-vlink'; wrap.appendChild(link);
+  const cols=document.createElement('div'); cols.className='cv-cols';
+  keys.forEach(k=>{
+    const list=groups[k]; const foremen=list.filter(c=>crewLevel(c.role)==='foreman');
+    const cc=crewCounts(list); const color=CREW_LOC[k]||'#64748b';
+    const canCover=cov[k]?cov[k].f:foremen.length; const visiting=Math.max(0, canCover-foremen.length);
+    const col=document.createElement('div'); col.className='cv-col'; col.style.setProperty('--c',color);
+    /* header */
+    col.innerHTML=`<div class="cv-col-head"><div class="cv-loc"><div class="cv-loc-icon">${IC.pin}</div>
+      <div><div class="cv-loc-name">${esc(baseFull(k))}</div><div class="cv-loc-sub">${cc.total} field staff</div></div></div>
+      <span class="cv-count">${foremen.length}</span></div>`;
+    /* max-availability block */
+    const avail=document.createElement('div'); avail.className='cv-avail';
+    avail.innerHTML=`<div class="cv-avail-lbl">Max availability</div>
+      <div class="cv-avail-main"><b>${foremen.length}</b> ${foremen.length===1?'crew':'crews'} based here</div>
+      ${visiting? `<div class="cv-avail-cover"><b>${canCover}</b> can cover ${esc(baseFull(k))} <span>· ${visiting} can travel in</span></div>`:''}
+      <div class="cv-avail-sup">Support pool: <b>${cc.d}</b> drivers · <b>${cc.h}</b> helpers</div>`;
+    col.appendChild(avail);
+    /* list */
+    const body=document.createElement('div'); body.className='cv-col-body';
+    if(foremen.length) foremen.forEach(c=>body.appendChild(foremanCard(c)));
+    else { const none=document.createElement('div'); none.className='cv-none'; none.textContent='No foreman based here — no crew can run from this base.'; body.appendChild(none); }
+    col.appendChild(body); cols.appendChild(col);
+  });
+  /* coverage-only columns — states with no home base (who can travel in to cover them) */
+  const COV_ONLY=['MA'];
+  COV_ONLY.forEach(st=>{
+    const s=cov[st]; if(!s) return;
+    const color=CREW_LOC[st]||'#64748b'; const covF=coveringForemen(st);
+    const col=document.createElement('div'); col.className='cv-col cv-cov-col'; col.style.setProperty('--c',color);
+    col.innerHTML=`<div class="cv-col-head"><div class="cv-loc"><div class="cv-loc-icon">${IC.pin}</div>
+      <div><div class="cv-loc-name">${esc(STATE_NAME[st]||st)}</div><div class="cv-loc-sub">coverage only</div></div></div>
+      <span class="cv-count">${s.f}</span></div>`;
+    const avail=document.createElement('div'); avail.className='cv-avail'+(s.f?'':' zero');
+    avail.innerHTML = s.f
+      ? `<div class="cv-avail-lbl">Max availability</div>
+         <div class="cv-avail-main"><b>${s.f}</b> ${s.f===1?'crew':'crews'} can cover</div>
+         <div class="cv-avail-cover"><span>all travel in · no home base here</span></div>
+         <div class="cv-avail-sup">Reachable support: <b>${s.d}</b> drivers · <b>${s.h}</b> helpers</div>`
+      : `<div class="cv-avail-lbl">Max availability</div>
+         <div class="cv-avail-main zero"><b>0</b> crews</div>
+         <div class="cv-avail-cover warn">No foreman can lead a job here</div>
+         <div class="cv-avail-sup"><b>${s.d}</b> drivers · <b>${s.h}</b> helpers could support — but can’t deploy</div>`;
+    col.appendChild(avail);
+    const body=document.createElement('div'); body.className='cv-col-body';
+    if(covF.length) covF.forEach(c=>body.appendChild(coverCard(c)));
+    else { const none=document.createElement('div'); none.className='cv-none'; none.textContent='No foreman can cover this state.'; body.appendChild(none); }
+    col.appendChild(body); cols.appendChild(col);
+  });
+  wrap.appendChild(cols);
+  /* anyone with no base assigned */
+  const un=groups[''];
+  if(un && un.length){
+    const u=crewCounts(un);
+    const note=document.createElement('div'); note.className='cv-unassigned';
+    note.innerHTML=`<span class="ar">⚠</span> ${un.length} crew member${un.length>1?'s':''} with no base assigned${u.f?` (${u.f} foreman${u.f>1?'en':''})`:' — support only'}. Set a base in the fleet data to place ${un.length>1?'them':'them'}.`;
+    wrap.appendChild(note);
+  }
+  const all=crewCounts(CREW);
+  const foot=document.createElement('div'); foot.className='dv-foot';
+  foot.innerHTML=`<div class="ava">${IC.hard}</div><b>${all.f}</b><span>Deployable crews &nbsp;·&nbsp; ${all.total} field staff (${all.f} foremen · ${all.d} drivers · ${all.h} helpers)</span>`;
+  wrap.appendChild(foot);
+  host.appendChild(wrap);
+}
+
+/* ----- stats + legend (defined in the render section) ----- */
+
+/* ----- search ----- */
+const q=document.getElementById('q'), qclr=document.getElementById('qclr'), emptyNote=document.getElementById('emptyNote');
+let activeDept=null;
+function deactivateChips(){ document.querySelectorAll('.chip.active').forEach(c=>{c.classList.remove('active');c.style.background='';}); }
+function clearStates(){ records.forEach(r=>r.el.classList.remove('dim','match','deptmatch')); emptyNote.classList.remove('show'); }
+function reveal(rec){ let p=rec.parent; while(p){ if(p.collapseEl) p.collapseEl.classList.remove('collapsed'); p=p.parent; } }
+function runSearch(){
+  const term=q.value.trim().toLowerCase();
+  qclr.style.display=term?'block':'none';
+  if(activeDept){ activeDept=null; deactivateChips(); }
+  clearStates(); if(!term) return;
+  let first=null, any=false;
+  records.forEach(r=>{ if(r.searchText.includes(term)){ r.el.classList.add('match'); reveal(r); any=true; if(!first) first=r; } else r.el.classList.add('dim'); });
+  if(!any) emptyNote.classList.add('show'); else if(first) scrollToEl(first.el);
+}
+q.addEventListener('input', runSearch);
+qclr.addEventListener('click',()=>{ q.value=''; runSearch(); q.focus(); });
+
+/* ----- dept filter ----- */
+function toggleDept(d, chip){
+  q.value=''; qclr.style.display='none';
+  const on=activeDept!==d; deactivateChips(); clearStates();
+  if(!on){ activeDept=null; return; }
+  activeDept=d; chip.classList.add('active'); chip.style.background=colorOf(d);
+  let first=null;
+  records.forEach(r=>{ if(r.data.dept===d){ r.el.classList.add('deptmatch'); reveal(r); if(!first) first=r; } else r.el.classList.add('dim'); });
+  if(first) scrollToEl(first.el);
+}
+
+/* ----- expand / collapse ----- */
+document.getElementById('expandAll').addEventListener('click',()=>{ document.querySelectorAll('.collapsed').forEach(el=>el.classList.remove('collapsed')); redrawCoLink(); });
+document.getElementById('collapseAll').addEventListener('click',()=>{
+  records.forEach(r=>{ if(r.hasKids && r.collapseEl && !r.data.root && !CO_LEADS.includes(r.data.name)) r.collapseEl.classList.add('collapsed'); });
+  redrawCoLink();
+});
+
+/* ----- zoom + pan ----- */
+const viewport=document.getElementById('viewport'), zoomwrap=document.getElementById('zoomwrap'), zval=document.getElementById('zval');
+let zoom=1; const ZMIN=0.3, ZMAX=2;
+function applyZoom(){ zoomwrap.style.transform=`scale(${zoom})`; zval.textContent=Math.round(zoom*100)+'%'; }
+function setZoom(z){ zoom=Math.min(ZMAX,Math.max(ZMIN,z)); applyZoom(); }
+document.getElementById('zin').addEventListener('click',()=>setZoom(zoom+0.12));
+document.getElementById('zout').addEventListener('click',()=>setZoom(zoom-0.12));
+document.getElementById('zfit').addEventListener('click',fit);
+function fit(){
+  zoom=1; applyZoom();
+  requestAnimationFrame(()=>{
+    const stage=zoomwrap.firstElementChild;
+    const z=Math.min(1,(viewport.clientWidth-8)/stage.scrollWidth);
+    setZoom(z);
+    requestAnimationFrame(()=>{ viewport.scrollLeft=(zoomwrap.scrollWidth-viewport.clientWidth)/2; redrawCoLink(); });
+  });
+}
+viewport.addEventListener('wheel',e=>{ if(e.ctrlKey||e.metaKey){ e.preventDefault(); setZoom(zoom+(e.deltaY<0?0.08:-0.08)); } },{passive:false});
+let panning=false,sx=0,sy=0,sl=0,st=0;
+viewport.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')||e.target.closest('.rrow')) return;
+  panning=true; viewport.classList.add('grabbing');
+  sx=e.clientX; sy=e.clientY; sl=viewport.scrollLeft; st=viewport.scrollTop; viewport.setPointerCapture(e.pointerId);
+});
+viewport.addEventListener('pointermove',e=>{ if(!panning) return; viewport.scrollLeft=sl-(e.clientX-sx); viewport.scrollTop=st-(e.clientY-sy); });
+function endPan(){ panning=false; viewport.classList.remove('grabbing'); }
+viewport.addEventListener('pointerup',endPan); viewport.addEventListener('pointercancel',endPan);
+function scrollToEl(el){ const vr=viewport.getBoundingClientRect(), er=el.getBoundingClientRect();
+  viewport.scrollLeft += (er.left+er.width/2)-(vr.left+vr.width/2); viewport.scrollTop += (er.top+er.height/2)-(vr.top+vr.height/2); }
+
+/* ----- editor (schema-aware editable grid) ----- */
+const overlay=document.getElementById('overlay'), editStatus=document.getElementById('editStatus');
+const gridBody=document.getElementById('gridBody'), gridHead=document.getElementById('gridHead');
+const dlNames=document.getElementById('dlNames'), dlDepts=document.getElementById('dlDepts'), dlBase=document.getElementById('dlBase');
+const editTitle=document.getElementById('editTitle'), editHelp=document.getElementById('editHelp'), addRowBtn=document.getElementById('addRowBtn');
+
+const hasStore = !!(window.storage && typeof window.storage.get==='function');
+async function loadSaved(key){
+  if(!hasStore) return null;
+  try{ const r=await window.storage.get(key, true); if(r && r.value){ const a=JSON.parse(r.value); if(Array.isArray(a) && a.length) return a; } }
+  catch(e){}
+  return null;
+}
+async function save(key, arr){
+  if(!hasStore) return 'nostore';
+  try{ const r=await window.storage.set(key, JSON.stringify(arr), true); return r?'saved':'failed'; }
+  catch(e){ return 'failed'; }
+}
+
+const SCHEMAS = {
+  org: {
+    cols:['name','alias','title','dept','reportsTo','alsoReportsTo'],
+    head:['Name','Alias','Title','Department','Reports&nbsp;To','Also&nbsp;Reports&nbsp;To'],
+    place:{name:'(required)',alias:'—',title:'job title',dept:'department',reportsTo:'manager name',alsoReportsTo:'—'},
+    list:{dept:'dlDepts',reportsTo:'dlNames',alsoReportsTo:'dlNames'},
+    title:'Edit organization data',
+    help:'Each row is one person. <b>Reports To</b> must match a Name exactly — start typing and it autocompletes. Leave it blank for the one person at the very top. You can paste rows straight from Excel/Sheets.',
+    add:'+ Add person', keyField:'name', store:'orgchart-people-v3',
+    get:()=>PEOPLE, set:a=>{PEOPLE=a;},
+    validate:a=>{ const roots=a.filter(p=>!(p.reportsTo||'').trim()).length; return roots===1?'':`⚠ ${roots} rows have a blank Reports To (need exactly 1 top person)`; }
+  },
+  crew: {
+    cols:['first','last','role','status','base'],
+    head:['First&nbsp;Name','Last&nbsp;Name','Role','Status','Base'],
+    place:{first:'(required)',last:'last name',role:'e.g. Driver, Helper',status:'Active / Potential',base:'CT / NJ / PA'},
+    list:{status:'dlStatus',base:'dlBase'},
+    title:'Edit crew (field workforce)',
+    help:'Each row is one crew member. <b>Base</b> is their home location (CT / NJ / PA), <b>Status</b> is Active or Potential. Roles can combine (e.g. "Forman, Driver"). You can paste rows straight from Excel/Sheets.',
+    add:'+ Add crew member', keyField:'first', store:'orgchart-crew-v2',
+    get:()=>CREW, set:a=>{CREW=a;},
+    validate:()=>''
+  }
+};
+let activeSchema = SCHEMAS.org;
+
+function buildHead(){
+  gridHead.innerHTML = activeSchema.head.map(h=>`<th>${h}</th>`).join('') + '<th aria-label="delete"></th>';
+}
+function makeRow(p){
+  p=p||{}; const tr=document.createElement('tr');
+  activeSchema.cols.forEach(k=>{
+    const td=document.createElement('td'); const inp=document.createElement('input');
+    inp.dataset.k=k; inp.value=Array.isArray(p[k])?p[k].join(', '):(p[k]||''); inp.placeholder=activeSchema.place[k]||'';
+    const list=activeSchema.list[k]; if(list) inp.setAttribute('list',list);
+    td.appendChild(inp); tr.appendChild(td);
+  });
+  const td=document.createElement('td'); td.className='del';
+  const del=document.createElement('button'); del.className='rowdel'; del.title='Delete row'; del.textContent='✕';
+  del.addEventListener('click',()=>{ tr.remove(); refreshLists(); });
+  td.appendChild(del); tr.appendChild(td); return tr;
+}
+function gridFromData(arr){ gridBody.innerHTML=''; arr.forEach(p=>gridBody.appendChild(makeRow(p))); refreshLists(); }
+function dataFromGrid(){
+  const out=[], kf=activeSchema.keyField;
+  gridBody.querySelectorAll('tr').forEach(tr=>{ const o={}; tr.querySelectorAll('input').forEach(i=>o[i.dataset.k]=i.value.trim()); if(o[kf]) out.push(o); });
+  return out;
+}
+function refreshLists(){
+  if(activeSchema.cols.includes('name')){
+    const names=[...gridBody.querySelectorAll('input[data-k="name"]')].map(i=>i.value.trim()).filter(Boolean);
+    dlNames.innerHTML=[...new Set(names)].map(n=>`<option value="${esc(n)}"></option>`).join('');
+    const depts=new Set(Object.keys(DEPTS));
+    gridBody.querySelectorAll('input[data-k="dept"]').forEach(i=>{ const v=i.value.trim(); if(v) depts.add(v); });
+    dlDepts.innerHTML=[...depts].map(d=>`<option value="${esc(d)}"></option>`).join('');
+  }
+  if(activeSchema.cols.includes('base')){
+    const bases=new Set(['CT','NJ','PA']);
+    gridBody.querySelectorAll('input[data-k="base"]').forEach(i=>{ const v=i.value.trim(); if(v) bases.add(v); });
+    dlBase.innerHTML=[...bases].map(d=>`<option value="${esc(d)}"></option>`).join('');
+  }
+}
+let lT=null;
+gridBody.addEventListener('input',e=>{ const k=e.target.dataset.k; if(k==='name'||k==='dept'||k==='base'){ clearTimeout(lT); lT=setTimeout(refreshLists,250); } });
+gridBody.addEventListener('paste',e=>{
+  const t=(e.clipboardData||window.clipboardData).getData('text');
+  if(!t || !(t.indexOf('\t')>=0 || /\r?\n/.test(t.trim()))) return;
+  if(e.target.tagName!=='INPUT') return;
+  e.preventDefault();
+  const cols=activeSchema.cols, startCol=cols.indexOf(e.target.dataset.k);
+  const lines=t.replace(/\r/g,'').split('\n'); while(lines.length && lines[lines.length-1]==='') lines.pop();
+  let tr=e.target.closest('tr');
+  lines.forEach(line=>{
+    if(!tr){ tr=makeRow({}); gridBody.appendChild(tr); }
+    const inputs=tr.querySelectorAll('input');
+    line.split('\t').forEach((val,c)=>{ const ci=startCol+c; if(ci<cols.length) inputs[ci].value=val.trim(); });
+    tr=tr.nextElementSibling;
+  });
+  refreshLists(); editStatus.className='status ok'; editStatus.textContent='Pasted '+lines.length+' row(s).';
+});
+function serialize(arr){
+  const head=activeSchema.head.map(h=>h.replace(/&nbsp;/g,' ')).join(' | ');
+  const rows=arr.map(p=>activeSchema.cols.map(k=>Array.isArray(p[k])?p[k].join(', '):(p[k]||'')).join(' | '));
+  return [head, ...rows].join('\n');
+}
+
+function openEditor(){
+  activeSchema = mode==='crew' ? SCHEMAS.crew : SCHEMAS.org;
+  editTitle.textContent=activeSchema.title; editHelp.innerHTML=activeSchema.help; addRowBtn.textContent=activeSchema.add;
+  buildHead(); gridFromData(activeSchema.get());
+  editStatus.className='status';
+  editStatus.textContent = hasStore ? 'Edit cells, then Apply — changes save for everyone.' : 'Edit cells, then Apply (live only — not saved on this host).';
+  overlay.classList.add('show');
+}
+function closeEditor(){ overlay.classList.remove('show'); }
+/* Edit-data button removed for now — editor kept dormant below; re-add the
+   #editBtn button in the toolbar and this listener to bring editing back. */
+document.getElementById('closeBtn').addEventListener('click', closeEditor);
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeEditor(); });
+addRowBtn.addEventListener('click',()=>{ const tr=makeRow({}); gridBody.appendChild(tr); tr.querySelector('input').focus(); tr.scrollIntoView({block:'nearest'}); });
+document.getElementById('applyBtn').addEventListener('click',async()=>{
+  const parsed=dataFromGrid();
+  if(!parsed.length){ editStatus.className='status err'; editStatus.textContent='Add at least one row.'; return; }
+  const warn=activeSchema.validate(parsed);
+  activeSchema.set(parsed); render();
+  const label = activeSchema===SCHEMAS.crew ? 'crew members' : 'people';
+  const msg=`Applied ${parsed.length} ${label}`;
+  if(warn){ editStatus.className='status err'; editStatus.textContent=msg+' — '+warn+'. Not saved.'; return; }
+  editStatus.className='status'; editStatus.textContent=msg+' — saving…';
+  const res=await save(activeSchema.store, parsed);
+  editStatus.className = res==='failed' ? 'status err' : 'status ok';
+  editStatus.textContent = msg + (res==='saved' ? ' — saved for everyone ✓' : res==='nostore' ? ' — live only (not saved on this host).' : ' — couldn’t save (will reset on refresh).');
+  if(res==='saved') setTimeout(closeEditor, 850);
+});
+document.getElementById('copyBtn').addEventListener('click',async()=>{
+  const txt=serialize(dataFromGrid());
+  try{ await navigator.clipboard.writeText(txt); editStatus.className='status ok'; editStatus.textContent='Copied as text.'; }
+  catch{ editStatus.className='status err'; editStatus.textContent='Copy failed — select the data manually.'; }
+});
+
+/* ----- render + mode switching ----- */
+const subEl=document.getElementById('sub'), zoomGroup=document.getElementById('zoomGroup');
+const statsLine=document.getElementById('stats');
+const modeOrgBtn=document.getElementById('modeOrgBtn'), modeCrewBtn=document.getElementById('modeCrewBtn');
+/* the three tree views (hybrid / outline / left-right) are kept in the code but
+   hidden for now — flip USE_TREE_VIEWS to true and unhide #viewSeg to bring them back. */
+function setMode(m){ if(m===mode) return; mode=m; render(); }
+modeOrgBtn.addEventListener('click',()=>setMode('org'));
+modeCrewBtn.addEventListener('click',()=>setMode('crew'));
+
+function render(){
+  ORG=buildTree(PEOPLE); rebuildMatrix(); rebuildDeptColors();
+  records.length=0;
+  const host=document.getElementById('tree'); host.innerHTML='';
+  if(mode==='crew') buildCrewColumns(host); else buildOrgColumns(host);
+  buildStatsLegend();
+  q.value=''; qclr.style.display='none'; activeDept=null; deactivateChips(); clearStates();
+  modeOrgBtn.classList.toggle('active', mode==='org');
+  modeCrewBtn.classList.toggle('active', mode==='crew');
+  subEl.textContent = mode==='crew'
+    ? 'Deployable crews · one foreman leads each crew · drivers & helpers in support'
+    : 'Office organization · departments under the CEO & COO';
+  zoomGroup.classList.remove('hide');
+  fit();
+}
+function buildStatsLegend(){
+  if(mode==='crew'){
+    const f=CREW.filter(c=>crewLevel(c.role)==='foreman').length;
+    statsLine.innerHTML=`<div class="stat"><b>${f}</b><span>Crews</span></div><div class="stat"><b>${CREW.length}</b><span>Field staff</span></div>`;
+  } else {
+    const mgr=new Set(); PEOPLE.forEach(p=>{ const r=(p.reportsTo||'').trim(); if(r) mgr.add(r); });
+    statsLine.innerHTML=`<div class="stat"><b>${PEOPLE.length}</b><span>People</span></div><div class="stat"><b>${mgr.size}</b><span>Managers</span></div>`;
+  }
+}
+let rT=null;
+window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(fit,160); });
+const ORG_SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
+const ORG_SHEET={org:'Org Chart',crew:'Crew'};
+function orgParseCSV(t){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else { if(ch==='"')q=true; else if(ch===','){row.push(cur);cur='';} else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';} else if(ch==='\r'){} else cur+=ch; }
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+async function loadSheetTab(name){
+  const url='https://docs.google.com/spreadsheets/d/'+ORG_SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(name)+'&_t='+Date.now();
+  let txt; try{ const r=await fetch(url); if(!r.ok)return null; txt=await r.text(); }catch(e){ return null; }
+  const rows=orgParseCSV(txt).filter(r=>r.some(c=>String(c).trim()!==''));
+  if(rows.length<2)return null;
+  const H=rows[0].map(h=>String(h).trim());
+  return rows.slice(1).map(cols=>{const o={};H.forEach((h,j)=>o[h]=(cols[j]!=null?String(cols[j]).trim():''));return o;});
+}
+async function boot(){
+  /* Paint the embedded data immediately so the chart is NEVER blank — even if the
+     artifact's persistent storage is slow, missing, or blocked. Then fold in any
+     saved data afterward (with a timeout so a stalled storage call can't hang us). */
+  try{ render(); }catch(e){ console.error('initial render failed', e); }
+  try{
+    const [p,c] = await Promise.all([ loadSheetTab(ORG_SHEET.org), loadSheetTab(ORG_SHEET.crew) ]);
+    let changed=false;
+    if(p && p.length){
+      const np=p.map(r=>({name:(r['Name']||'').trim(),alias:(r['Alias']||'').trim(),title:(r['Title']||'').trim(),dept:(r['Department']||'').trim(),reportsTo:(r['Reports To']||'').trim(),alsoReportsTo:(r['Also Reports To']||'').trim()})).filter(x=>x.name);
+      if(np.length){ PEOPLE=np; changed=true; }
+    }
+    if(c && c.length){
+      const emb={}; CREW.forEach(x=>{ emb[((x.first||'')+' '+(x.last||'')).toLowerCase().trim()]=x.states||''; });
+      const nc=c.map(r=>({first:(r['First Name']||'').trim(),last:(r['Last Name']||'').trim(),role:(r['Role']||'').trim(),status:(r['Status']||'').trim(),base:(r['Base']||'').trim(),states:(r['States']||'').trim()})).filter(x=>x.first||x.last);
+      nc.forEach(x=>{ if(!x.states){ const v=emb[((x.first||'')+' '+(x.last||'')).toLowerCase().trim()]; if(v) x.states=v; } });
+      if(nc.length){ CREW=nc; changed=true; }
+    }
+    if(changed) render();
+  }catch(e){ console.error('sheet load failed — showing embedded data', e); }
+}
+boot();
+</script>
+</body>
+</html>
