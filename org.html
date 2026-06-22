@@ -940,10 +940,10 @@ function memberRow(person, isMgr, color){
   addRec(person, row, null, null, false);
   return row;
 }
-function colNode(person, inCol, color){
+function colNode(person, inCol, color, isTop){
   const kids = inCol.filter(p=>(p.reportsTo||'').trim()===person.name);
   const cont=document.createElement('div'); cont.className='cmem';
-  cont.appendChild(memberRow(person, kids.length>0, color));
+  cont.appendChild(memberRow(person, kids.length>0 || !!isTop, color));
   if(kids.length){ const sub=document.createElement('div'); sub.className='csub'; kids.forEach(k=>sub.appendChild(colNode(k, inCol, color))); cont.appendChild(sub); }
   return cont;
 }
@@ -986,7 +986,7 @@ function buildColumn(C, inCol){
     inCol.filter(p=>(!head||p.name!==head.name)&&!matched.has(p.name)).forEach(p=>sub.appendChild(memberRow(p,false,C.color)));
     body.appendChild(sub);
   } else {
-    heads.forEach(h=>body.appendChild(colNode(h, inCol, C.color)));
+    heads.forEach(h=>body.appendChild(colNode(h, inCol, C.color, true)));
   }
   col.appendChild(body); return col;
 }
