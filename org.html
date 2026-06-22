@@ -1331,7 +1331,7 @@ async function reloadFromSheet(){
     }
     if(c && c.length){
       const emb={}; CREW.forEach(x=>{ emb[((x.first||'')+' '+(x.last||'')).toLowerCase().trim()]=x.states||''; });
-      const nc=c.map(r=>({first:pick(r,['First Name','First']),last:pick(r,['Last Name','Last']),role:pick(r,['Main Role','Role','Roles','Position']),status:pick(r,['Status']),base:pick(r,['Base','Base Location']),states:pick(r,['States','List of States they can work','Coverage'])})).filter(x=>(x.first||x.last)&&String(x.status||'').trim().toLowerCase()!=='cancelled');
+      const nc=c.map(r=>({first:pick(r,['First Name','First']),last:pick(r,['Last Name','Last']),role:pick(r,['Main Role','Role','Roles','Position']),status:pick(r,['Status']),base:pick(r,['Base','Base Location']),states:pick(r,['States','List of States they can work','Coverage'])})).filter(x=>(x.first||x.last)&&['cancelled','potential'].indexOf(String(x.status||'').trim().toLowerCase())<0);
       nc.forEach(x=>{ if(!x.states){ const v=emb[((x.first||'')+' '+(x.last||'')).toLowerCase().trim()]; if(v) x.states=v; } });
       if(nc.length){ CREW=nc; changed=true; }
     }
