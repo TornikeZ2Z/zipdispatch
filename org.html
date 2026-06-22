@@ -134,6 +134,13 @@
 .dv-col-sub{font-size:10.5px;color:#64748b;font-weight:600;margin-top:2px}
 .dv-fleet{display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 12px 12px;padding:9px;border:1.5px solid var(--c);border-radius:10px;color:var(--c);font-weight:700;font-size:12.5px;text-decoration:none;cursor:pointer}
 .dv-fleet:hover{background:var(--c);color:#fff}
+.dv-side{display:flex;flex-direction:column;gap:10px}
+.dv-side-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;text-align:center;padding-bottom:2px}
+.dv-side-cols{display:flex;gap:16px;align-items:flex-start}
+.dv-divider{align-self:stretch;width:0;border-left:2px dashed var(--line);margin:0 6px}
+.dv-col-htxt{flex:1;min-width:0}
+.dv-col-cnt{flex:0 0 auto;background:var(--c);color:#fff;border-radius:999px;min-width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;padding:0 7px}
+.deptview .dv-col::before{display:none}
   .dv-cols,.cv-cols{position:relative;display:flex;gap:16px;align-items:flex-start;padding-top:22px}
   .dv-cols::before{content:'';position:absolute;top:0;left:132px;right:132px;height:2px;background:var(--line)}
   .dv-col{position:relative;width:272px;background:#fff;border:1px solid var(--card-border);border-top:4px solid var(--c);
@@ -865,12 +872,14 @@ const IC = {
 /* office-org super-departments → which granular depts feed each column */
 const ORG_COLUMNS = [
   { label:'Marketing', color:'#9333ea', icon:IC.megaphone, depts:['Marketing'] },
-  { label:'Sales', color:'#2563eb', icon:IC.people, depts:['Sales'] },
-  { label:'Support', color:'#0d9488', icon:IC.people, depts:['Customer Service'], note:'reports to Sales', stack:true },
+  { label:'Sales', color:'#2563eb', icon:IC.people, depts:['Sales'],
+    titleTeams:[ {label:'Sales', test:p=>/sales rep/i.test(p.title||'')},
+                 {label:'Admin', test:p=>/(shift manager|building)/i.test(p.title||'')} ] },
+  { label:'Support', color:'#0d9488', icon:IC.people, depts:['Customer Service'], note:'reports to Russo (Sales)', stack:true },
   { label:'Finance', color:'#ea580c', icon:IC.pie, depts:['Finance'], stack:true },
   { label:'HR', color:'#e11d48', icon:IC.person, depts:['HR'], stack:true },
   { label:'Tech', color:'#0891b2', icon:IC.monitor, depts:['Systems','Data & Control'], stack:true },
-  { label:'Operations & Dispatch', color:'#16a34a', icon:IC.truck, depts:['Operations','Moving'], fleet:true }
+  { label:'Operations & Dispatch', color:'#16a34a', icon:IC.truck, depts:['Operations','Moving'], fleet:true, side:'coo' }
 ];
 
 function execCard(p, cls){
@@ -898,7 +907,7 @@ function colNode(person, inCol, color){
 }
 function buildColumn(C, inCol){
   const col=document.createElement('div'); col.className='dv-col'; col.style.setProperty('--c',C.color);
-  col.innerHTML=`<div class="dv-col-head"><div class="dv-col-icon">${C.icon}</div><div><div class="dv-col-title">${esc(C.label)}</div>${C.note?`<div class="dv-col-sub">↳ ${esc(C.note)}</div>`:''}</div></div>`;
+  col.innerHTML=`<div class="dv-col-head"><div class="dv-col-icon">${C.icon}</div><div class="dv-col-htxt"><div class="dv-col-title">${esc(C.label)}</div>${C.note?`<div class="dv-col-sub">↳ ${esc(C.note)}</div>`:''}</div><div class="dv-col-cnt">${inCol.length}</div></div>`;
   const body=document.createElement('div'); body.className='dv-col-body';
   const names=new Set(inCol.map(p=>p.name));
   const heads = inCol.filter(p=>!names.has((p.reportsTo||'').trim()));
@@ -918,6 +927,22 @@ function buildColumn(C, inCol){
       sub.appendChild(block);
     });
     body.appendChild(sub);
+  } else if(C.titleTeams){
+    const head=heads[0];
+    if(head) body.appendChild(memberRow(head, true, C.color));
+    const sub=document.createElement('div'); sub.className='csub';
+    const matched=new Set();
+    C.titleTeams.forEach((t,i)=>{
+      const mem=inCol.filter(p=>(!head||p.name!==head.name)&&t.test(p));
+      if(!mem.length) return;
+      mem.forEach(p=>matched.add(p.name));
+      const block=document.createElement('div'); block.className='team'+(i>0?' team-gap':'');
+      block.innerHTML=`<div class="team-label">${esc(t.label)}</div>`;
+      mem.forEach(p=>block.appendChild(memberRow(p,false,C.color)));
+      sub.appendChild(block);
+    });
+    inCol.filter(p=>(!head||p.name!==head.name)&&!matched.has(p.name)).forEach(p=>sub.appendChild(memberRow(p,false,C.color)));
+    body.appendChild(sub);
   } else {
     heads.forEach(h=>body.appendChild(colNode(h, inCol, C.color)));
   }
@@ -935,10 +960,13 @@ function buildOrgColumns(host){
   const top = new Set([ceo&&ceo.name, coo&&coo.name].filter(Boolean));
   const cols=document.createElement('div'); cols.className='dv-cols';
   const build=C=>{ const inCol=PEOPLE.filter(p=>C.depts.includes(p.dept)&&!top.has(p.name)); return inCol.length?buildColumn(C,inCol):null; };
+  const mkSide=name=>{ const sd=document.createElement('div'); sd.className='dv-side'; sd.innerHTML=`<div class="dv-side-lbl">Managed by ${esc(name)}</div>`; const r=document.createElement('div'); r.className='dv-side-cols'; sd.appendChild(r); sd._row=r; return sd; };
+  const ceoSide=mkSide(ceo?firstName(ceo.name):'CEO'), cooSide=mkSide(coo?firstName(coo.name):'COO');
   let stack=null;
   ORG_COLUMNS.forEach(C=>{
+    const row=(C.side==='coo'?cooSide:ceoSide)._row;
     if(C.stack){
-      if(!stack){ stack=document.createElement('div'); stack.className='dv-stack'; cols.appendChild(stack); }
+      if(!stack){ stack=document.createElement('div'); stack.className='dv-stack'; ceoSide._row.appendChild(stack); }
       const b=build(C); if(b) stack.appendChild(b);
       return;
     }
@@ -949,8 +977,10 @@ function buildOrgColumns(host){
       fleet.addEventListener('click',e=>{ e.preventDefault(); setMode('crew'); });
       col.appendChild(fleet);
     }
-    cols.appendChild(col);
+    row.appendChild(col);
   });
+  cols.appendChild(ceoSide);
+  if(cooSide._row.children.length){ const dv=document.createElement('div'); dv.className='dv-divider'; cols.appendChild(dv); cols.appendChild(cooSide); }
   wrap.appendChild(cols);
   const foot=document.createElement('div'); foot.className='dv-foot';
   foot.innerHTML=`<div class="ava">${IC.people}</div><b>${PEOPLE.length}</b><span>Total team members</span>`;
