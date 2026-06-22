@@ -134,6 +134,41 @@
 .dv-col-sub{font-size:10.5px;color:#64748b;font-weight:600;margin-top:2px}
 .dv-fleet{display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 12px 12px;padding:9px;border:1.5px solid var(--c);border-radius:10px;color:var(--c);font-weight:700;font-size:12.5px;text-decoration:none;cursor:pointer}
 .dv-fleet:hover{background:var(--c);color:#fff}
+.obwrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:1120px;margin:0 auto}
+.ob-leads{display:flex;gap:14px;justify-content:center;margin:6px 0 4px;flex-wrap:wrap}
+.ob-mgr{align-self:stretch;text-align:center;font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#475569;margin:16px 0 8px;position:relative}
+.ob-mgr.ob-divider{margin-top:24px}
+.ob-mgr.ob-divider span{background:#f7f6f2;padding:0 12px;position:relative;z-index:1}
+.ob-mgr.ob-divider::before{content:'';position:absolute;left:8%;right:8%;top:50%;height:1px;background:#cbd5e1;z-index:0}
+.ob-band{align-self:stretch;display:flex;align-items:flex-start;gap:14px;background:#fff;border:1px solid #e6e4dc;border-left:4px solid var(--bc);border-radius:12px;padding:11px 14px;margin:6px 0}
+.ob-band.ob-sub{margin-left:46px;border-left-style:dashed}
+.ob-bh{flex:0 0 148px;display:flex;flex-direction:column;gap:4px}
+.ob-bname{font-weight:800;font-size:14px;color:#0f172a}
+.ob-subtag{font-weight:600;font-size:9.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.03em}
+.ob-bcount{font-size:11px;color:#fff;background:var(--bc);border-radius:999px;width:fit-content;min-width:22px;text-align:center;padding:1px 8px;font-weight:700}
+.ob-people{flex:1;display:flex;flex-wrap:wrap;gap:8px}
+.ob-chip{border:1px solid #e2e8f0;border-radius:9px;padding:6px 11px;min-width:128px;background:#fff;transition:border-color .12s,box-shadow .12s}
+.ob-chip:hover{border-color:var(--bc);box-shadow:0 3px 10px rgba(0,0,0,.08)}
+.ob-chip.lead{border-color:var(--bc);background:#f8fafc}
+.ob-nm{font-weight:700;font-size:12.5px;color:#0f172a}
+.ob-ti{font-size:11px;color:#64748b;margin-top:1px}
+#ppmodal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+#ppmodal.show{display:flex}
+.pp-box{background:#fff;border-radius:14px;min-width:300px;max-width:430px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.pp-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #eef0f2;font-size:16px;font-weight:700;color:#0f172a}
+.pp-x{border:0;background:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1}
+.pp-body{padding:8px 18px 18px}
+.pp-row{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid #f4f6f9;font-size:13.5px}
+.pp-row:last-child{border-bottom:0}
+.pp-row span{color:#64748b}.pp-row b{color:#0f172a;text-align:right;font-weight:600}
+.pp-empty{color:#94a3b8;font-size:13px;padding:10px 0}
+#orgToggle{cursor:pointer}
+.dv-side-lead{display:flex;justify-content:center;margin-bottom:4px}
+.dv-cols{overflow-x:auto;padding-bottom:8px;align-items:flex-start}
+.dv-side-cols{align-items:flex-start}
+#stats .stat.total{background:#EAF0FE;border-radius:9px;padding:2px 12px}
+#stats .stat.total b{color:#2563eb}
+
 .dv-side{display:flex;flex-direction:column;gap:10px}
 .dv-side-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;text-align:center;padding-bottom:2px}
 .dv-side-cols{display:flex;gap:16px;align-items:flex-start}
@@ -386,11 +421,10 @@
       <input id="q" type="text" placeholder="Search name, alias, or role…" autocomplete="off" spellcheck="false"/>
       <button class="clr" id="qclr" title="Clear">✕</button>
     </div>
-    <div class="seg" id="modeSeg" role="group" aria-label="Dataset">
-      <button class="seg-btn active" id="modeOrgBtn" title="Office organization">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2.5" width="6" height="5" rx="1"/><rect x="2.5" y="15" width="6" height="5" rx="1"/><rect x="15.5" y="15" width="6" height="5" rx="1"/><path d="M12 7.5V11M5.5 15v-2.5h13V15"/></svg>Organization</button>
-      <button class="seg-btn" id="modeCrewBtn" title="Field workforce / fleet">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6h12v9H1z"/><path d="M13 9h4l3 3v3h-7z"/><circle cx="6" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/></svg>Crew</button>
+    <div class="seg" id="orgFilterSeg" role="group" aria-label="Show">
+      <button class="seg-btn active" data-flt="all">All</button>
+      <button class="seg-btn" data-flt="bo">Back office</button>
+      <button class="seg-btn" data-flt="field">Field &amp; Crew</button>
     </div>
     <div class="seg hide" id="viewSeg" role="group" aria-label="Chart view">
       <button class="seg-btn" id="viewHybridBtn">Hybrid</button>
@@ -885,6 +919,7 @@ const ORG_COLUMNS = [
 function execCard(p, cls){
   const el=document.createElement('div'); el.className='dv-exec '+cls;
   el.innerHTML=`<div class="ava">${IC.person}</div><div><div class="dv-exec-name">${esc(p.name)}</div><div class="dv-exec-title">${esc(p.title)}</div></div>`;
+  el.style.cursor='pointer'; el.dataset.pi=PEOPLE.indexOf(p); el.onclick=function(){personPopup(p);};
   addRec(p, el, null, null, false);
   return el;
 }
@@ -895,6 +930,7 @@ function memberRow(person, isMgr, color){
   const aka=person.alias?`<div class="cmem-alias">aka ${esc(person.alias)}</div>`:'';
   const lead = isMgr ? `<div class="ava">${IC.person}</div>` : `<span class="cdot"></span>`;
   row.innerHTML=`${lead}<div class="cmem-txt"><div class="cmem-name">${esc(person.name)}</div>${aka}<div class="cmem-title">${esc(person.title)}</div></div>`;
+  row.style.cursor='pointer'; row.dataset.pi=PEOPLE.indexOf(person); row.onclick=function(e){e.stopPropagation();personPopup(person);};
   addRec(person, row, null, null, false);
   return row;
 }
@@ -919,7 +955,7 @@ function buildColumn(C, inCol){
       const block=document.createElement('div'); block.className='team'+(i>0?' team-gap':'');
       const roll = t.under?`<span class="team-roll">↳ under ${esc(C.teams[0].short||head&&firstName(head.name)||'')}</span>`:'';
       block.innerHTML=`<div class="team-label">${esc(t.label)}${roll}</div>`;
-      const mem=inCol.filter(p=>t.depts.includes(p.dept) && (!head||p.name!==head.name));
+      const mem=inCol.filter(p=>(!head||p.name!==head.name) && (t.test?t.test(p):(t.depts&&t.depts.indexOf(p.dept)>=0)));
       const rank=p=>{ const x=(p.title||'').toLowerCase(); if(x.includes('sales rep'))return 0; if(x.includes('shift'))return 2; if(x.includes('building'))return 3; return 1; };
       mem.sort((a,b)=>{ const la=mem.some(o=>(o.reportsTo||'').trim()===a.name)?1:0, lb=mem.some(o=>(o.reportsTo||'').trim()===b.name)?1:0; if(lb!==la)return lb-la; return rank(a)-rank(b); });
       let prev=-1;
@@ -949,44 +985,92 @@ function buildColumn(C, inCol){
   col.appendChild(body); return col;
 }
 function buildOrgColumns(host){
-  const wrap=document.createElement('div'); wrap.className='deptview';
-  const ceo=PEOPLE.find(p=>!(p.reportsTo||'').trim());
-  const coo=PEOPLE.find(p=>CO_LEADS.includes(p.name));
-  const leads=document.createElement('div'); leads.className='dv-leads';
-  if(ceo) leads.appendChild(execCard(ceo,'ceo'));
-  if(coo) leads.appendChild(execCard(coo,'coo'));
-  wrap.appendChild(leads);
-  const link=document.createElement('div'); link.className='dv-vlink'; wrap.appendChild(link);
-  const top = new Set([ceo&&ceo.name, coo&&coo.name].filter(Boolean));
-  const cols=document.createElement('div'); cols.className='dv-cols';
-  const build=C=>{ const inCol=PEOPLE.filter(p=>C.depts.includes(p.dept)&&!top.has(p.name)); return inCol.length?buildColumn(C,inCol):null; };
-  const mkSide=name=>{ const sd=document.createElement('div'); sd.className='dv-side'; sd.innerHTML=`<div class="dv-side-lbl">Managed by ${esc(name)}</div>`; const r=document.createElement('div'); r.className='dv-side-cols'; sd.appendChild(r); sd._row=r; return sd; };
-  const ceoSide=mkSide(ceo?firstName(ceo.name):'CEO'), cooSide=mkSide(coo?firstName(coo.name):'COO');
-  let stack=null;
-  ORG_COLUMNS.forEach(C=>{
-    const row=(C.side==='coo'?cooSide:ceoSide)._row;
-    if(C.stack){
-      if(!stack){ stack=document.createElement('div'); stack.className='dv-stack'; ceoSide._row.appendChild(stack); }
-      const b=build(C); if(b) stack.appendChild(b);
-      return;
-    }
-    const col=build(C); if(!col) return;
-    if(C.fleet){
-      const fleet=document.createElement('a'); fleet.className='dv-fleet'; fleet.href='#';
-      fleet.innerHTML='Fleet overview <span>→</span>';
-      fleet.addEventListener('click',e=>{ e.preventDefault(); setMode('crew'); });
-      col.appendChild(fleet);
-    }
-    row.appendChild(col);
-  });
-  cols.appendChild(ceoSide);
-  if(cooSide._row.children.length){ const dv=document.createElement('div'); dv.className='dv-divider'; cols.appendChild(dv); cols.appendChild(cooSide); }
-  wrap.appendChild(cols);
-  const foot=document.createElement('div'); foot.className='dv-foot';
-  foot.innerHTML=`<div class="ava">${IC.people}</div><b>${PEOPLE.length}</b><span>Total team members</span>`;
-  wrap.appendChild(foot);
-  host.appendChild(wrap);
+  const ceo=PEOPLE.find(function(p){return !(p.reportsTo||'').trim();});
+  const coo=PEOPLE.find(function(p){return CO_LEADS.includes(p.name);});
+  const top=new Set([ceo&&ceo.name,coo&&coo.name].filter(Boolean));
+  const build=function(C){ const inCol=PEOPLE.filter(function(p){return C.depts.indexOf(p.dept)>=0&&!top.has(p.name);}); return inCol.length?buildColumn(C,inCol):null; };
+  const row=document.createElement('div'); row.className='dv-cols';
+  const bo=document.createElement('div'); bo.className='dv-side'; bo.id='side-bo';
+  const bl=document.createElement('div'); bl.className='dv-side-lead'; if(ceo)bl.appendChild(execCard(ceo,'ceo')); bo.appendChild(bl);
+  bo.insertAdjacentHTML('beforeend','<div class="dv-side-lbl">Back office</div>');
+  const boc=document.createElement('div'); boc.className='dv-side-cols';
+  [{label:'Marketing',color:'#9333ea',icon:IC.megaphone,depts:['Marketing']},
+   {label:'Sales',color:'#2563eb',icon:IC.people,depts:['Sales','Customer Service'],teams:[{label:'Sales',test:function(p){return p.dept==='Sales'&&!/shift manager/i.test(p.title||'');},short:'Sales'},{label:'Shift Managers',test:function(p){return /shift manager/i.test(p.title||'');},under:true},{label:'Support',depts:['Customer Service'],under:true}]},
+   {label:'Finance',color:'#ea580c',icon:IC.pie,depts:['Finance']},
+   {label:'HR',color:'#e11d48',icon:IC.person,depts:['HR']},
+   {label:'Tech',color:'#0891b2',icon:IC.monitor,depts:['Systems','Data & Control']}
+  ].forEach(function(C){var col=build(C);if(col)boc.appendChild(col);});
+  bo.appendChild(boc); row.appendChild(bo);
+  var dv=document.createElement('div'); dv.className='dv-divider'; row.appendChild(dv);
+  const fs=document.createElement('div'); fs.className='dv-side'; fs.id='side-field';
+  const fl=document.createElement('div'); fl.className='dv-side-lead'; if(coo)fl.appendChild(execCard(coo,'coo')); fs.appendChild(fl);
+  fs.insertAdjacentHTML('beforeend','<div class="dv-side-lbl">Field &amp; Crew</div>');
+  const fc=document.createElement('div'); fc.className='dv-side-cols';
+  var disp=build({label:'Dispatch',color:'#16a34a',icon:IC.truck,depts:['Operations','Moving']}); if(disp)fc.appendChild(disp);
+  crewStateColumns().forEach(function(c){fc.appendChild(c);});
+  fs.appendChild(fc); row.appendChild(fs);
+  host.appendChild(row);
 }
+function crewStateColumns(){
+  const out=[];
+  const groups={}; CREW.forEach(function(c){ var k=baseKey(c.base); (groups[k]=groups[k]||[]).push(c); });
+  const cov=coverageByState();
+  const keys=Object.keys(groups).filter(function(k){return k!=='';}).sort(function(a,b){ const ia=CREW_LOC_ORDER.indexOf(a),ib=CREW_LOC_ORDER.indexOf(b); if(ia<0&&ib<0)return a.localeCompare(b); if(ia<0)return 1; if(ib<0)return -1; return ia-ib; });
+  keys.forEach(function(k){
+    const list=groups[k]; const foremen=list.filter(function(c){return crewLevel(c.role)==='foreman';});
+    const cc=crewCounts(list); const color=CREW_LOC[k]||'#64748b';
+    const canCover=cov[k]?cov[k].f:foremen.length; const visiting=Math.max(0,canCover-foremen.length);
+    const col=document.createElement('div'); col.className='cv-col'; col.style.setProperty('--c',color);
+    col.innerHTML='<div class="cv-col-head"><div class="cv-loc"><div class="cv-loc-icon">'+IC.pin+'</div><div><div class="cv-loc-name">'+esc(baseFull(k))+'</div><div class="cv-loc-sub">'+cc.total+' field staff</div></div></div><span class="cv-count">'+foremen.length+'</span></div>';
+    const avail=document.createElement('div'); avail.className='cv-avail';
+    avail.innerHTML='<div class="cv-avail-lbl">Max availability</div><div class="cv-avail-main"><b>'+foremen.length+'</b> '+(foremen.length===1?'crew':'crews')+' based here</div>'+(visiting?('<div class="cv-avail-cover"><b>'+canCover+'</b> can cover '+esc(baseFull(k))+' <span>· '+visiting+' can travel in</span></div>'):'')+'<div class="cv-avail-sup">Support pool: <b>'+cc.d+'</b> drivers · <b>'+cc.h+'</b> helpers</div>';
+    col.appendChild(avail);
+    const body=document.createElement('div'); body.className='cv-col-body';
+    if(foremen.length) foremen.forEach(function(c){body.appendChild(foremanCard(c));});
+    else { const none=document.createElement('div'); none.className='cv-none'; none.textContent='No foreman based here.'; body.appendChild(none); }
+    col.appendChild(body); out.push(col);
+  });
+  const homeSet=new Set(keys);
+  const COV_ONLY=Object.keys(cov).filter(function(st){return st&&!homeSet.has(st);}).sort(function(a,b){return ((cov[b]&&cov[b].f||0)-(cov[a]&&cov[a].f||0))||a.localeCompare(b);});
+  COV_ONLY.forEach(function(st){
+    const s=cov[st]; if(!s)return;
+    const color=CREW_LOC[st]||'#64748b'; const covF=coveringForemen(st);
+    const col=document.createElement('div'); col.className='cv-col cv-cov-col'; col.style.setProperty('--c',color);
+    col.innerHTML='<div class="cv-col-head"><div class="cv-loc"><div class="cv-loc-icon">'+IC.pin+'</div><div><div class="cv-loc-name">'+esc(STATE_NAME[st]||st)+'</div><div class="cv-loc-sub">coverage only</div></div></div><span class="cv-count">'+s.f+'</span></div>';
+    const avail=document.createElement('div'); avail.className='cv-avail'+(s.f?'':' zero');
+    avail.innerHTML=s.f?('<div class="cv-avail-lbl">Max availability</div><div class="cv-avail-main"><b>'+s.f+'</b> '+(s.f===1?'crew':'crews')+' can cover</div><div class="cv-avail-cover"><span>all travel in · no home base here</span></div><div class="cv-avail-sup">Reachable support: <b>'+s.d+'</b> drivers · <b>'+s.h+'</b> helpers</div>'):('<div class="cv-avail-lbl">Max availability</div><div class="cv-avail-main zero"><b>0</b> crews</div><div class="cv-avail-cover warn">No foreman can lead a job here</div>');
+    col.appendChild(avail);
+    const body=document.createElement('div'); body.className='cv-col-body';
+    if(covF.length) covF.forEach(function(c){body.appendChild(coverCard(c));});
+    else { const none=document.createElement('div'); none.className='cv-none'; none.textContent='No foreman can cover this state.'; body.appendChild(none); }
+    col.appendChild(body); out.push(col);
+  });
+  return out;
+}
+function personChip(p,color,isLead){
+  const el=document.createElement('div'); el.className='ob-chip'+(isLead?' lead':''); el.style.setProperty('--bc',color||'#64748b');
+  el.innerHTML='<div class="ob-nm">'+esc(p.name)+'</div><div class="ob-ti">'+esc(p.title||'')+(p.alias?' · '+esc(p.alias):'')+'</div>';
+  el.style.cursor='pointer'; el.dataset.pi=PEOPLE.indexOf(p); el.onclick=function(){personPopup(p);};
+  addRec(p,el,null,null,false);
+  return el;
+}
+function ppRows(pairs){return pairs.filter(function(x){return x[1]&&String(x[1]).trim();}).map(function(x){return '<div class="pp-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>';}).join('');}
+function personPopup(p){
+  const html=ppRows([['Position',p.title],['Department',p.dept],['Alias',p.alias],['Reports to',p.reportsTo],['Also reports to',p.alsoReportsTo],['Email',p.email],['Phone',p.phone]])||'<div class="pp-empty">No extra details yet — add Email / Phone columns to the Org Chart sheet and they will appear here.</div>';
+  showModal(p.name,html);
+}
+function crewPopup(c){
+  const html=ppRows([['Role',c.role],['Status',c.status],['Home base',baseFull(baseKey(c.base))],['Covers',c.states],['Nickname',c.nick],['Email',c.email],['Phone',c.phone]])||'<div class="pp-empty">No details.</div>';
+  showModal(((c.first||'')+' '+(c.last||'')).trim()||'Crew',html);
+}
+function showModal(title,html){
+  let m=document.getElementById('ppmodal');
+  if(!m){m=document.createElement('div');m.id='ppmodal';document.body.appendChild(m);m.addEventListener('click',function(e){if(e.target===m)m.style.display='none';});}
+  m.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px';
+  m.innerHTML='<div class="pp-box"><div class="pp-h"><b>'+esc(title)+'</b><button class="pp-x" id="ppx">✕</button></div><div class="pp-body">'+html+'</div></div>';
+  const x=document.getElementById('ppx'); if(x)x.addEventListener('click',function(){m.style.display='none';});
+}
+
 
 /* =====================================================================
    ====================  CREW VIEW (foremen-led, by base)  ============
@@ -1020,6 +1104,7 @@ function foremanCard(c){
   row.innerHTML=`<div class="crew-main"><div class="crew-name">${name||'—'}</div>${also}</div>`;
   records.push({ data:{name,alias:'',title:c.role||'',dept:''}, el:row, parent:null, collapseEl:null, hasKids:false,
     searchText:(name+' '+(c.role||'')+' foreman crew '+(c.base||'')+' '+(c.states||'')).toLowerCase() });
+  row.style.cursor='pointer'; row.dataset.ci=CREW.indexOf(c); row.onclick=function(){crewPopup(c);};
   return row;
 }
 /* foreman who can cover a non-base state — shown as "visiting" from their home base */
@@ -1030,6 +1115,7 @@ function coverCard(c){
     <div class="crew-also"><span class="ar">⤴</span> travels from ${esc(baseFull(baseKey(c.base)))}</div></div>`;
   records.push({ data:{name,alias:'',title:c.role||'',dept:''}, el:row, parent:null, collapseEl:null, hasKids:false,
     searchText:(name+' '+(c.role||'')+' foreman crew '+(c.base||'')+' '+(c.states||'')).toLowerCase() });
+  row.style.cursor='pointer'; row.dataset.ci=CREW.indexOf(c); row.onclick=function(){crewPopup(c);};
   return row;
 }
 function coveringForemen(state){
@@ -1038,7 +1124,7 @@ function coveringForemen(state){
 function buildCrewColumns(host){
   const wrap=document.createElement('div'); wrap.className='crewview';
   const banner=document.createElement('div'); banner.className='cv-banner';
-  banner.innerHTML=`<div class="ava">${IC.hard}</div><div><div class="cv-banner-name">Deployable Crews — by base state</div><div class="cv-banner-sub">A crew = one foreman · drivers &amp; helpers are the shared support pool · each person sits in their home state</div></div>`;
+  banner.innerHTML=`<div class="ava">${IC.hard}</div><div><div class="cv-banner-name">Deployable Crews</div><div class="cv-banner-sub">A crew = one foreman · drivers &amp; helpers are the shared support pool · each person sits in their home state</div></div>`;
   wrap.appendChild(banner);
   const groups={}; CREW.forEach(c=>{ (groups[baseKey(c.base)] ||= []).push(c); });
   const cov=coverageByState();
@@ -1319,36 +1405,35 @@ document.getElementById('copyBtn').addEventListener('click',async()=>{
 /* ----- render + mode switching ----- */
 const subEl=document.getElementById('sub'), zoomGroup=document.getElementById('zoomGroup');
 const statsLine=document.getElementById('stats');
-const modeOrgBtn=document.getElementById('modeOrgBtn'), modeCrewBtn=document.getElementById('modeCrewBtn');
+/* mode buttons replaced by #orgToggle */
 /* the three tree views (hybrid / outline / left-right) are kept in the code but
    hidden for now — flip USE_TREE_VIEWS to true and unhide #viewSeg to bring them back. */
-function setMode(m){ if(m===mode) return; mode=m; render(); }
-modeOrgBtn.addEventListener('click',()=>setMode('org'));
-modeCrewBtn.addEventListener('click',()=>setMode('crew'));
+let orgFilter='all';
+function applyOrgFilter(){const bo=document.getElementById('side-bo'),fs=document.getElementById('side-field'),dv=document.querySelector('.dv-cols .dv-divider');if(bo)bo.style.display=(orgFilter==='field')?'none':'';if(fs)fs.style.display=(orgFilter==='bo')?'none':'';if(dv)dv.style.display=(orgFilter==='all')?'':'none';}
+(function(){const seg=document.getElementById('orgFilterSeg');if(seg)seg.addEventListener('click',function(e){const b=e.target.closest('[data-flt]');if(!b)return;orgFilter=b.dataset.flt;Array.prototype.forEach.call(seg.querySelectorAll('.seg-btn'),function(x){x.classList.toggle('active',x===b);});applyOrgFilter();});})();
+document.addEventListener('click',function(e){var op=e.target.closest('[data-pi]');if(op){personPopup(PEOPLE[+op.dataset.pi]);return;}var oc=e.target.closest('[data-ci]');if(oc){crewPopup(CREW[+oc.dataset.ci]);}});
 
 function render(){
   ORG=buildTree(PEOPLE); rebuildMatrix(); rebuildDeptColors();
   records.length=0;
   const host=document.getElementById('tree'); host.innerHTML='';
-  if(mode==='crew') buildCrewColumns(host); else buildOrgColumns(host);
+  buildOrgColumns(host);
   buildStatsLegend();
   q.value=''; qclr.style.display='none'; activeDept=null; deactivateChips(); clearStates();
-  modeOrgBtn.classList.toggle('active', mode==='org');
-  modeCrewBtn.classList.toggle('active', mode==='crew');
-  subEl.textContent = mode==='crew'
-    ? 'Deployable crews · one foreman leads each crew · drivers & helpers in support'
-    : 'Office organization · departments under the CEO & COO';
+  subEl.textContent='Click any person for contact details';
+  applyOrgFilter();
   zoomGroup.classList.remove('hide');
   fit();
 }
 function buildStatsLegend(){
-  if(mode==='crew'){
-    const f=CREW.filter(c=>crewLevel(c.role)==='foreman').length;
-    statsLine.innerHTML=`<div class="stat"><b>${f}</b><span>Crews</span></div><div class="stat"><b>${CREW.length}</b><span>Field staff</span></div>`;
-  } else {
-    const mgr=new Set(); PEOPLE.forEach(p=>{ const r=(p.reportsTo||'').trim(); if(r) mgr.add(r); });
-    statsLine.innerHTML=`<div class="stat"><b>${PEOPLE.length}</b><span>People</span></div><div class="stat"><b>${mgr.size}</b><span>Managers</span></div>`;
-  }
+  const mgr=new Set(); PEOPLE.forEach(p=>{ const r=(p.reportsTo||'').trim(); if(r) mgr.add(r); });
+  const depts=new Set(PEOPLE.map(p=>p.dept).filter(Boolean));
+  const fm=CREW.filter(c=>crewLevel(c.role)==='foreman').length;
+  const ops=['Operations','Moving'];
+  const back=PEOPLE.filter(p=>ops.indexOf(p.dept)<0 && !CO_LEADS.includes(p.name)).length;
+  const fleet=(PEOPLE.length-back)+CREW.length;
+  const total=PEOPLE.length+CREW.length;
+  statsLine.innerHTML=`<div class="stat total"><b>${total}</b><span>Total — everyone</span></div><div class="stat"><b>${back}</b><span>Back office</span></div><div class="stat"><b>${fleet}</b><span>Fleet</span></div><div class="stat"><b>${fm}</b><span>Foremen</span></div><div class="stat"><b>${mgr.size}</b><span>Managers</span></div><div class="stat"><b>${depts.size}</b><span>Departments</span></div>`;
 }
 let rT=null;
 window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(fit,160); });
@@ -1377,12 +1462,12 @@ async function reloadFromSheet(){
     const [p,c] = await Promise.all([ loadSheetTab(ORG_SHEET.org), loadSheetTab(ORG_SHEET.crew) ]);
     let changed=false;
     if(p && p.length){
-      const np=p.map(r=>({name:(r['Name']||'').trim(),alias:(r['Alias']||'').trim(),title:(r['Title']||'').trim(),dept:(r['Department']||'').trim(),reportsTo:(r['Reports To']||'').trim(),alsoReportsTo:(r['Also Reports To']||'').trim()})).filter(x=>x.name);
+      const np=p.map(r=>({name:(r['Name']||'').trim(),alias:(r['Alias']||'').trim(),title:(r['Title']||'').trim(),dept:(r['Department']||'').trim(),reportsTo:(r['Reports To']||'').trim(),alsoReportsTo:(r['Also Reports To']||'').trim(),email:pick(r,['Email','Primary Email','E-mail']),phone:pick(r,['Phone','Phone Number','Cell','Mobile'])})).filter(x=>x.name);
       if(np.length){ PEOPLE=np; changed=true; }
     }
     if(c && c.length){
       const emb={}; CREW.forEach(x=>{ emb[((x.first||'')+' '+(x.last||'')).toLowerCase().trim()]=x.states||''; });
-      const nc=c.map(r=>({first:pick(r,['First Name','First']),last:pick(r,['Last Name','Last']),role:pick(r,['Main Role','Role','Roles','Position']),status:pick(r,['Status']),base:pick(r,['Base','Base Location']),states:pick(r,['States','List of States they can work','Coverage'])})).filter(x=>(x.first||x.last)&&['cancelled','potential'].indexOf(String(x.status||'').trim().toLowerCase())<0);
+      const nc=c.map(r=>({first:pick(r,['First Name','First']),last:pick(r,['Last Name','Last']),role:pick(r,['Main Role','Role','Roles','Position']),status:pick(r,['Status']),base:pick(r,['Base','Base Location']),states:pick(r,['States','List of States they can work','Coverage']),email:pick(r,['Primary Email','Email']),phone:pick(r,['Phone','Phone Number','Cell']),nick:pick(r,['Nickname','Nick'])})).filter(x=>(x.first||x.last)&&['cancelled','potential'].indexOf(String(x.status||'').trim().toLowerCase())<0);
       nc.forEach(x=>{ if(!x.states){ const v=emb[((x.first||'')+' '+(x.last||'')).toLowerCase().trim()]; if(v) x.states=v; } });
       if(nc.length){ CREW=nc; changed=true; }
     }
