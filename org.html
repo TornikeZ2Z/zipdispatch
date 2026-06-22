@@ -168,6 +168,12 @@
 .dv-side-cols{align-items:flex-start}
 #stats .stat.total{background:#EAF0FE;border-radius:9px;padding:2px 12px}
 #stats .stat.total b{color:#2563eb}
+.dv-chain{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:14px;position:relative}
+.dv-chain::before{content:'';position:absolute;top:-14px;left:50%;width:2px;height:14px;background:#cbd5e1}
+.dv-chainrow{position:relative;background:#fff;border:1px solid #e6e4dc;border-left:4px solid var(--bc);border-radius:10px;padding:8px 18px;min-width:210px;text-align:center;cursor:pointer}
+.dv-chainrow:not(:first-child)::before{content:'';position:absolute;top:-14px;left:50%;width:2px;height:14px;background:#cbd5e1}
+.dv-chainrow:hover{box-shadow:0 3px 10px rgba(0,0,0,.08)}
+.dc-nm{font-weight:700;font-size:13px;color:#0f172a}.dc-ti{font-size:11px;color:#64748b}
 
 .dv-side{display:flex;flex-direction:column;gap:10px}
 .dv-side-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;text-align:center;padding-bottom:2px}
@@ -995,7 +1001,7 @@ function buildOrgColumns(host){
   bo.insertAdjacentHTML('beforeend','<div class="dv-side-lbl">Back office</div>');
   const boc=document.createElement('div'); boc.className='dv-side-cols';
   [{label:'Marketing',color:'#9333ea',icon:IC.megaphone,depts:['Marketing']},
-   {label:'Sales',color:'#2563eb',icon:IC.people,depts:['Sales','Customer Service'],teams:[{label:'Sales',test:function(p){return p.dept==='Sales'&&!/shift manager/i.test(p.title||'');},short:'Sales'},{label:'Shift Managers',test:function(p){return /shift manager/i.test(p.title||'');},under:true},{label:'Support',depts:['Customer Service'],under:true}]},
+   {label:'Sales & Support',color:'#2563eb',icon:IC.people,depts:['Sales','Customer Service'],teams:[{label:'Sales',test:function(p){return p.dept==='Sales'&&!/shift manager/i.test(p.title||'');},short:'Sales'},{label:'Shift Managers',test:function(p){return /shift manager/i.test(p.title||'');},under:true},{label:'Support',depts:['Customer Service'],under:true}]},
    {label:'Finance',color:'#ea580c',icon:IC.pie,depts:['Finance']},
    {label:'HR',color:'#e11d48',icon:IC.person,depts:['HR']},
    {label:'Tech',color:'#0891b2',icon:IC.monitor,depts:['Systems','Data & Control']}
@@ -1004,12 +1010,28 @@ function buildOrgColumns(host){
   var dv=document.createElement('div'); dv.className='dv-divider'; row.appendChild(dv);
   const fs=document.createElement('div'); fs.className='dv-side'; fs.id='side-field';
   const fl=document.createElement('div'); fl.className='dv-side-lead'; if(coo)fl.appendChild(execCard(coo,'coo')); fs.appendChild(fl);
-  fs.insertAdjacentHTML('beforeend','<div class="dv-side-lbl">Field &amp; Crew</div>');
+  var ops=PEOPLE.filter(function(p){return ['Operations','Moving'].indexOf(p.dept)>=0&&!top.has(p.name);});
+  if(ops.length){
+    var onames=new Set(ops.map(function(p){return p.name;})); var ordered=[],seen={};
+    function walk(p){ if(seen[p.name])return; seen[p.name]=1; ordered.push(p); ops.filter(function(q){return (q.reportsTo||'').trim()===p.name;}).forEach(walk); }
+    ops.filter(function(p){return !onames.has((p.reportsTo||'').trim());}).forEach(walk);
+    ops.forEach(function(p){if(!seen[p.name])walk(p);});
+    var chain=document.createElement('div'); chain.className='dv-chain';
+    ordered.forEach(function(p){ chain.appendChild(dispatchCard(p)); });
+    fs.appendChild(chain);
+  }
+  fs.insertAdjacentHTML('beforeend','<div class="dv-side-lbl">Field &amp; Crew — by state</div>');
   const fc=document.createElement('div'); fc.className='dv-side-cols';
-  var disp=build({label:'Dispatch',color:'#16a34a',icon:IC.truck,depts:['Operations','Moving']}); if(disp)fc.appendChild(disp);
   crewStateColumns().forEach(function(c){fc.appendChild(c);});
   fs.appendChild(fc); row.appendChild(fs);
   host.appendChild(row);
+}
+function dispatchCard(p){
+  var el=document.createElement('div'); el.className='dv-chainrow'; el.style.setProperty('--bc','#16a34a');
+  el.innerHTML='<div class="dc-nm">'+esc(p.name)+'</div><div class="dc-ti">'+esc(p.title||'')+'</div>';
+  el.style.cursor='pointer'; el.dataset.pi=PEOPLE.indexOf(p); el.onclick=function(){personPopup(p);};
+  addRec(p,el,null,null,false);
+  return el;
 }
 function crewStateColumns(){
   const out=[];
@@ -1253,7 +1275,7 @@ function fit(){
 viewport.addEventListener('wheel',e=>{ if(e.ctrlKey||e.metaKey){ e.preventDefault(); setZoom(zoom+(e.deltaY<0?0.08:-0.08)); } },{passive:false});
 let panning=false,sx=0,sy=0,sl=0,st=0;
 viewport.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.node')||e.target.closest('.rrow')) return;
+  if(e.target.closest('.node')||e.target.closest('.rrow')||e.target.closest('[data-pi]')||e.target.closest('[data-ci]')||e.target.closest('.pp-box')) return;
   panning=true; viewport.classList.add('grabbing');
   sx=e.clientX; sy=e.clientY; sl=viewport.scrollLeft; st=viewport.scrollTop; viewport.setPointerCapture(e.pointerId);
 });
@@ -1433,7 +1455,7 @@ function buildStatsLegend(){
   const back=PEOPLE.filter(p=>ops.indexOf(p.dept)<0 && !CO_LEADS.includes(p.name)).length;
   const fleet=(PEOPLE.length-back)+CREW.length;
   const total=PEOPLE.length+CREW.length;
-  statsLine.innerHTML=`<div class="stat total"><b>${total}</b><span>Total — everyone</span></div><div class="stat"><b>${back}</b><span>Back office</span></div><div class="stat"><b>${fleet}</b><span>Fleet</span></div><div class="stat"><b>${fm}</b><span>Foremen</span></div><div class="stat"><b>${mgr.size}</b><span>Managers</span></div><div class="stat"><b>${depts.size}</b><span>Departments</span></div>`;
+  statsLine.innerHTML=`<div class="stat total"><b>${total}</b><span>Total — everyone</span></div><div class="stat"><b>${depts.size}</b><span>Departments</span></div><div class="stat"><b>${mgr.size}</b><span>Managers</span></div><div class="stat"><b>${back}</b><span>Back office</span></div><div class="stat"><b>${fleet}</b><span>Fleet</span></div><div class="stat"><b>${fm}</b><span>Foremen</span></div>`;
 }
 let rT=null;
 window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(fit,160); });
