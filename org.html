@@ -128,6 +128,12 @@
   .dv-exec-name{font-weight:800;font-size:16px;letter-spacing:.01em}
   .dv-exec-title{font-size:11.5px;opacity:.9;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
   .dv-vlink{width:2px;height:20px;background:var(--line)}
+.dv-leads{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.dv-stack{display:flex;flex-direction:column;gap:16px}
+.dv-stack .dv-col::before{display:none}
+.dv-col-sub{font-size:10.5px;color:#64748b;font-weight:600;margin-top:2px}
+.dv-fleet{display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 12px 12px;padding:9px;border:1.5px solid var(--c);border-radius:10px;color:var(--c);font-weight:700;font-size:12.5px;text-decoration:none;cursor:pointer}
+.dv-fleet:hover{background:var(--c);color:#fff}
   .dv-cols,.cv-cols{position:relative;display:flex;gap:16px;align-items:flex-start;padding-top:22px}
   .dv-cols::before{content:'';position:absolute;top:0;left:132px;right:132px;height:2px;background:var(--line)}
   .dv-col{position:relative;width:272px;background:#fff;border:1px solid var(--card-border);border-top:4px solid var(--c);
@@ -858,13 +864,13 @@ const IC = {
 };
 /* office-org super-departments → which granular depts feed each column */
 const ORG_COLUMNS = [
-  { label:'Marketing',                 color:'#9333ea', icon:IC.megaphone, depts:['Marketing'] },
-  { label:'Sales & Customer Support',  color:'#2563eb', icon:IC.people,    depts:['Sales','Customer Service'],
-    teams:[ {label:'Sales Team', depts:['Sales'], short:'Sales'},
-            {label:'Support Team', depts:['Customer Service'], under:true} ] },
-  { label:'Operations & Dispatch',     color:'#16a34a', icon:IC.truck,     depts:['Operations','Moving'] },
-  { label:'Finance & HR',              color:'#ea580c', icon:IC.pie,       depts:['Finance','HR'] },
-  { label:'Technology & Data',         color:'#0891b2', icon:IC.monitor,   depts:['Systems','Data & Control'] }
+  { label:'Marketing', color:'#9333ea', icon:IC.megaphone, depts:['Marketing'] },
+  { label:'Sales', color:'#2563eb', icon:IC.people, depts:['Sales'] },
+  { label:'Support', color:'#0d9488', icon:IC.people, depts:['Customer Service'], note:'reports to Sales', stack:true },
+  { label:'Finance', color:'#ea580c', icon:IC.pie, depts:['Finance'], stack:true },
+  { label:'HR', color:'#e11d48', icon:IC.person, depts:['HR'], stack:true },
+  { label:'Tech', color:'#0891b2', icon:IC.monitor, depts:['Systems','Data & Control'], stack:true },
+  { label:'Operations & Dispatch', color:'#16a34a', icon:IC.truck, depts:['Operations','Moving'], fleet:true }
 ];
 
 function execCard(p, cls){
@@ -892,7 +898,7 @@ function colNode(person, inCol, color){
 }
 function buildColumn(C, inCol){
   const col=document.createElement('div'); col.className='dv-col'; col.style.setProperty('--c',C.color);
-  col.innerHTML=`<div class="dv-col-head"><div class="dv-col-icon">${C.icon}</div><div class="dv-col-title">${esc(C.label)}</div></div>`;
+  col.innerHTML=`<div class="dv-col-head"><div class="dv-col-icon">${C.icon}</div><div><div class="dv-col-title">${esc(C.label)}</div>${C.note?`<div class="dv-col-sub">↳ ${esc(C.note)}</div>`:''}</div></div>`;
   const body=document.createElement('div'); body.className='dv-col-body';
   const names=new Set(inCol.map(p=>p.name));
   const heads = inCol.filter(p=>!names.has((p.reportsTo||'').trim()));
@@ -921,15 +927,29 @@ function buildOrgColumns(host){
   const wrap=document.createElement('div'); wrap.className='deptview';
   const ceo=PEOPLE.find(p=>!(p.reportsTo||'').trim());
   const coo=PEOPLE.find(p=>CO_LEADS.includes(p.name));
-  if(ceo) wrap.appendChild(execCard(ceo,'ceo'));
-  if(coo){ const l=document.createElement('div'); l.className='dv-vlink'; wrap.appendChild(l); wrap.appendChild(execCard(coo,'coo')); }
+  const leads=document.createElement('div'); leads.className='dv-leads';
+  if(ceo) leads.appendChild(execCard(ceo,'ceo'));
+  if(coo) leads.appendChild(execCard(coo,'coo'));
+  wrap.appendChild(leads);
   const link=document.createElement('div'); link.className='dv-vlink'; wrap.appendChild(link);
   const top = new Set([ceo&&ceo.name, coo&&coo.name].filter(Boolean));
   const cols=document.createElement('div'); cols.className='dv-cols';
+  const build=C=>{ const inCol=PEOPLE.filter(p=>C.depts.includes(p.dept)&&!top.has(p.name)); return inCol.length?buildColumn(C,inCol):null; };
+  let stack=null;
   ORG_COLUMNS.forEach(C=>{
-    const inCol = PEOPLE.filter(p=>C.depts.includes(p.dept) && !top.has(p.name));
-    if(!inCol.length) return;
-    cols.appendChild(buildColumn(C, inCol));
+    if(C.stack){
+      if(!stack){ stack=document.createElement('div'); stack.className='dv-stack'; cols.appendChild(stack); }
+      const b=build(C); if(b) stack.appendChild(b);
+      return;
+    }
+    const col=build(C); if(!col) return;
+    if(C.fleet){
+      const fleet=document.createElement('a'); fleet.className='dv-fleet'; fleet.href='#';
+      fleet.innerHTML='Fleet overview <span>→</span>';
+      fleet.addEventListener('click',e=>{ e.preventDefault(); setMode('crew'); });
+      col.appendChild(fleet);
+    }
+    cols.appendChild(col);
   });
   wrap.appendChild(cols);
   const foot=document.createElement('div'); foot.className='dv-foot';
@@ -1018,7 +1038,8 @@ function buildCrewColumns(host){
     col.appendChild(body); cols.appendChild(col);
   });
   /* coverage-only columns — states with no home base (who can travel in to cover them) */
-  const COV_ONLY=['MA'];
+  const homeSet=new Set(keys);
+  const COV_ONLY=Object.keys(cov).filter(st=>st&&!homeSet.has(st)).sort((a,b)=>((cov[b]&&cov[b].f||0)-(cov[a]&&cov[a].f||0))||a.localeCompare(b));
   COV_ONLY.forEach(st=>{
     const s=cov[st]; if(!s) return;
     const color=CREW_LOC[st]||'#64748b'; const covF=coveringForemen(st);
