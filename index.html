@@ -33,7 +33,7 @@
     letter-spacing:.06em; text-transform:uppercase; line-height:1; margin:0 0 9px;
   }
   .sub{ color:var(--dim); font-size:15px; letter-spacing:.01em; }
-  .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
   @media (max-width:820px){ .grid{ grid-template-columns:1fr 1fr; } }
   @media (max-width:560px){ .grid{ grid-template-columns:1fr; } }
   .card{
@@ -61,6 +61,7 @@
   .c-cleanup{ --accent:var(--travel); --accent-bg:var(--travel-bg); --accent-bd:var(--travel-bd); }
   .c-longdistance{ --accent:var(--ld); --accent-bg:var(--ld-bg); --accent-bd:var(--ld-bd); }
   .c-org{ --accent:#4f46e5; --accent-bg:#EEF2FF; --accent-bd:#C7D2FE; }
+  .c-packing{ --accent:#B26B0B; --accent-bg:#FBF1DC; --accent-bd:#E9D08A; }
   .foot{ text-align:center; color:var(--faint); font-size:12.5px; margin-top:32px; letter-spacing:.03em; }
   @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 </style>
@@ -107,6 +108,14 @@
         </div>
         <div class="ttl">Organization Chart</div>
         <div class="desc">Company structure — who reports to whom across departments, plus the field crew by base and coverage.</div>
+        <div class="go">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></div>
+      </a>
+      <a class="card c-packing" href="packing.html">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+        </div>
+        <div class="ttl">Packing Materials Control</div>
+        <div class="desc">Who sells what packing — per-foreman analytics and outlier flags for local moving jobs.</div>
         <div class="go">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></div>
       </a>
     </div>
