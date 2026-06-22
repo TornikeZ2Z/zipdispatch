@@ -1078,11 +1078,11 @@ function personChip(p,color,isLead){
 }
 function ppRows(pairs){return pairs.filter(function(x){return x[1]&&String(x[1]).trim();}).map(function(x){return '<div class="pp-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>';}).join('');}
 function personPopup(p){
-  const html=ppRows([['Position',p.title],['Department',p.dept],['Alias',p.alias],['Reports to',p.reportsTo],['Also reports to',p.alsoReportsTo],['Email',p.email],['Phone',p.phone]])||'<div class="pp-empty">No extra details yet — add Email / Phone columns to the Org Chart sheet and they will appear here.</div>';
+  const html=ppRows([['Position',p.title],['Department',p.dept],['Alias',p.alias],['Reports to',p.reportsTo],['Also reports to',p.alsoReportsTo],['Email',p.email]])||'<div class="pp-empty">No extra details yet — add an Email column to the Org Chart sheet and it will appear here.</div>';
   showModal(p.name,html);
 }
 function crewPopup(c){
-  const html=ppRows([['Role',c.role],['Status',c.status],['Home base',baseFull(baseKey(c.base))],['Covers',c.states],['Nickname',c.nick],['Email',c.email],['Phone',c.phone]])||'<div class="pp-empty">No details.</div>';
+  const html=ppRows([['Role',c.role],['Status',c.status],['Home base',baseFull(baseKey(c.base))],['Covers',c.states],['Email',c.email]])||'<div class="pp-empty">No details.</div>';
   showModal(((c.first||'')+' '+(c.last||'')).trim()||'Crew',html);
 }
 function showModal(title,html){
