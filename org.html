@@ -212,7 +212,7 @@
   .cv-avail-cover{font-size:11.5px;color:#475569;margin-top:3px}.cv-avail-cover b{color:#0f172a}.cv-avail-cover span{color:#94a3b8}
   .cv-avail-sup{font-size:11px;color:#64748b;margin-top:6px;padding-top:6px;border-top:1px dashed color-mix(in srgb,var(--c) 25%,#fff)}.cv-avail-sup b{color:#334155}
   /* coverage-only columns (no home base) */
-  .cv-cov-col{width:212px;border-top-style:dashed}
+  .cv-cov-col{width:300px;border-top-style:dashed}
   .cv-cov-col .cv-loc-sub{color:var(--c);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:9.5px}
   .cv-avail.zero{background:#fff1f2;border-color:#fecdd3}
   .cv-avail-main.zero b{color:#dc2626}
@@ -1302,7 +1302,7 @@ function buildStatsLegend(){
 let rT=null;
 window.addEventListener('resize',()=>{ clearTimeout(rT); rT=setTimeout(fit,160); });
 const ORG_SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
-const ORG_SHEET={org:'Org Chart',crew:'Crew'};
+const ORG_SHEET={org:'Org Chart',crew:'Crew Members'};
 function orgParseCSV(t){
   const rows=[];let row=[],cur='',q=false;
   for(let i=0;i<t.length;i++){const ch=t[i];
@@ -1312,6 +1312,7 @@ function orgParseCSV(t){
   if(cur!==''||row.length){row.push(cur);rows.push(row);}
   return rows;
 }
+function pick(r,ks){for(var i=0;i<ks.length;i++){var v=r[ks[i]];if(v!=null&&String(v).trim()!=='')return String(v).trim();}return '';}
 async function loadSheetTab(name){
   const url='https://docs.google.com/spreadsheets/d/'+ORG_SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(name)+'&_t='+Date.now();
   let txt; try{ const r=await fetch(url); if(!r.ok)return null; txt=await r.text(); }catch(e){ return null; }
@@ -1320,11 +1321,7 @@ async function loadSheetTab(name){
   const H=rows[0].map(h=>String(h).trim());
   return rows.slice(1).map(cols=>{const o={};H.forEach((h,j)=>o[h]=(cols[j]!=null?String(cols[j]).trim():''));return o;});
 }
-async function boot(){
-  /* Paint the embedded data immediately so the chart is NEVER blank — even if the
-     artifact's persistent storage is slow, missing, or blocked. Then fold in any
-     saved data afterward (with a timeout so a stalled storage call can't hang us). */
-  try{ render(); }catch(e){ console.error('initial render failed', e); }
+async function reloadFromSheet(){
   try{
     const [p,c] = await Promise.all([ loadSheetTab(ORG_SHEET.org), loadSheetTab(ORG_SHEET.crew) ]);
     let changed=false;
@@ -1334,13 +1331,21 @@ async function boot(){
     }
     if(c && c.length){
       const emb={}; CREW.forEach(x=>{ emb[((x.first||'')+' '+(x.last||'')).toLowerCase().trim()]=x.states||''; });
-      const nc=c.map(r=>({first:(r['First Name']||'').trim(),last:(r['Last Name']||'').trim(),role:(r['Role']||'').trim(),status:(r['Status']||'').trim(),base:(r['Base']||'').trim(),states:(r['States']||'').trim()})).filter(x=>x.first||x.last);
+      const nc=c.map(r=>({first:pick(r,['First Name','First']),last:pick(r,['Last Name','Last']),role:pick(r,['Main Role','Role','Roles','Position']),status:pick(r,['Status']),base:pick(r,['Base','Base Location']),states:pick(r,['States','List of States they can work','Coverage'])})).filter(x=>(x.first||x.last)&&String(x.status||'').trim().toLowerCase()!=='cancelled');
       nc.forEach(x=>{ if(!x.states){ const v=emb[((x.first||'')+' '+(x.last||'')).toLowerCase().trim()]; if(v) x.states=v; } });
       if(nc.length){ CREW=nc; changed=true; }
     }
     if(changed) render();
   }catch(e){ console.error('sheet load failed — showing embedded data', e); }
 }
+let _orgLastReload=0;
+function reloadIfStale(){ const n=Date.now(); if(n-_orgLastReload<10000)return; _orgLastReload=n; reloadFromSheet(); }
+async function boot(){
+  try{ render(); }catch(e){ console.error('initial render failed', e); }
+  _orgLastReload=Date.now(); await reloadFromSheet();
+}
+document.addEventListener('visibilitychange',function(){ if(!document.hidden) reloadIfStale(); });
+window.addEventListener('focus', reloadIfStale);
 boot();
 </script>
 </body>
