@@ -72,7 +72,6 @@ tbody tr:hover{background:var(--soft)}
   <div class="htxt"><h1>Photo Shoot List</h1><div class="sub">Upcoming local jobs &ge; 1,000 &middot; up to 50 mi from 11223</div></div>
   <span class="spacer"></span>
   <span class="stamp" id="stamp"></span>
-  <button class="btn" id="refresh">Refresh</button>
 </div></div>
 <div class="wrap">
   <div class="filters">
@@ -81,7 +80,7 @@ tbody tr:hover{background:var(--soft)}
       <div class="fl"><label>From ZIP</label><input id="fZip" type="text" value="11223"></div>
       <div class="fl"><label>Miles</label><div class="pair"><input id="fMin" type="number" value="0" step="1"><span>to</span><input id="fMax" type="number" value="50" step="1"></div></div>
       <div class="fl"><label>Dates</label><div class="pair"><input id="fFrom" type="date"><span>to</span><input id="fTo" type="date"></div></div>
-      <div class="count"><b id="cnt">0</b><span>jobs to shoot</span></div>
+      <div class="count"><b id="cnt">0</b><span>Total Jobs</span></div>
     </div>
     <div class="frow"><span class="flbl">Pickup state</span><div id="puChips" class="chiprow"></div></div>
     <div class="frow"><span class="flbl">Delivery state</span><div id="delChips" class="chiprow"></div></div>
@@ -130,7 +129,7 @@ function loadSheet(){
         pickup:(r[iLoc]||'').trim()||L['moving from']||'',deliv:(L['moving to']||'').trim(),
         cf:calNumV(L['total cf'])||0,mt:((r[iMT]||'').trim()||L['moving type']||''),eventId:(r[iEid]||'').trim()}));
     });
-    JOBS=out;STAMP=out.length+' jobs · updated '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});finishLoad();
+    JOBS=out;STAMP='updated '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});finishLoad();
   }).catch(function(e){toast('⚠ Could not read the sheet: '+e.message);$('#stamp').textContent='Sheet read failed';});
 }
 function finishLoad(){puSel.clear();delSel.clear();buildChips();render();}
@@ -187,7 +186,6 @@ function render(){
   out.innerHTML='<div class="tbl"><table><thead><tr><th>Date</th><th>Job Code</th><th>Request #</th><th>Pickup (home)</th><th>Route</th><th>Type</th><th class="r">Size</th><th class="r">Distance</th><th class="c">Event</th></tr></thead><tbody>'+body+'</tbody></table></div>';
 }
 ['fCF','fZip','fMin','fMax','fFrom','fTo'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('input',render);});
-$('#refresh').addEventListener('click',loadSheet);
 loadSheet();
 </script>
 </body>
