@@ -101,7 +101,7 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 <body>
 <div class="bar"><div class="bar-in">
   <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
-  <div class="htxt"><h1>Production Calendar</h1><div class="sub">Local jobs &middot; nearest first &middot; foreman shown for today &amp; tomorrow</div></div>
+  <div class="htxt"><h1>Production Calendar</h1><div class="sub">Zip to Zip &middot; local jobs &middot; nearest first &middot; foreman for today &amp; tomorrow</div></div>
 </div></div>
 <div class="wrap">
   <div class="filters">
@@ -137,6 +137,8 @@ function calNumV(s){var m=String(s==null?'':s).replace(/[^0-9.\-]/g,'');var v=pa
 function calEventLink(eid){eid=String(eid||'').split('@')[0];if(!eid)return '';try{var b=btoa(eid+' '+GCAL_ID).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');return 'https://calendar.google.com/calendar/u/0/r/eventedit/'+b;}catch(e){return 'https://calendar.google.com/calendar/u/0/r';}}
 function mapsLink(a){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a||'');}
 function telHref(p){var d=String(p||'').replace(/\D/g,'');if(d.length===10)d='1'+d;return d?('tel:+'+d):'';}
+function normEmail(s){s=String(s||'');var m=s.match(/<([^>]+)>/);if(m)s=m[1];return s.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\s]/g,'').toLowerCase();}
+function cleanPhone(p){return String(p||'').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\s+/g,' ').trim();}
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function isoLocal(dt){return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2);}
@@ -154,7 +156,7 @@ function loadCrew(){
     var rows=pcsv(t);if(rows.length<2)return;
     var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});
     var iE=H.indexOf('primary email'),iP=H.indexOf('phone'),iF=H.indexOf('first name'),iL=H.indexOf('last name');
-    rows.slice(1).forEach(function(r){var e=(iE>=0?(r[iE]||''):'').trim().toLowerCase();if(!e)return;var nm=((iF>=0?(r[iF]||''):'')+' '+(iL>=0?(r[iL]||''):'')).replace(/\s+/g,' ').trim();CREW[e]={name:nm,phone:(iP>=0?(r[iP]||''):'').trim()};});
+    rows.slice(1).forEach(function(r){var e=normEmail(iE>=0?(r[iE]||''):'');if(!e)return;var nm=((iF>=0?(r[iF]||''):'')+' '+(iL>=0?(r[iL]||''):'')).replace(/\s+/g,' ').trim();CREW[e]={name:nm,phone:(iP>=0?(r[iP]||''):'').trim()};});
   }).catch(function(){});
 }
 function loadSheet(){
@@ -163,13 +165,14 @@ function loadSheet(){
     var rows=pcsv(t);if(rows.length<2){JOBS=[];return;}
     var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});
     function ci(n){return H.indexOf(n);}
-    var iLoc=ci('location'),iDesc=ci('description'),iDate=ci('event date'),iTitle=ci('event title'),iEid=ci('event id'),iMT=ci('moving type'),iStat=ci('entry status'),iFReq=ci('final request #'),iFJob=ci('final job code'),iFFE=ci('final forman email'),iFE=ci('forman email');
+    var iLoc=ci('location'),iDesc=ci('description'),iDate=ci('event date'),iTitle=ci('event title'),iEid=ci('event id'),iMT=ci('moving type'),iStat=ci('entry status'),iFReq=ci('final request #'),iFJob=ci('final job code'),iFFE=ci('final forman email'),iFE=ci('forman email'),iJC=ci('job company');
     var out=[];
     rows.slice(1).forEach(function(r){
       if((r[iStat]||'').trim()!=='Correct Job')return;
       var title=(r[iTitle]||'').trim();
       if(/cancel/i.test(title))return;
       var fjob=(r[iFJob]||'').trim();if(!fjob)return;
+      if((iJC>=0?(r[iJC]||''):'').trim().toLowerCase()!=='zip to zip')return;
       var L=parseLabels(r[iDesc]||'');
       out.push(buildJob({jobCode:fjob,requestNo:(r[iFReq]||'').trim(),date:parseDate(r[iDate]),tmin:parseTimeMin(r[iDate]),
         title:title,emoji:title.indexOf('📸')>=0,
@@ -197,9 +200,9 @@ function foremanBlock(j){
   if(!j.foreman)return '';
   var today=isoLocal(new Date()),tom=isoLocal(new Date(Date.now()+86400000));
   if(j.date!==today&&j.date!==tom)return '';
-  var c=CREW[j.foreman.toLowerCase()];
+  var c=CREW[normEmail(j.foreman)];
   var nm=(c&&c.name)?c.name:j.foreman.split('@')[0];
-  var ph=c?c.phone:'';
+  var ph=c?cleanPhone(c.phone):'';
   var tel=telHref(ph);
   var phHtml=ph?(tel?'<a href="'+esc(tel)+'">'+esc(ph)+'</a>':'<span>'+esc(ph)+'</span>'):'<span style="color:var(--faint);font-weight:600">no phone on file</span>';
   return '<div class="jfore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-1a6 6 0 0 1 12 0v1"/><circle cx="10" cy="7" r="3.2"/><path d="M16.5 10.5a4 4 0 0 1 5 4V16"/></svg><span class="fname">'+esc(nm)+'</span> &middot; '+phHtml+'</div>';
