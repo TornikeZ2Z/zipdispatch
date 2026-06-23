@@ -93,8 +93,7 @@ header .hgrow{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wra
 .gh{font-size:19px;font-weight:700;margin:0 0 10px;font-family:'Barlow Condensed';letter-spacing:.02em;text-transform:uppercase}
 .gbody{font-size:14.5px;line-height:1.55}
 .gsub{font-size:14.5px;line-height:1.55;color:var(--ink)}
-.gfoot{margin-top:16px;display:flex;gap:10px;justify-content:flex-end}
-</style></head><body>
+.gfoot{margin-top:16px;display:flex;gap:10px;justify-content:flex-end}</style></head><body>
 <div class="wrap">
   <header>
     <div>
@@ -729,7 +728,6 @@ const $=id=>document.getElementById(id);
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function fmtDay(iso){const d=new Date(Date.parse(iso+'T12:00'));return {dow:DOW[d.getDay()],dn:d.getDate(),mon:MON[d.getMonth()]};}
 function gModal(title,html,footer){
   let host=$('gmodalhost');
   host.innerHTML='<div class="gmodal show" id="gm"><div class="gbox"><button class="gx" id="gmx">✕</button><div class="gh">'+esc(title)+'</div><div class="gbody">'+html+'</div>'+(footer?'<div class="gfoot">'+footer+'</div>':'')+'</div></div>';
@@ -743,7 +741,6 @@ const GCAL_CLIENT_ID='712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleu
 let GTOKEN=null,GTOKEXP=0,_tokenClient=null;
 const GSCOPE_VER='cal+sheets-1';
 var _shWarned=false;
-function sheetWarnOnce(e){if(_shWarned)return;_shWarned=true;const raw=String((e&&(e.body||e.message))||e||'');const off=/has not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(raw);const perm=/PERMISSION_DENIED|insufficient|invalid_scope|ACCESS_TOKEN_SCOPE/i.test(raw);let h;if(off){h='<div class="gsub">The <b>Google Sheets API</b> is turned off for this app\u2019s Google Cloud project, so nothing can be read from or written to the sheet. Open the link in the message below, click <b>Enable</b>, wait about a minute, then reconnect.</div>';}else if(perm){h='<div class="gsub">Connected to Calendar, but the Google <b>Sheets</b> permission was not granted. Click <b>Update Calendar</b> and approve Google Sheets access.</div>';}else{h='<div class="gsub">Reading or writing the Google Sheet failed.</div>';}h+='<div class="mono" style="margin-top:8px;white-space:pre-wrap;font-size:11px;opacity:.85">'+esc(raw).slice(0,600)+'</div>';try{gModal('Sheet access problem',h);}catch(_){}}
 try{const _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.exp>Date.now()+60000&&_g.scope===GSCOPE_VER){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
 function gcalReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
 function ensureGToken(cb){
@@ -763,7 +760,6 @@ async function gapiFetch(path,opts){
   if(!r.ok)throw new Error('Calendar API '+r.status+' — '+(await r.text()).slice(0,160));
   return r.status===204?null:r.json();
 }
-const evPath=id=>'calendars/'+encodeURIComponent(GCAL_ID)+'/events/'+encodeURIComponent(String(id).split('@')[0]);
 function durH(s){
   if(s==null||s==='')return null;
   const p=String(s).trim().split(':');
