@@ -237,7 +237,12 @@ function toast(m){let t=$('#toast');if(!t){t=document.createElement('div');t.id=
 
 /* ============================ GOOGLE CALENDAR ENRICHMENT (same approach as dispatch/cleanup) ============================ */
 const GCAL_ID='contact@ziptozipmoving.com';
-var CALByIdx={}, CAL_PULLED=false, CAL_STATS=null, JOBS_BY_CODE=null;
+var ITEM_NORM=null;
+function normItem(s){return String(s==null?'':s).toLowerCase().replace(/"/g,'').replace(/\s+/g,' ').trim();}
+function itemNorm(){if(ITEM_NORM)return ITEM_NORM;ITEM_NORM={};for(var i=0;i<ITEM_NAMES.length;i++)ITEM_NORM[normItem(ITEM_NAMES[i])]=i;return ITEM_NORM;}
+function calParsePacking(text){var map={},raw={},has=false;var lines=String(text||'').split(/\r?\n/);var idx=-1;for(var i=0;i<lines.length;i++){if(lines[i].trim().toLowerCase()==='packing material list:'){idx=i;break;}}if(idx<0)return {map:map,raw:raw,has:false};has=true;var NM=itemNorm();for(var j=idx+1;j<lines.length;j++){var m=lines[j].trim().match(/^(.+?):\s*(\d+(?:\.\d+)?)\s*$/);if(m&&!/^total/i.test(m[1].trim())){var nm=m[1].trim();var q=parseFloat(m[2]);raw[nm]=q;var ni=NM[normItem(nm)];if(ni!==undefined)map[ni]=(map[ni]||0)+q;}else break;}return {map:map,raw:raw,has:has};}
+function downloadCalJSON(){if(!CAL_PULLED){toast('Pull the calendar first.');return;}var out=[];for(var _n=0;_n<CAL_ALL.length;_n++){var c=CAL_ALL[_n];var ji=c.ji;out.push({jobCode:c.code,matched:c.matched,foreman:(ji!=null?FOREMEN[JOBS[ji][Jf]]:null),date:c.date,movingType:c.movingType,jobType:c.jobType,calCF:c.calCF,recordedCF:(ji!=null?JOBS[ji][Jcf]:null),crew:c.crew,packEst:c.packEst,recordedPacking:(ji!=null?JOBS[ji][Ja]:null),salesRep:c.salesRep,salesNotes:c.salesNotes,buildingSize:c.buildingSize,noPack:c.noPack,packQuoted:c.packRaw,customer:c.customer,fromAddr:c.fromAddr,toAddr:c.toAddr,rawDescription:c.raw});}var blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ztz_calendar_2026.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href);},2000);toast('Downloaded '+out.length+' 2026 jobs ('+out.filter(function(x){return x.matched;}).length+' matched to field data) — send me this file.');}
+var CALByIdx={}, CAL_PULLED=false, CAL_STATS=null, JOBS_BY_CODE=null, CAL_ALL=[];
 function normCode(s){return String(s==null?'':s).trim().toUpperCase().replace(/\s+/g,'');}
 function jobsByCode(){if(JOBS_BY_CODE)return JOBS_BY_CODE;JOBS_BY_CODE={};for(var i=0;i<JOBS.length;i++){var c=normCode(JOBS[i][Jc]);if(c&&JOBS_BY_CODE[c]===undefined)JOBS_BY_CODE[c]=i;}return JOBS_BY_CODE;}
 function calNumV(s){var m=String(s==null?'':s).replace(/[^0-9.\-]/g,'');var v=parseFloat(m);return isFinite(v)?v:null;}
@@ -246,11 +251,13 @@ function parseLabels(desc){var o={};calDescText(desc).split(/\r?\n/).forEach(fun
 async function gapiFetch(path,opts){const r=await fetch('https://www.googleapis.com/calendar/v3/'+path,Object.assign({},opts,{headers:Object.assign({Authorization:'Bearer '+GTOKEN,'Content-Type':'application/json'},(opts&&opts.headers)||{})}));if(!r.ok)throw new Error('Calendar API '+r.status+' — '+(await r.text()).slice(0,160));return r.status===204?null:r.json();}
 async function calPullRange(){var t0='2026-01-01T00:00:00Z',t1='2027-01-01T00:00:00Z',pageToken=null,items=[];do{var j=await gapiFetch('calendars/'+encodeURIComponent(GCAL_ID)+'/events?timeMin='+encodeURIComponent(t0)+'&timeMax='+encodeURIComponent(t1)+'&maxResults=2500&singleEvents=true&orderBy=startTime'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):''));items=items.concat(j.items||[]);pageToken=j.nextPageToken;}while(pageToken&&items.length<20000);return items;}
 function ingestCalendar(items){
-  var byCode=jobsByCode();CALByIdx={};var withCode=0,matched=0,unmatchedEv=0;
+  var byCode=jobsByCode();CALByIdx={};CAL_ALL=[];var withCode=0,matched=0,unmatchedEv=0;
   for(var n=0;n<items.length;n++){var ev=items[n];if(!ev||ev.status==='cancelled')continue;
     var L=parseLabels(ev.description);var code=L['job code']||'';if(!code)continue;withCode++;
     var nc=normCode(code),ji=byCode[nc];
-    var cal={code:code,calCF:calNumV(L['total cf']),movingType:(L['moving type']||'').trim(),jobType:(L['job type']||'').trim(),crew:calNumV(L['crew size']),packEst:calNumV(L['packing estimate']),customer:(L['customer name']||'').trim(),fromAddr:(L['moving from']||ev.location||'').trim(),toAddr:(L['moving to']||'').trim(),eventId:ev.id,date:((ev.start&&(ev.start.dateTime||ev.start.date))||'').slice(0,10),title:String(ev.summary||'')};
+    var _dt=calDescText(ev.description); var _pq=calParsePacking(_dt); var _sn=(L['sales notes']||'').trim(); var _pe=calNumV(L['packing estimate']);
+    var cal={code:code,calCF:calNumV(L['total cf']),movingType:(L['moving type']||'').trim(),jobType:(L['job type']||'').trim(),crew:calNumV(L['crew size']),packEst:_pe,customer:(L['customer name']||'').trim(),fromAddr:(L['moving from']||ev.location||'').trim(),toAddr:(L['moving to']||'').trim(),eventId:ev.id,date:((ev.start&&(ev.start.dateTime||ev.start.date))||'').slice(0,10),title:String(ev.summary||''),packQuoted:_pq.map,packRaw:_pq.raw,hasQuote:_pq.has,salesNotes:_sn,salesRep:(L['sales rep 1']||'').trim(),buildingSize:(L['building size from']||'').trim(),raw:String(ev.description||''),noPack:((_pe!=null&&_pe<=0)|| /not included|packed by owner|already|pbo|no packing|self.?pack|wrapped and boxed/i.test(_sn))};
+    cal.matched=(ji!==undefined);cal.ji=(ji!==undefined?ji:null);CAL_ALL.push(cal);
     if(ji!==undefined){if(CALByIdx[ji]===undefined)matched++;CALByIdx[ji]=cal;}else unmatchedEv++;
   }
   CAL_PULLED=true;CAL_STATS={events:items.length,withCode:withCode,matched:matched,jobs:JOBS.length,unmatchedEv:unmatchedEv};
@@ -289,7 +296,8 @@ function recompute(){
     recs.push({ji:ji,fi:j[Jf],cf:cf,est:est,act:act,charge:j[Jch],tip:j[Jt],
       pk100:100*act/cf, tape100:100*jobTape[ji]/cf, wrap100:100*jobWrap[ji]/cf,
       zero:act<20?1:0, ave:(est&&est>0)?act/est:null, big:cf>=BIGCF,
-      calCF:_cal?_cal.calCF:null, movingType:_cal?_cal.movingType:null, jobType:_cal?_cal.jobType:null, packEst:_cal?_cal.packEst:null});
+      calCF:_cal?_cal.calCF:null, movingType:_cal?_cal.movingType:null, jobType:_cal?_cal.jobType:null, packEst:_cal?_cal.packEst:null,
+      calPack:_cal?_cal.packQuoted:null, hasQuote:_cal?_cal.hasQuote:false, noPack:_cal?_cal.noPack:false});
   }
   var big=recs.filter(function(r){return r.big;});
   function fmed(key){return median(big.map(function(r){return r[key];}));}
@@ -482,6 +490,12 @@ function renderCheck(){
 
 function renderAll(){renderRisk();renderOverview();renderForeman();renderBench();renderCheck();renderCalendar();buildTabs();refreshCharts(activeView);updateConnUI();}
 function gotoForeman(fi){curForeman=fi;renderForeman();showView('foreman');}
+function cfgFulfil(){
+  var qrecs=S.recs.filter(function(r){return r.hasQuote&&!r.noPack&&r.calPack&&Object.keys(r.calPack).length;});
+  var qf={};qrecs.forEach(function(r){var o=qf[r.fi]=qf[r.fi]||{q:0,rr:0};for(var k in r.calPack){var q=r.calPack[k];var a=jobItemQty[r.ji][k]||0;o.q+=q;o.rr+=Math.min(a,q);}});
+  var d=Object.keys(qf).map(function(fi){var o=qf[fi];return {name:FOREMEN[fi],ful:o.q?o.rr/o.q:0};}).sort(function(a,b){return a.ful-b.ful;});
+  return {type:'bar',data:{labels:d.map(function(x){return x.name;}),datasets:[{data:d.map(function(x){return +(100*x.ful).toFixed(0);}),backgroundColor:d.map(function(x){return x.ful<0.5?COL.bad:(x.ful>0.85?COL.good:COL.warn);}),borderRadius:5,maxBarThickness:22}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},refline:{axis:'x',value:100,label:'100% recorded'},tooltip:{callbacks:{label:function(c){return c.raw+'% of quoted materials recorded';}}}},scales:{x:{beginAtZero:true,suggestedMax:100,grid:{color:COL.line},ticks:{color:COL.dim}},y:{grid:{display:false},ticks:{color:COL.ink,font:{size:10,weight:'600'}}}}}};
+}
 function renderCalendar(){
   var host=document.getElementById('v-calendar');if(!host)return;
   var html='<h2 class="sec">Calendar enrichment</h2><p class="sub">Pulls every 2026 event from the operations calendar, matches it to a job by its <b>Job Code</b>, and layers the sales-side fields (estimated CF, moving type, sales packing estimate, customer) onto the analysis — using the same Google connection as the dispatch and clean-up systems.</p>';
@@ -497,7 +511,7 @@ function renderCalendar(){
     ['Matched to jobs',st.matched.toLocaleString()+' / '+st.jobs.toLocaleString(),Math.round(100*st.matched/Math.max(st.jobs,1))+'% of dataset'],
     ['Unmatched jobs',(st.jobs-st.matched).toLocaleString(),'no 2026 event']
   ].map(function(x){return '<div class="kpi"><div class="v bignum">'+x[1]+'</div><div class="l">'+x[0]+'</div>'+(x[2]?'<div class="d">'+x[2]+'</div>':'')+'</div>';}).join('')+'</div>';
-  html+='<div style="margin-bottom:16px"><button class="connbtn" onclick="pullCalendar(this)">Re-pull 2026 calendar</button></div>';
+  html+='<div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="connbtn" onclick="pullCalendar(this)">Re-pull 2026 calendar</button><button class="connbtn" style="background:var(--ink)" onclick="downloadCalJSON()">⬇ Download calendar data (JSON)</button></div>';
   var rows=S.recs.filter(function(r){return r.calCF!=null&&r.calCF>0&&r.cf>0;});
   var byf={};rows.forEach(function(r){(byf[r.fi]=byf[r.fi]||[]).push(r);});
   var cf=[];Object.keys(byf).forEach(function(fi){var a=byf[fi];var recM=median(a.map(function(r){return r.cf;}));var calM=median(a.map(function(r){return r.calCF;}));var under=a.filter(function(r){return r.cf<0.8*r.calCF;}).length;cf.push({fi:+fi,name:FOREMEN[fi],n:a.length,recM:recM,calM:calM,ratio:calM?recM/calM:null,under:under});});
@@ -515,6 +529,18 @@ function renderCalendar(){
   if(mj.length){
     html+='<div class="card">'+cardH('Matched jobs — biggest CF gaps first','Calendar-estimated CF minus recorded CF. Large positive gaps = move recorded smaller than sold.')+'<div class="tbl"><table><thead><tr><th class="l">Job</th><th class="l">Foreman</th><th class="l">Moving type</th><th>Rec CF</th><th>Cal CF</th><th class="l">ΔCF</th><th>Packing</th><th>Sales est</th></tr></thead><tbody>'+mj.map(function(o){var r=o.r,cal=CALByIdx[r.ji]||{};return '<tr class="click" onclick="gotoForeman('+r.fi+')"><td class="l">'+esc(JOBS[r.ji][Jc])+'</td><td class="l">'+esc(FOREMEN[r.fi])+'</td><td class="l">'+esc(cal.movingType||'—')+'</td><td class="num">'+num(r.cf,0)+'</td><td class="num">'+num(r.calCF,0)+'</td><td class="l"><span class="delta '+(o.gap>50?'dn':'eq')+'">'+(o.gap>=0?'+':'')+num(o.gap,0)+'</span></td><td class="num">'+money(r.act)+'</td><td class="num">'+(cal.packEst!=null?money(cal.packEst):'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
   }
+  var qrecs=S.recs.filter(function(r){return r.hasQuote&&!r.noPack&&r.calPack&&Object.keys(r.calPack).length;});
+  if(qrecs.length){
+    var qf={};qrecs.forEach(function(r){var o=qf[r.fi]=qf[r.fi]||{jobs:0,qEst:0,rAct:0,qTape:0,rTape:0,qUnits:0,rUnits:0};o.jobs++;o.qEst+=(r.packEst||0);o.rAct+=(r.act||0);for(var k in r.calPack){var q=r.calPack[k];var a=jobItemQty[r.ji][k]||0;o.qUnits+=q;o.rUnits+=Math.min(a,q);if(+k===tapeIdx){o.qTape+=q;o.rTape+=a;}}});
+    var qrows=Object.keys(qf).map(function(fi){var o=qf[fi];return {fi:+fi,name:FOREMEN[fi],jobs:o.jobs,qEst:o.qEst,rAct:o.rAct,gap:o.qEst-o.rAct,ful:o.qUnits?o.rUnits/o.qUnits:null,tf:o.qTape?o.rTape/o.qTape:null};});
+    qrows.sort(function(a,b){return (a.ful==null?9:a.ful)-(b.ful==null?9:b.ful);});
+    html+='<div class="card">'+cardH('Quoted vs recorded packing — fulfilment','For jobs where sales quoted a packing list (excluding packing-not-included / customer-packed jobs): the share of quoted materials the field actually recorded. Low % = sold but not booked.','ch-fulfil')+'<div class="chartbox tall"><canvas id="ch-fulfil"></canvas></div></div>';
+    html+='<div class="card">'+cardH('Fulfilment table','Quoted $ = sales packing estimate; recorded $ = field actual. Click a row for the profile.')+'<div class="tbl"><table><thead><tr><th class="l">Foreman</th><th>Jobs w/ quote</th><th>Quoted $</th><th>Recorded $</th><th class="l">$ gap</th><th>Unit fulfilment</th><th>Tape fulfilment</th></tr></thead><tbody>'+qrows.map(function(x){var fc=x.ful==null?'eq':(x.ful<0.5?'dn':(x.ful>0.85?'up':'eq'));return '<tr class="click" onclick="gotoForeman('+x.fi+')"><td class="l">'+esc(x.name)+'</td><td class="num">'+x.jobs+'</td><td class="num">'+money(x.qEst)+'</td><td class="num">'+money(x.rAct)+'</td><td class="l"><span class="delta '+(x.gap>50?'dn':'eq')+'">'+money(x.gap)+'</span></td><td class="num"><span class="delta '+fc+'">'+(x.ful!=null?pct(100*x.ful):'—')+'</span></td><td class="num">'+(x.tf!=null?pct(100*x.tf):'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+    var leaks=qrecs.map(function(r){var missItems=[];for(var k in r.calPack){var q=r.calPack[k];var a=jobItemQty[r.ji][k]||0;if(a===0&&q>0)missItems.push(ITEM_NAMES[k]);}return {r:r,missItems:missItems};}).filter(function(o){return o.missItems.length;}).sort(function(a,b){return (b.r.packEst||0)-(a.r.packEst||0);}).slice(0,150);
+    if(leaks.length){
+      html+='<div class="card">'+cardH(leaks.length+' jobs: quoted packing not recorded','Sales quoted these materials; the field recorded none of them. Highest quoted $ first.')+'<div class="tbl"><table><thead><tr><th class="l">Job</th><th class="l">Foreman</th><th>Quoted $</th><th>Recorded $</th><th class="l">Items quoted but not recorded</th></tr></thead><tbody>'+leaks.map(function(o){var r=o.r;return '<tr class="click" onclick="gotoForeman('+r.fi+')"><td class="l">'+esc(JOBS[r.ji][Jc])+'</td><td class="l">'+esc(FOREMEN[r.fi])+'</td><td class="num">'+money(r.packEst)+'</td><td class="num">'+money(r.act)+'</td><td class="l reason">'+o.missItems.map(function(n){return esc(String(n).replace(/\s*\(.*\)/,''));}).join(', ')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+    }
+  }
   html+='<div class="muted-s">Source: Google Calendar ('+esc(GCAL_ID)+'), 2026 events, matched by Job Code. Read-only.</div>';
   host.innerHTML=html;
 }
@@ -528,7 +554,7 @@ function cfgCfGap(){
 /* ============================ CHARTS ============================ */
 var COL={bad:'#C0392B',warn:'#B7791F',good:'#2E7D46',acc:'#B26B0B',blue:'#2563EB',dim:'#9298A0',line:'#E7E4DB',ink:'#1E2228'};
 var PAINT={};
-var CHART_TITLES={'ch-cfgap':'CF cross-check vs calendar','ch-risk':'Risk score by foreman','ch-lead':'Packing $ per 100 CF — leaderboard','ch-scatter':'Volume vs efficiency','ch-mix':'Item mix by revenue','ch-radar':'Signal profile vs fleet','ch-attach':'Item attach vs fleet','ch-jobs':'Every job: size vs packing','ch-trend':'Monthly packing $ / 100 CF','ch-gap':'Gap to benchmark — $/100 CF'};
+var CHART_TITLES={'ch-cfgap':'CF cross-check vs calendar','ch-fulfil':'Quoted vs recorded packing — fulfilment','ch-risk':'Risk score by foreman','ch-lead':'Packing $ per 100 CF — leaderboard','ch-scatter':'Volume vs efficiency','ch-mix':'Item mix by revenue','ch-radar':'Signal profile vs fleet','ch-attach':'Item attach vs fleet','ch-jobs':'Every job: size vs packing','ch-trend':'Monthly packing $ / 100 CF','ch-gap':'Gap to benchmark — $/100 CF'};
 var reflinePlugin={id:'refline',afterDatasetsDraw:function(c,a,o){if(!o||o.value==null)return;var ax=o.axis==='y'?c.scales.y:c.scales.x;if(!ax)return;var ctx=c.ctx;ctx.save();ctx.strokeStyle=o.color||COL.dim;ctx.setLineDash([5,4]);ctx.lineWidth=1.4;if(o.axis==='y'){var yy=ax.getPixelForValue(o.value);ctx.beginPath();ctx.moveTo(c.chartArea.left,yy);ctx.lineTo(c.chartArea.right,yy);ctx.stroke();if(o.label){ctx.fillStyle=o.color||COL.dim;ctx.font='600 11px Inter';ctx.fillText(o.label,c.chartArea.left+6,yy-4);}}else{var xx=ax.getPixelForValue(o.value);ctx.beginPath();ctx.moveTo(xx,c.chartArea.top);ctx.lineTo(xx,c.chartArea.bottom);ctx.stroke();if(o.label){ctx.fillStyle=o.color||COL.dim;ctx.font='600 11px Inter';ctx.fillText(o.label,xx+4,c.chartArea.top+12);}}ctx.restore();}};
 function destroyChart(id){if(CHARTS[id]&&CHARTS[id].inst){try{CHARTS[id].inst.destroy();}catch(e){}}CHARTS[id]=null;}
 function paint(id,cfgFn){PAINT[id]=cfgFn;if(!window.Chart)return;var cv=document.getElementById(id);if(!cv)return;destroyChart(id);try{CHARTS[id]={inst:new Chart(cv,cfgFn())};}catch(e){}}
@@ -538,7 +564,7 @@ function refreshCharts(view){
   else if(view==='overview'){paint('ch-lead',cfgLead);paint('ch-scatter',cfgScatter);paint('ch-mix',cfgMix);}
   else if(view==='foreman'){paint('ch-radar',cfgRadar);paint('ch-attach',cfgAttach);paint('ch-jobs',cfgJobs);paint('ch-trend',cfgTrend);}
   else if(view==='bench')paint('ch-gap',cfgGap);
-  else if(view==='calendar'){if(CAL_PULLED)paint('ch-cfgap',cfgCfGap);}
+  else if(view==='calendar'){if(CAL_PULLED){paint('ch-cfgap',cfgCfGap);paint('ch-fulfil',cfgFulfil);}}
 }
 function expandChart(id){if(!PAINT[id])return;$('#cmodal-t').textContent=CHART_TITLES[id]||'Chart';$('#cmodal').classList.add('on');$('#cmodal-c').innerHTML='<canvas id="cmodal-cv"></canvas>';if(!window.Chart)return;if(CHARTS._modal&&CHARTS._modal.inst){try{CHARTS._modal.inst.destroy();}catch(e){}}try{CHARTS._modal={inst:new Chart($('#cmodal-cv'),PAINT[id]())};}catch(e){}}
 function closeModal(){$('#cmodal').classList.remove('on');if(CHARTS._modal&&CHARTS._modal.inst){try{CHARTS._modal.inst.destroy();}catch(e){}CHARTS._modal=null;}}
