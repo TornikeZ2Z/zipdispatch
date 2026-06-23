@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Photo Shoot List · Zip To Zip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F7F6F2; --card:#FFFFFF; --ink:#1F2329; --dim:#646B73; --faint:#969CA3;
+  --line:#E6E4DC; --line2:#D3D0C6; --soft:#F1F0EA;
+  --acc:#B26B0B; --acc-bg:#FBF1DC; --acc-bd:#E9D08A; --acc-ink:#8A530A;
+  --good:#2E7D46; --shadow:0 1px 2px rgba(31,35,41,.04),0 8px 24px rgba(31,35,41,.06);
+}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.bar{position:sticky;top:0;z-index:20;background:rgba(247,246,242,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:13px;padding:13px 22px;flex-wrap:wrap}
+.dot{width:34px;height:34px;border-radius:10px;background:var(--acc-bg);border:1px solid var(--acc-bd);color:var(--acc);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.dot svg{width:19px;height:19px}
+.htxt h1{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:21px;letter-spacing:.04em;text-transform:uppercase;margin:0;line-height:1}
+.htxt .sub{font-size:12px;color:var(--dim);margin-top:2px}
+.spacer{margin-left:auto}
+.btn{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 13px;cursor:pointer}
+.btn:hover{border-color:var(--acc-bd);color:var(--acc-ink)}
+.stamp{font-size:11.5px;color:var(--faint)}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 22px 70px}
+.filters{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:18px}
+.fl{display:flex;flex-direction:column;gap:4px}
+.fl label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}
+.fl input{font:inherit;font-size:14px;font-weight:600;width:96px;padding:7px 10px;border:1px solid var(--line2);border-radius:9px;background:var(--card);color:var(--ink)}
+.fl .hint{font-size:11px;color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0}
+.count{margin-left:auto;text-align:right}
+.count b{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:600;line-height:1;display:block}
+.count span{font-size:11.5px;color:var(--dim)}
+.tbl{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+thead th{position:sticky;top:0;background:var(--soft);color:var(--dim);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:11px 14px;border-bottom:1px solid var(--line2);white-space:nowrap}
+thead th.r{text-align:right}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--soft)}
+.date{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;white-space:nowrap}
+.dow{font-size:11px;color:var(--faint);font-weight:400;font-family:'Inter'}
+.addr{font-weight:500;text-decoration:none;color:var(--ink)}
+.addr:hover{color:var(--acc-ink);text-decoration:underline}
+.jt{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:20px;background:var(--acc-bg);color:var(--acc-ink);border:1px solid var(--acc-bd)}
+.empty{padding:40px 24px;text-align:center;color:var(--dim)}
+.empty b{display:block;font-family:'Barlow Condensed',sans-serif;font-size:20px;color:var(--ink);font-weight:600;margin-bottom:6px}
+.note{background:var(--acc-bg);border:1px solid var(--acc-bd);border-radius:12px;padding:11px 14px;font-size:12.5px;color:var(--acc-ink);margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="bar"><div class="bar-in">
+  <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+  <div class="htxt"><h1>Photo Shoot List</h1><div class="sub">Local jobs ≥ 1,000 · 50–55 mi from 11223 · fed from the dispatch &amp; clean-up systems</div></div>
+  <span class="spacer"></span>
+  <span class="stamp" id="stamp"></span>
+  <button class="btn" id="refresh">Refresh</button>
+</div></div>
+<div class="wrap">
+  <div class="filters">
+    <div class="fl"><label>Min size</label><input id="fCF" type="number" value="1000" step="100"><span class="hint">CF (= sq ft)</span></div>
+    <div class="fl"><label>Distance from</label><input id="fZip" type="text" value="11223"><span class="hint">his ZIP</span></div>
+    <div class="fl"><label>Miles min</label><input id="fMin" type="number" value="50" step="1"></div>
+    <div class="fl"><label>Miles max</label><input id="fMax" type="number" value="55" step="1"></div>
+    <div class="count"><b id="cnt">0</b><span>jobs to shoot</span></div>
+  </div>
+  <div id="out"></div>
+</div>
+<script src="zipdb.js?v=1"></script>
+<script>
+var FEED_KEY='ztz_photofeed';
+var ZIPDB=window.ZIPDB||{};
+function $(s){return document.querySelector(s);}
+function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function haversine(a,b,c,d){var R=3958.8,dl=(c-a)*Math.PI/180,dn=(d-b)*Math.PI/180,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dn/2)*Math.sin(dn/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function zipFromAddr(s){var m=String(s||'').match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b\d{5}\b)/);return m?m[1]:null;}
+function geo(zip){var z=ZIPDB[zip];return z?{lat:z[0],lon:z[1]}:null;}
+function homeCoord(){var z=geo(($('#fZip').value||'11223').trim());return z||{lat:40.5971,lon:-73.9734};}
+function readFeed(){try{return JSON.parse(localStorage.getItem(FEED_KEY)||'null');}catch(e){return null;}}
+function ago(iso){if(!iso)return '';var s=(Date.now()-new Date(iso))/1000;if(s<90)return 'updated just now';if(s<5400)return 'updated '+Math.round(s/60)+' min ago';if(s<172800)return 'updated '+Math.round(s/3600)+' h ago';return 'updated '+Math.round(s/86400)+' d ago';}
+var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function fmtDate(d){var p=String(d||'').split('-');if(p.length<3)return d||'';var dt=new Date(+p[0],+p[1]-1,+p[2]);return {big:p[1]+'/'+p[2]+'/'+String(p[0]).slice(2),dow:DOW[dt.getDay()]};}
+function render(){
+  var feed=readFeed();
+  $('#stamp').textContent=feed&&feed.updated?ago(feed.updated):'';
+  var out=$('#out');
+  if(!feed||!feed.jobs||!feed.jobs.length){
+    out.innerHTML='<div class="tbl"><div class="empty"><b>No job data yet</b>Open the <b>Dispatch</b> or <b>Calendar Clean-up</b> system and hit Refresh there — this page reads the jobs those systems pull from the calendar. Then come back and Refresh.</div></div>';
+    $('#cnt').textContent='0';return;
+  }
+  var H=homeCoord(), minCF=+$('#fCF').value||0, dMin=+$('#fMin').value, dMax=+$('#fMax').value;
+  var today=new Date().toISOString().slice(0,10);
+  var rows=[];
+  feed.jobs.forEach(function(j){
+    var mt=String(j.mt||'');
+    if(!/local/i.test(mt)||/long/i.test(mt))return;            // local moves only
+    if((j.cf||0)<minCF)return;                                  // size (CF = sq ft)
+    if(j.date && j.date<today)return;                           // upcoming only
+    var lat=j.lat,lon=j.lon;
+    if(lat==null||lon==null){var g=geo(zipFromAddr(j.addr));if(g){lat=g.lat;lon=g.lon;}}
+    if(lat==null||lon==null)return;
+    var dist=haversine(H.lat,H.lon,lat,lon);
+    if(dist<dMin||dist>dMax)return;                             // distance band
+    rows.push({j:j,dist:dist});
+  });
+  rows.sort(function(a,b){return (a.j.date||'').localeCompare(b.j.date||'')|| (a.dist-b.dist);});
+  $('#cnt').textContent=rows.length;
+  if(!rows.length){out.innerHTML='<div class="note">No upcoming local jobs match these filters right now. Try widening the distance band or lowering the min size.</div>';return;}
+  var body=rows.map(function(r){
+    var j=r.j, d=fmtDate(j.date);
+    var jt='Local'+(j.jt?(' · '+esc(j.jt)):'');
+    var maps='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(j.addr||'');
+    return '<tr><td><div class="date">'+esc(d.big)+'</div><div class="dow">'+esc(d.dow)+'</div></td>'
+      +'<td><a class="addr" href="'+maps+'" target="_blank" rel="noopener">'+esc(j.addr||'(no address)')+'</a></td>'
+      +'<td><span class="jt">'+jt+'</span></td>'
+      +'<td class="r">'+Math.round(j.cf||0).toLocaleString()+'</td>'
+      +'<td class="r">'+r.dist.toFixed(1)+' mi</td></tr>';
+  }).join('');
+  out.innerHTML='<div class="tbl"><table><thead><tr><th>Date</th><th>Address</th><th>Job type</th><th class="r">Size</th><th class="r">Distance</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+['fCF','fZip','fMin','fMax'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('input',render);});
+$('#refresh').addEventListener('click',render);
+window.addEventListener('storage',function(e){if(e.key===FEED_KEY)render();});
+window.addEventListener('focus',render);
+render();
+</script>
+</body>
+</html>
