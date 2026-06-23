@@ -17,28 +17,28 @@
 *{box-sizing:border-box}html,body{margin:0}
 body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 .bar{position:sticky;top:0;z-index:20;background:rgba(247,246,242,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.bar-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:13px;padding:12px 22px;flex-wrap:wrap}
+.bar-in{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:13px;padding:12px 22px;flex-wrap:wrap}
 .dot{width:34px;height:34px;border-radius:10px;background:var(--acc-bg);border:1px solid var(--acc-bd);color:var(--acc);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .dot svg{width:19px;height:19px}
 .htxt h1{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:21px;letter-spacing:.05em;text-transform:uppercase;margin:0;line-height:1}
 .htxt .sub{font-size:12px;color:var(--dim);margin-top:3px}
-.spacer{margin-left:auto}
-.btn{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 13px;cursor:pointer;white-space:nowrap}
-.btn:hover{border-color:var(--acc-bd);color:var(--acc-ink)}
-.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
-.stamp{font-size:11.5px;color:var(--faint)}
-.wrap{max-width:1200px;margin:0 auto;padding:18px 22px 70px}
-.filters{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:16px}
-.frow{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 22px 70px}
+.filters{display:flex;flex-direction:column;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:16px}
+.frow{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end}
 .fl{display:flex;flex-direction:column;gap:5px}
 .fl label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
 .fl input{font:inherit;font-size:13.5px;font-weight:600;padding:7px 10px;border:1px solid var(--line2);border-radius:9px;background:var(--card);color:var(--ink)}
-.fl input[type=number]{width:78px}.fl input[type=text]{width:84px}.fl input[type=date]{width:150px}
+.fl input[type=number]{width:84px}.fl input[type=date]{width:150px}
 .fl .pair{display:flex;gap:6px;align-items:center}.fl .pair span{color:var(--faint);font-size:12px}
-.flbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);min-width:96px}
-.chiprow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.chip{font:inherit;font-size:12px;font-weight:600;border:1px solid var(--line2);background:var(--card);color:var(--dim);border-radius:20px;padding:4px 11px;cursor:pointer}
-.chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.ms{position:relative}
+.msbtn{font:inherit;font-size:13.5px;font-weight:600;padding:7px 12px;min-width:180px;border:1px solid var(--line2);border-radius:9px;background:var(--card);color:var(--ink);cursor:pointer;display:flex;align-items:center}
+.msbtn:after{content:'▾';margin-left:auto;color:var(--faint);padding-left:8px}
+.msbtn:hover{border-color:var(--acc-bd)}
+.mspanel{position:absolute;top:calc(100% + 6px);left:0;z-index:40;display:none;background:var(--card);border:1px solid var(--line2);border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.14);padding:8px;min-width:210px;max-height:300px;overflow:auto}
+.mspanel.open{display:block}
+.msopt{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600}
+.msopt:hover{background:var(--soft)}.msopt input{margin:0;accent-color:var(--acc)}
+.msclear{display:block;width:100%;text-align:left;border:0;background:none;color:var(--acc-ink);font:inherit;font-size:12px;font-weight:600;padding:7px 8px;cursor:pointer;border-top:1px solid var(--line);margin-top:4px}
 .count{margin-left:auto;text-align:right}
 .count b{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:600;line-height:1;display:block}
 .count span{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
@@ -56,11 +56,9 @@ tbody tr:hover{background:var(--soft)}
 .addr{font-weight:500;text-decoration:none;color:var(--ink)}.addr:hover{color:var(--acc-ink);text-decoration:underline}
 .route{font-weight:700;white-space:nowrap;letter-spacing:.02em}
 .route .ar{color:var(--faint);font-weight:400;margin:0 4px}
-.jt{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 10px;border-radius:20px;background:var(--soft);color:var(--dim);border:1px solid var(--line)}
+.jt{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 10px;border-radius:20px;background:var(--soft);color:var(--dim);border:1px solid var(--line);white-space:nowrap}
 .evt{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--acc-ink);text-decoration:none;border:1px solid var(--acc-bd);background:var(--acc-bg);border-radius:8px;padding:4px 9px}
 .evt:hover{filter:brightness(.97)}.evt svg{width:13px;height:13px}.evt.off{color:var(--faint);background:var(--soft);border-color:var(--line);pointer-events:none}
-.map{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--acc-ink);text-decoration:none}
-.map svg{width:13px;height:13px}.map:hover{text-decoration:underline}
 .empty{padding:44px 24px;text-align:center;color:var(--dim)}.empty b{display:block;font-family:'Barlow Condensed',sans-serif;font-size:20px;color:var(--ink);font-weight:600;margin-bottom:6px}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1E2228;color:#fff;padding:11px 18px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -74,13 +72,14 @@ tbody tr:hover{background:var(--soft)}
 <div class="wrap">
   <div class="filters">
     <div class="frow">
+      <div class="fl"><label>Pickup state</label><div class="ms" id="puMs"><button type="button" class="msbtn" id="puBtn">All states</button><div class="mspanel" id="puPanel"></div></div></div>
+    </div>
+    <div class="frow">
       <div class="fl"><label>Min size</label><input id="fCF" type="number" value="1000" step="100"></div>
-      <div class="fl"><label>Miles</label><div class="pair"><input id="fMin" type="number" value="0" step="1"><span>to</span><input id="fMax" type="number" value="50" step="1"></div></div>
+      <div class="fl"><label>Within (mi)</label><input id="fMax" type="number" value="50" step="1"></div>
       <div class="fl"><label>Dates</label><div class="pair"><input id="fFrom" type="date"><span>to</span><input id="fTo" type="date"></div></div>
       <div class="count"><b id="cnt">0</b><span>Total Jobs</span></div>
     </div>
-    <div class="frow"><span class="flbl">Pickup state</span><div id="puChips" class="chiprow"></div></div>
-    <div class="frow"><span class="flbl">Delivery state</span><div id="delChips" class="chiprow"></div></div>
   </div>
   <div id="out"></div>
 </div>
@@ -90,7 +89,7 @@ var ZIPDB=window.ZIPDB||{};
 var SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
 var SHEET_TAB='Google Calendar';
 var GCAL_ID='contact@ziptozipmoving.com';
-var JOBS=[], puSel=new Set(), delSel=new Set(), STAMP='';
+var JOBS=[], puSel=new Set();
 function $(s){return document.querySelector(s);}
 function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function toast(m){var t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show');},4200);}
@@ -99,7 +98,7 @@ function zipFromAddr(s){var m=String(s||'').match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b
 function geoFull(zip){var z=ZIPDB[zip];return z?{lat:z[0],lon:z[1],st:z[3]}:null;}
 function homeCoord(){var z=geoFull('11223');return z||{lat:40.5971,lon:-73.9734};}
 function calNumV(s){var m=String(s==null?'':s).replace(/[^0-9.\-]/g,'');var v=parseFloat(m);return isFinite(v)?v:null;}
-function calEventLink(eid){if(!eid)return '';try{return 'https://calendar.google.com/calendar/u/0/r/eventedit/'+btoa(String(eid)+' '+GCAL_ID).replace(/=+$/,'');}catch(e){return 'https://calendar.google.com/calendar/u/0/r';}}
+function calEventLink(eid){eid=String(eid||'').split('@')[0];if(!eid)return '';try{return 'https://calendar.google.com/calendar/u/0/r/eventedit/'+btoa(eid+' '+GCAL_ID).replace(/=+$/,'');}catch(e){return 'https://calendar.google.com/calendar/u/0/r';}}
 function mapsLink(a){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a||'');}
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function parseDate(s){s=String(s||'').trim();var m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return m[3]+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2);m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];m=s.match(/Date\((\d+),(\d+),(\d+)/);if(m)return m[1]+'-'+('0'+(+m[2]+1)).slice(-2)+'-'+('0'+m[3]).slice(-2);return '';}
@@ -111,7 +110,7 @@ function buildJob(o){var pz=geoFull(zipFromAddr(o.pickup)),dz=geoFull(zipFromAdd
 function loadSheet(){
   var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(SHEET_TAB)+'&_t='+Date.now();
   fetch(url).then(function(r){return r.text();}).then(function(t){
-    var rows=pcsv(t);if(rows.length<2){JOBS=[];STAMP='0 rows';finishLoad();return;}
+    var rows=pcsv(t);if(rows.length<2){JOBS=[];finishLoad();return;}
     var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});
     function ci(n){return H.indexOf(n);}
     var iLoc=ci('location'),iDesc=ci('description'),iDate=ci('event date'),iTitle=ci('event title'),iEid=ci('event id'),iMT=ci('moving type'),iStat=ci('entry status'),iFReq=ci('final request #'),iFJob=ci('final job code');
@@ -122,28 +121,28 @@ function loadSheet(){
       var fjob=(r[iFJob]||'').trim();if(!fjob)return;
       var L=parseLabels(r[iDesc]||'');
       out.push(buildJob({jobCode:fjob,requestNo:(r[iFReq]||'').trim(),date:parseDate(r[iDate]),
+        customer:(L['customer name']||'').trim(),
         pickup:(r[iLoc]||'').trim()||L['moving from']||'',deliv:(L['moving to']||'').trim(),
         cf:calNumV(L['total cf'])||0,mt:((r[iMT]||'').trim()||L['moving type']||''),eventId:(r[iEid]||'').trim()}));
     });
-    JOBS=out;STAMP='updated '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});finishLoad();
-  }).catch(function(e){toast('⚠ Could not read the sheet: '+e.message);$('#stamp').textContent='Sheet read failed';});
+    JOBS=out;finishLoad();
+  }).catch(function(e){toast('⚠ Could not read the sheet: '+e.message);});
 }
-function finishLoad(){puSel.clear();delSel.clear();buildChips();render();}
 function localJobs(){return JOBS.filter(function(j){return /local/i.test(j.mt)&&!/long/i.test(j.mt);});}
-function buildChips(){
-  var lj=localJobs();
-  function opts(key){var s={};lj.forEach(function(j){if(j[key])s[j[key]]=1;});return Object.keys(s).sort();}
-  function draw(host,list,sel){
-    host.innerHTML='<button class="chip'+(sel.size?'':' on')+'" data-v="">All</button>'+list.map(function(v){return '<button class="chip'+(sel.has(v)?' on':'')+'" data-v="'+esc(v)+'">'+esc(v)+'</button>';}).join('');
-    [].forEach.call(host.children,function(b){b.onclick=function(){var v=b.getAttribute('data-v');if(!v){sel.clear();}else{if(sel.has(v))sel.delete(v);else sel.add(v);}buildChips();render();};});
-  }
-  draw($('#puChips'),opts('puState'),puSel);
-  draw($('#delChips'),opts('delState'),delSel);
+function finishLoad(){puSel.clear();buildPuDropdown();render();}
+function updatePuBtn(){var b=$('#puBtn');if(!b)return;b.textContent=puSel.size?(puSel.size===1?Array.from(puSel)[0]:puSel.size+' states'):'All states';}
+function buildPuDropdown(){
+  var s={};localJobs().forEach(function(j){if(j.puState)s[j.puState]=1;});var list=Object.keys(s).sort();
+  var panel=$('#puPanel');if(!panel)return;
+  panel.innerHTML=list.map(function(v){return '<label class="msopt"><input type="checkbox" value="'+esc(v)+'"'+(puSel.has(v)?' checked':'')+'>'+esc(v)+'</label>';}).join('')+'<button type="button" class="msclear">Clear / All</button>';
+  [].forEach.call(panel.querySelectorAll('input'),function(cb){cb.onchange=function(){if(cb.checked)puSel.add(cb.value);else puSel.delete(cb.value);updatePuBtn();render();};});
+  panel.querySelector('.msclear').onclick=function(){puSel.clear();buildPuDropdown();updatePuBtn();render();};
+  updatePuBtn();
 }
 function render(){
   var out=$('#out');
-  if(!JOBS.length){out.innerHTML='<div class="tbl"><div class="empty"><b>No jobs loaded</b>The Google Calendar sheet tab returned no usable rows. Hit Refresh, or confirm the sheet is shared as link-viewable.</div></div>';$('#cnt').textContent='0';return;}
-  var H=homeCoord(),minCF=+$('#fCF').value||0,dMin=+$('#fMin').value,dMax=+$('#fMax').value;
+  if(!JOBS.length){out.innerHTML='<div class="tbl"><div class="empty"><b>No jobs loaded</b>The Google Calendar sheet tab returned no usable rows.</div></div>';$('#cnt').textContent='0';return;}
+  var H=homeCoord(),minCF=+$('#fCF').value||0,dMax=+$('#fMax').value;
   var today=new Date().toISOString().slice(0,10);
   var fFrom=$('#fFrom').value||'',fTo=$('#fTo').value||'';
   var lo=fFrom&&fFrom>today?fFrom:today;
@@ -154,15 +153,14 @@ function render(){
     if(!j.date||j.date<lo)return;
     if(fTo&&j.date>fTo)return;
     if(puSel.size&&!puSel.has(j.puState))return;
-    if(delSel.size&&!delSel.has(j.delState))return;
     if(j.lat==null||j.lon==null)return;
     var dist=haversine(H.lat,H.lon,j.lat,j.lon);
-    if(dist<dMin||dist>dMax)return;
+    if(dist>dMax)return;
     rows.push({j:j,dist:dist});
   });
   rows.sort(function(a,b){return (a.j.date||'').localeCompare(b.j.date||'')||(a.dist-b.dist);});
   $('#cnt').textContent=rows.length;
-  if(!rows.length){out.innerHTML='<div class="tbl"><div class="empty"><b>Nothing matches</b>No local jobs fit these filters. Widen the distance, states or dates, or lower the min size.</div></div>';return;}
+  if(!rows.length){out.innerHTML='<div class="tbl"><div class="empty"><b>Nothing matches</b>No local jobs fit these filters. Widen the distance, dates or states, or lower the min size.</div></div>';return;}
   var body=rows.map(function(r){
     var j=r.j,d=fmtDate(j.date);
     var route=(j.puState||'?')+'<span class="ar">→</span>'+(j.delState||'?');
@@ -171,16 +169,19 @@ function render(){
     return '<tr><td class="dt"><b>'+esc(d.big)+'</b><span>'+esc(d.dow)+'</span></td>'
       +'<td class="mono">'+esc(j.jobCode||'')+'</td>'
       +'<td class="mono">'+esc(j.requestNo||'')+'</td>'
-      +'<td><a class="addr" href="'+mapsLink(j.pickup)+'" target="_blank" rel="noopener">'+esc(j.pickup||'(no address)')+'</a> &nbsp;<a class="map" href="'+mapsLink(j.pickup)+'" target="_blank" rel="noopener" title="Open in Google Maps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Map</a></td>'
+      +'<td>'+esc(j.customer||'')+'</td>'
+      +'<td><a class="addr" href="'+mapsLink(j.pickup)+'" target="_blank" rel="noopener">'+esc(j.pickup||'(no address)')+'</a></td>'
       +'<td class="route" title="'+esc(j.deliv||'')+'">'+route+'</td>'
       +'<td><span class="jt">'+esc(j.mt||'Local')+'</span></td>'
       +'<td class="r">'+Math.round(j.cf||0).toLocaleString()+'</td>'
       +'<td class="r">'+r.dist.toFixed(1)+' mi</td>'
       +'<td class="c">'+evcell+'</td></tr>';
   }).join('');
-  out.innerHTML='<div class="tbl"><table><thead><tr><th>Date</th><th>Job Code</th><th>Request #</th><th>Pickup (home)</th><th>Route</th><th>Type</th><th class="r">Size</th><th class="r">Distance</th><th class="c">Event</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  out.innerHTML='<div class="tbl"><table><thead><tr><th>Date</th><th>Job Code</th><th>Request #</th><th>Customer</th><th>Pickup (home)</th><th>Route</th><th>Type</th><th class="r">Size</th><th class="r">Distance</th><th class="c">Event</th></tr></thead><tbody>'+body+'</tbody></table></div>';
 }
-['fCF','fMin','fMax','fFrom','fTo'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('input',render);});
+['fCF','fMax','fFrom','fTo'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('input',render);});
+$('#puBtn').addEventListener('click',function(e){e.stopPropagation();$('#puPanel').classList.toggle('open');});
+document.addEventListener('click',function(e){var p=$('#puPanel');if(p&&p.classList.contains('open')&&!$('#puMs').contains(e.target))p.classList.remove('open');});
 loadSheet();
 </script>
 </body>
