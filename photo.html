@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Photo Shoot List · Zip To Zip</title>
+<title>Production Calendar · Zip To Zip</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -69,15 +69,12 @@ tbody tr:hover{background:var(--soft)}
 <body>
 <div class="bar"><div class="bar-in">
   <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
-  <div class="htxt"><h1>Photo Shoot List</h1><div class="sub">Upcoming local jobs &ge; 1,000 &middot; up to 50 mi from 11223</div></div>
-  <span class="spacer"></span>
-  <span class="stamp" id="stamp"></span>
+  <div class="htxt"><h1>Production Calendar</h1><div class="sub">Upcoming local jobs &ge; 1,000 &middot; up to 50 mi from 11223</div></div>
 </div></div>
 <div class="wrap">
   <div class="filters">
     <div class="frow">
       <div class="fl"><label>Min size</label><input id="fCF" type="number" value="1000" step="100"></div>
-      <div class="fl"><label>From ZIP</label><input id="fZip" type="text" value="11223"></div>
       <div class="fl"><label>Miles</label><div class="pair"><input id="fMin" type="number" value="0" step="1"><span>to</span><input id="fMax" type="number" value="50" step="1"></div></div>
       <div class="fl"><label>Dates</label><div class="pair"><input id="fFrom" type="date"><span>to</span><input id="fTo" type="date"></div></div>
       <div class="count"><b id="cnt">0</b><span>Total Jobs</span></div>
@@ -100,7 +97,7 @@ function toast(m){var t=$('#toast');if(!t){t=document.createElement('div');t.id=
 function haversine(a,b,c,d){var R=3958.8,dl=(c-a)*Math.PI/180,dn=(d-b)*Math.PI/180,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dn/2)*Math.sin(dn/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 function zipFromAddr(s){var m=String(s||'').match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b\d{5}\b)/);return m?m[1]:null;}
 function geoFull(zip){var z=ZIPDB[zip];return z?{lat:z[0],lon:z[1],st:z[3]}:null;}
-function homeCoord(){var z=geoFull(($('#fZip').value||'11223').trim());return z||{lat:40.5971,lon:-73.9734};}
+function homeCoord(){var z=geoFull('11223');return z||{lat:40.5971,lon:-73.9734};}
 function calNumV(s){var m=String(s==null?'':s).replace(/[^0-9.\-]/g,'');var v=parseFloat(m);return isFinite(v)?v:null;}
 function calEventLink(eid){if(!eid)return '';try{return 'https://calendar.google.com/calendar/u/0/r/eventedit/'+btoa(String(eid)+' '+GCAL_ID).replace(/=+$/,'');}catch(e){return 'https://calendar.google.com/calendar/u/0/r';}}
 function mapsLink(a){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a||'');}
@@ -112,7 +109,6 @@ function calDescText(s){s=String(s||'');if(/<[a-z!\/]/i.test(s)){s=s.replace(/<b
 function parseLabels(desc){var o={};calDescText(desc).split(/\r?\n/).forEach(function(line){var m=line.match(/^\s*([A-Za-z][A-Za-z0-9 \/#%-]{1,40})\s*:\s*(.*)$/);if(m){var k=m[1].trim().toLowerCase();if(o[k]===undefined)o[k]=m[2].trim();}});return o;}
 function buildJob(o){var pz=geoFull(zipFromAddr(o.pickup)),dz=geoFull(zipFromAddr(o.deliv));o.puState=pz?pz.st:'';o.delState=dz?dz.st:'';o.lat=pz?pz.lat:null;o.lon=pz?pz.lon:null;return o;}
 function loadSheet(){
-  $('#stamp').textContent='Loading…';
   var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(SHEET_TAB)+'&_t='+Date.now();
   fetch(url).then(function(r){return r.text();}).then(function(t){
     var rows=pcsv(t);if(rows.length<2){JOBS=[];STAMP='0 rows';finishLoad();return;}
@@ -145,7 +141,6 @@ function buildChips(){
   draw($('#delChips'),opts('delState'),delSel);
 }
 function render(){
-  $('#stamp').textContent=STAMP;
   var out=$('#out');
   if(!JOBS.length){out.innerHTML='<div class="tbl"><div class="empty"><b>No jobs loaded</b>The Google Calendar sheet tab returned no usable rows. Hit Refresh, or confirm the sheet is shared as link-viewable.</div></div>';$('#cnt').textContent='0';return;}
   var H=homeCoord(),minCF=+$('#fCF').value||0,dMin=+$('#fMin').value,dMax=+$('#fMax').value;
@@ -185,7 +180,7 @@ function render(){
   }).join('');
   out.innerHTML='<div class="tbl"><table><thead><tr><th>Date</th><th>Job Code</th><th>Request #</th><th>Pickup (home)</th><th>Route</th><th>Type</th><th class="r">Size</th><th class="r">Distance</th><th class="c">Event</th></tr></thead><tbody>'+body+'</tbody></table></div>';
 }
-['fCF','fZip','fMin','fMax','fFrom','fTo'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('input',render);});
+['fCF','fMin','fMax','fFrom','fTo'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('input',render);});
 loadSheet();
 </script>
 </body>
