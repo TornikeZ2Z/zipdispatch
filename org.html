@@ -116,10 +116,7 @@
   .lr-crown{position:absolute;top:-8px;left:10px;background:var(--c,#4f46e5);color:#fff;font-size:8.5px;font-weight:800;
     letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:999px;z-index:2}
   .colink-v{position:absolute;width:0;border-left:2px dashed var(--line);z-index:0}
-  .colink-tick{position:absolute;height:2px;background:var(--line)}
-
-  /* ===== department-column view (Organizational) & crew view ===== */
-  .deptview,.crewview{position:relative;display:inline-flex;flex-direction:column;align-items:center;padding:12px 8px 8px}
+  .colink-tick{position:absolute;height:2px;background:var(--line)}.crewview{position:relative;display:inline-flex;flex-direction:column;align-items:center;padding:12px 8px 8px}
   .dv-exec{display:flex;align-items:center;gap:13px;width:330px;padding:13px 18px;border-radius:15px;color:#fff;box-shadow:0 6px 18px rgba(15,23,42,.16)}
   .dv-exec.ceo{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
   .dv-exec.coo{background:linear-gradient(135deg,#7c3aed,#6d28d9)}
@@ -134,7 +131,6 @@
 .dv-col-sub{font-size:10.5px;color:#64748b;font-weight:600;margin-top:2px}
 .dv-fleet{display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 12px 12px;padding:9px;border:1.5px solid var(--c);border-radius:10px;color:var(--c);font-weight:700;font-size:12.5px;text-decoration:none;cursor:pointer}
 .dv-fleet:hover{background:var(--c);color:#fff}
-.obwrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:1120px;margin:0 auto}
 .ob-leads{display:flex;gap:14px;justify-content:center;margin:6px 0 4px;flex-wrap:wrap}
 .ob-mgr{align-self:stretch;text-align:center;font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#475569;margin:16px 0 8px;position:relative}
 .ob-mgr.ob-divider{margin-top:24px}
@@ -391,9 +387,6 @@
   .rowdel:hover{color:#dc2626;background:#fef2f2}
   .addrow{margin-top:10px;align-self:flex-start;border-style:dashed}
   .sheet.pw{width:min(400px,100%)}
-  .pwfield{width:100%;border:1px solid #d4dbe5;border-radius:10px;padding:11px 12px;font-family:inherit;font-size:14px;color:#1e293b;background:#fbfcfe;outline:none}
-  .pwfield:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
-  .pwerr{min-height:16px;margin-top:8px;font-size:12px;color:#dc2626;font-weight:600}
   .sheet .foot{padding:13px 18px;border-top:1px solid var(--card-border);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .sheet .status{font-size:12px;color:var(--muted);margin-right:auto}
   .sheet .status.err{color:#dc2626;font-weight:600}.sheet .status.ok{color:#15803d;font-weight:600}
@@ -403,11 +396,9 @@
   @media (max-width:640px){
     header{padding:11px 13px 0}
     .brand{font-size:17px}.stat{min-width:0;padding:5px 9px}.stat b{font-size:15px}
-    .stage{padding:16px 12px 70px}
-  }
+    .stage{padding:16px 12px 70px}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
-  @media print{header .controls,header .legend{display:none}#viewport{overflow:visible;height:auto}#zoomwrap{transform:none!important}body{height:auto;overflow:visible}}
-</style>
+  @media print{header .controls,header .legend{display:none}#viewport{overflow:visible;height:auto}#zoomwrap{transform:none!important}body{height:auto;overflow:visible}}</style>
 </head>
 <body>
 <header>
@@ -791,19 +782,6 @@ function renderBranch(node, leaders, parentRec, opts){
 }
 
 /* ----- desktop hybrid (supports co-CEOs side by side) ----- */
-function buildHybrid(host){
-  const coLeads=coLeadsOf(ORG);
-  if(coLeads.length===0){
-    host.appendChild(renderBranch(ORG, ORG.children||[], null, {crownText:'CEO'}).tree);
-    return;
-  }
-  const mainKids=(ORG.children||[]).filter(c=>!CO_LEADS.includes(c.name));
-  const cofork=document.createElement('div'); cofork.className='cofork';
-  cofork.appendChild(renderBranch(ORG, mainKids, null, {crownText:'CEO'}).tree);
-  coLeads.forEach(cl=> cofork.appendChild(renderBranch(cl, cl.children||[], null, {crownText:'Co-CEO'}).tree));
-  host.appendChild(cofork);
-  requestAnimationFrame(()=>drawCoLink(cofork));
-}
 
 /* ----- one outline head: top card + its indented subtree ----- */
 function appendOutlineHead(wrap, node, children, crownText){
@@ -823,14 +801,6 @@ function appendOutlineHead(wrap, node, children, crownText){
 }
 
 /* ----- mobile single-column outline (co-CEOs stacked as top-level heads) ----- */
-function buildOutline(host){
-  const wrap=document.createElement('div'); wrap.className='outline';
-  const coLeads=coLeadsOf(ORG);
-  const mainKids=(ORG.children||[]).filter(c=>!CO_LEADS.includes(c.name));
-  appendOutlineHead(wrap, ORG, mainKids, 'CEO');
-  coLeads.forEach(cl=> appendOutlineHead(wrap, cl, cl.children||[], 'Co-CEO'));
-  host.appendChild(wrap);
-}
 
 /* ----- left-to-right tree ----- */
 function buildLeafGrid(leaves, parentRec){
@@ -863,20 +833,6 @@ function lrNode(node, children, parentRec, crownText){
     card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault(); li.classList.toggle('collapsed'); redrawCoLink();}});
   }
   return li;
-}
-function buildLR(host){
-  const lr=document.createElement('div'); lr.className='lrtree';
-  const root=document.createElement('ul'); root.className='lrroot';
-  const coLeads=coLeadsOf(ORG);
-  if(coLeads.length===0){
-    root.appendChild(lrNode(ORG, ORG.children||[], null, 'CEO'));
-  } else {
-    const mainKids=(ORG.children||[]).filter(c=>!CO_LEADS.includes(c.name));
-    root.appendChild(lrNode(ORG, mainKids, null, 'CEO'));
-    coLeads.forEach(cl=> root.appendChild(lrNode(cl, cl.children||[], null, 'Co-CEO')));
-  }
-  lr.appendChild(root); host.appendChild(lr);
-  if(coLeads.length) requestAnimationFrame(()=>drawLRCoLink(lr));
 }
 function rectWithin(el, anc){ const r=el.getBoundingClientRect(), a=anc.getBoundingClientRect(), z=zoom||1; return {x:(r.left-a.left)/z, y:(r.top-a.top)/z, w:r.width/z, h:r.height/z}; }
 function drawLRCoLink(lr){
@@ -1069,13 +1025,6 @@ function crewStateColumns(){
   });
   return out;
 }
-function personChip(p,color,isLead){
-  const el=document.createElement('div'); el.className='ob-chip'+(isLead?' lead':''); el.style.setProperty('--bc',color||'#64748b');
-  el.innerHTML='<div class="ob-nm">'+esc(p.name)+'</div><div class="ob-ti">'+esc(p.title||'')+(p.alias?' · '+esc(p.alias):'')+'</div>';
-  el.style.cursor='pointer'; el.dataset.pi=PEOPLE.indexOf(p); el.onclick=function(){personPopup(p);};
-  addRec(p,el,null,null,false);
-  return el;
-}
 function ppRows(pairs){return pairs.filter(function(x){return x[1]&&String(x[1]).trim();}).map(function(x){return '<div class="pp-row"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>';}).join('');}
 function personPopup(p){
   const html=ppRows([['Position',p.title],['Department',p.dept],['Alias',p.alias],['Reports to',p.reportsTo],['Also reports to',p.alsoReportsTo],['Email',p.email]])||'<div class="pp-empty">No extra details yet — add an Email column to the Org Chart sheet and it will appear here.</div>';
@@ -1143,79 +1092,6 @@ function coverCard(c){
 function coveringForemen(state){
   return CREW.filter(c=>crewLevel(c.role)==='foreman' && (c.states||'').split(/[,/;]+/).map(x=>x.trim().toUpperCase()).includes(state));
 }
-function buildCrewColumns(host){
-  const wrap=document.createElement('div'); wrap.className='crewview';
-  const banner=document.createElement('div'); banner.className='cv-banner';
-  banner.innerHTML=`<div class="ava">${IC.hard}</div><div><div class="cv-banner-name">Deployable Crews</div><div class="cv-banner-sub">A crew = one foreman · drivers &amp; helpers are the shared support pool · each person sits in their home state</div></div>`;
-  wrap.appendChild(banner);
-  const groups={}; CREW.forEach(c=>{ (groups[baseKey(c.base)] ||= []).push(c); });
-  const cov=coverageByState();
-  const keys=Object.keys(groups).filter(k=>k!=='').sort((a,b)=>{ const ia=CREW_LOC_ORDER.indexOf(a),ib=CREW_LOC_ORDER.indexOf(b); if(ia<0&&ib<0)return a.localeCompare(b); if(ia<0)return 1; if(ib<0)return -1; return ia-ib; });
-  const link=document.createElement('div'); link.className='dv-vlink'; wrap.appendChild(link);
-  const cols=document.createElement('div'); cols.className='cv-cols';
-  keys.forEach(k=>{
-    const list=groups[k]; const foremen=list.filter(c=>crewLevel(c.role)==='foreman');
-    const cc=crewCounts(list); const color=CREW_LOC[k]||'#64748b';
-    const canCover=cov[k]?cov[k].f:foremen.length; const visiting=Math.max(0, canCover-foremen.length);
-    const col=document.createElement('div'); col.className='cv-col'; col.style.setProperty('--c',color);
-    /* header */
-    col.innerHTML=`<div class="cv-col-head"><div class="cv-loc"><div class="cv-loc-icon">${IC.pin}</div>
-      <div><div class="cv-loc-name">${esc(baseFull(k))}</div><div class="cv-loc-sub">${cc.total} field staff</div></div></div>
-      <span class="cv-count">${foremen.length}</span></div>`;
-    /* max-availability block */
-    const avail=document.createElement('div'); avail.className='cv-avail';
-    avail.innerHTML=`<div class="cv-avail-lbl">Max availability</div>
-      <div class="cv-avail-main"><b>${foremen.length}</b> ${foremen.length===1?'crew':'crews'} based here</div>
-      ${visiting? `<div class="cv-avail-cover"><b>${canCover}</b> can cover ${esc(baseFull(k))} <span>· ${visiting} can travel in</span></div>`:''}
-      <div class="cv-avail-sup">Support pool: <b>${cc.d}</b> drivers · <b>${cc.h}</b> helpers</div>`;
-    col.appendChild(avail);
-    /* list */
-    const body=document.createElement('div'); body.className='cv-col-body';
-    if(foremen.length) foremen.forEach(c=>body.appendChild(foremanCard(c)));
-    else { const none=document.createElement('div'); none.className='cv-none'; none.textContent='No foreman based here — no crew can run from this base.'; body.appendChild(none); }
-    col.appendChild(body); cols.appendChild(col);
-  });
-  /* coverage-only columns — states with no home base (who can travel in to cover them) */
-  const homeSet=new Set(keys);
-  const COV_ONLY=Object.keys(cov).filter(st=>st&&!homeSet.has(st)).sort((a,b)=>((cov[b]&&cov[b].f||0)-(cov[a]&&cov[a].f||0))||a.localeCompare(b));
-  COV_ONLY.forEach(st=>{
-    const s=cov[st]; if(!s) return;
-    const color=CREW_LOC[st]||'#64748b'; const covF=coveringForemen(st);
-    const col=document.createElement('div'); col.className='cv-col cv-cov-col'; col.style.setProperty('--c',color);
-    col.innerHTML=`<div class="cv-col-head"><div class="cv-loc"><div class="cv-loc-icon">${IC.pin}</div>
-      <div><div class="cv-loc-name">${esc(STATE_NAME[st]||st)}</div><div class="cv-loc-sub">coverage only</div></div></div>
-      <span class="cv-count">${s.f}</span></div>`;
-    const avail=document.createElement('div'); avail.className='cv-avail'+(s.f?'':' zero');
-    avail.innerHTML = s.f
-      ? `<div class="cv-avail-lbl">Max availability</div>
-         <div class="cv-avail-main"><b>${s.f}</b> ${s.f===1?'crew':'crews'} can cover</div>
-         <div class="cv-avail-cover"><span>all travel in · no home base here</span></div>
-         <div class="cv-avail-sup">Reachable support: <b>${s.d}</b> drivers · <b>${s.h}</b> helpers</div>`
-      : `<div class="cv-avail-lbl">Max availability</div>
-         <div class="cv-avail-main zero"><b>0</b> crews</div>
-         <div class="cv-avail-cover warn">No foreman can lead a job here</div>
-         <div class="cv-avail-sup"><b>${s.d}</b> drivers · <b>${s.h}</b> helpers could support — but can’t deploy</div>`;
-    col.appendChild(avail);
-    const body=document.createElement('div'); body.className='cv-col-body';
-    if(covF.length) covF.forEach(c=>body.appendChild(coverCard(c)));
-    else { const none=document.createElement('div'); none.className='cv-none'; none.textContent='No foreman can cover this state.'; body.appendChild(none); }
-    col.appendChild(body); cols.appendChild(col);
-  });
-  wrap.appendChild(cols);
-  /* anyone with no base assigned */
-  const un=groups[''];
-  if(un && un.length){
-    const u=crewCounts(un);
-    const note=document.createElement('div'); note.className='cv-unassigned';
-    note.innerHTML=`<span class="ar">⚠</span> ${un.length} crew member${un.length>1?'s':''} with no base assigned${u.f?` (${u.f} foreman${u.f>1?'en':''})`:' — support only'}. Set a base in the fleet data to place ${un.length>1?'them':'them'}.`;
-    wrap.appendChild(note);
-  }
-  const all=crewCounts(CREW);
-  const foot=document.createElement('div'); foot.className='dv-foot';
-  foot.innerHTML=`<div class="ava">${IC.hard}</div><b>${all.f}</b><span>Deployable crews &nbsp;·&nbsp; ${all.total} field staff (${all.f} foremen · ${all.d} drivers · ${all.h} helpers)</span>`;
-  wrap.appendChild(foot);
-  host.appendChild(wrap);
-}
 
 /* ----- stats + legend (defined in the render section) ----- */
 
@@ -1238,15 +1114,6 @@ q.addEventListener('input', runSearch);
 qclr.addEventListener('click',()=>{ q.value=''; runSearch(); q.focus(); });
 
 /* ----- dept filter ----- */
-function toggleDept(d, chip){
-  q.value=''; qclr.style.display='none';
-  const on=activeDept!==d; deactivateChips(); clearStates();
-  if(!on){ activeDept=null; return; }
-  activeDept=d; chip.classList.add('active'); chip.style.background=colorOf(d);
-  let first=null;
-  records.forEach(r=>{ if(r.data.dept===d){ r.el.classList.add('deptmatch'); reveal(r); if(!first) first=r; } else r.el.classList.add('dim'); });
-  if(first) scrollToEl(first.el);
-}
 
 /* ----- expand / collapse ----- */
 document.getElementById('expandAll').addEventListener('click',()=>{ document.querySelectorAll('.collapsed').forEach(el=>el.classList.remove('collapsed')); redrawCoLink(); });
@@ -1292,12 +1159,6 @@ const dlNames=document.getElementById('dlNames'), dlDepts=document.getElementByI
 const editTitle=document.getElementById('editTitle'), editHelp=document.getElementById('editHelp'), addRowBtn=document.getElementById('addRowBtn');
 
 const hasStore = !!(window.storage && typeof window.storage.get==='function');
-async function loadSaved(key){
-  if(!hasStore) return null;
-  try{ const r=await window.storage.get(key, true); if(r && r.value){ const a=JSON.parse(r.value); if(Array.isArray(a) && a.length) return a; } }
-  catch(e){}
-  return null;
-}
 async function save(key, arr){
   if(!hasStore) return 'nostore';
   try{ const r=await window.storage.set(key, JSON.stringify(arr), true); return r?'saved':'failed'; }
@@ -1390,14 +1251,6 @@ function serialize(arr){
   return [head, ...rows].join('\n');
 }
 
-function openEditor(){
-  activeSchema = mode==='crew' ? SCHEMAS.crew : SCHEMAS.org;
-  editTitle.textContent=activeSchema.title; editHelp.innerHTML=activeSchema.help; addRowBtn.textContent=activeSchema.add;
-  buildHead(); gridFromData(activeSchema.get());
-  editStatus.className='status';
-  editStatus.textContent = hasStore ? 'Edit cells, then Apply — changes save for everyone.' : 'Edit cells, then Apply (live only — not saved on this host).';
-  overlay.classList.add('show');
-}
 function closeEditor(){ overlay.classList.remove('show'); }
 /* Edit-data button removed for now — editor kept dormant below; re-add the
    #editBtn button in the toolbar and this listener to bring editing back. */
