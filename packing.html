@@ -563,13 +563,39 @@ function recWrap(r){var M=matIdx(),s=0;M.wr.forEach(function(i){s+=jobItemQty[r.
 function reqCovers(r){return (r.mqk>0?r.mqk:0)+(r.mtf>0?r.mtf:0);}
 function reqTape(r){return (r.ivBoxes!=null&&r.ivBoxes>0)?Math.ceil(r.ivBoxes/8):0;}
 function hasInv(r){return r.mqk!=null;}
+function _erf(x){var s=x<0?-1:1;x=Math.abs(x);var t=1/(1+0.3275911*x);var y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y;}
+function normCdf(z){return 0.5*(1+_erf(z/Math.SQRT2));}
+function mwuLowerP(a,b){var na=a.length,nb=b.length;if(na<8||nb<8)return null;var all=a.map(function(v){return [v,0];}).concat(b.map(function(v){return [v,1];}));all.sort(function(x,y){return x[0]-y[0];});var rank=new Array(all.length),i=0;while(i<all.length){var j=i;while(j+1<all.length&&all[j+1][0]===all[i][0])j++;var r=(i+j)/2+1;for(var k=i;k<=j;k++)rank[k]=r;i=j+1;}var Ra=0;for(var t=0;t<all.length;t++)if(all[t][1]===0)Ra+=rank[t];var Ua=Ra-na*(na+1)/2,mu=na*nb/2,sd=Math.sqrt(na*nb*(na+nb+1)/12);if(!sd)return null;return normCdf((Ua-mu)/sd);}
+var METLBL={pkCF:'packing/CF',ppu:'$/item',tpb:'tape/box',cover:'covers',wrap:'shrink wrap'};
+function metricVals(m){
+  var V={}; m.forEach(function(r){ if(r.ivNoPack)return; var fi=r.fi;
+    function add(o,v){(o[fi]=o[fi]||[]).push(v);}
+    if(r.cf>=200) add(V.pkCF=V.pkCF||{},r.pk100);
+    if(hasInv(r)&&(r.ivBoxes+r.ivWrap)>=3) add(V.ppu=V.ppu||{},r.act/((r.ivBoxes+r.ivWrap)||1));
+    if(hasInv(r)&&r.ivBoxes>0) add(V.tpb=V.tpb||{},(jobItemQty[r.ji][tapeIdx]||0)/r.ivBoxes);
+    var rc=reqCovers(r); if(rc>0) add(V.cover=V.cover||{},Math.min(recCovers(r),rc)/rc);
+    if(hasInv(r)&&r.ivWrap>0) add(V.wrap=V.wrap||{},Math.min(recWrap(r),r.ivWrap)/r.ivWrap);
+  }); return V;
+}
+function confidence(fi,V){
+  var keys=['pkCF','ppu','tpb','cover','wrap'],sig=[],best=1,testable=0;
+  keys.forEach(function(m){ var o=V[m]; if(!o)return; var a=o[fi]||[]; if(a.length<8)return; testable++;
+    var b=[]; Object.keys(o).forEach(function(f){ if(+f!==fi) b=b.concat(o[f]); });
+    var p=mwuLowerP(a,b); if(p==null)return; if(p<best)best=p;
+    if(p<0.05 && median(a)<median(b)) sig.push({m:m,p:p}); });
+  var lvl='NORMAL';
+  if(testable===0) lvl='THIN';
+  else if(sig.length>=2 || best<0.005) lvl='STRONG';
+  else if(sig.length>=1) lvl='WEAK';
+  return {lvl:lvl,sig:sig,best:best,testable:testable};
+}
 function computeProblems(){
   var m=S.recs.filter(function(r){return r.cb;});
+  var V=metricVals(m);
   var big=m.filter(function(r){return r.cf>=200 && !r.ivNoPack;});
   var fpk=median(big.map(function(r){return r.pk100;}));
   var ivj=m.filter(function(r){return hasInv(r) && (r.ivBoxes+r.ivWrap)>=3;});
   var fppu=median(ivj.map(function(r){return r.act/((r.ivBoxes+r.ivWrap)||1);}));
-  // fleet material coverage
   var FR=[0,0,0],FG=[0,0,0];
   m.forEach(function(r){ if(r.ivNoPack)return;
     var rc=reqCovers(r); if(hasInv(r)&&rc>0){FR[0]+=rc;FG[0]+=Math.min(recCovers(r),rc);}
@@ -580,7 +606,7 @@ function computeProblems(){
   var by={};m.forEach(function(r){(by[r.fi]=by[r.fi]||[]).push(r);});
   var out=[];
   Object.keys(by).forEach(function(fi){
-    var a=by[fi]; if(a.length<10) return;
+    var a=by[fi]; if(a.length<10) return; fi=+fi;
     var bg=a.filter(function(r){return r.cf>=200 && !r.ivNoPack;});
     var pk=median(bg.map(function(r){return r.pk100;}));
     var zr=bg.length?bg.filter(function(r){return r.act<20;}).length/bg.length:null;
@@ -601,11 +627,20 @@ function computeProblems(){
     if(cov!=null) s+=20*Math.max(0,1-cov/fcov);
     if(cfr!=null && cfr<0.9) s+=15*Math.min(1,(0.9-cfr)/0.3);
     if(zr) s+=15*Math.min(1,zr/0.3);
-    out.push({fi:+fi,name:FOREMEN[fi],jobs:a.length,score:Math.round(s),pk:pk,ppu:ppu,cfr:cfr,zero:zr,cov:cov,
-      R:R,G:G,covPct:R[0]?G[0]/R[0]:null,wrapPct:R[1]?G[1]/R[1]:null,tapePct:R[2]?G[2]/R[2]:null});
+    var cf=confidence(fi,V);
+    out.push({fi:fi,name:FOREMEN[fi],jobs:a.length,score:Math.round(s),pk:pk,ppu:ppu,cfr:cfr,zero:zr,cov:cov,
+      R:R,G:G,covPct:R[0]?G[0]/R[0]:null,wrapPct:R[1]?G[1]/R[1]:null,tapePct:R[2]?G[2]/R[2]:null,conf:cf});
   });
   out.sort(function(x,y){return y.score-x.score;});
   return {fleet:{pk:fpk,ppu:fppu,cov:fcov,covPct:FR[0]?FG[0]/FR[0]:null,wrapPct:FR[1]?FG[1]/FR[1]:null,tapePct:FR[2]?FG[2]/FR[2]:null},per:out};
+}
+function confBadge(c){
+  var map={STRONG:['p-bad','Strong signal'],WEAK:['p-warn','Weak — may be chance'],THIN:['p-mut','Thin data'],NORMAL:['p-mut','Within normal range']};
+  var x=map[c.lvl]||map.NORMAL; var sub='';
+  if(c.lvl==='STRONG'||c.lvl==='WEAK') sub=' <span class="muted-s">'+c.sig.length+' of '+c.testable+' measures sig.'+(c.sig.length?(' ('+c.sig.map(function(s){return METLBL[s.m];}).join(', ')+'; p='+(c.best<0.001?'<0.001':c.best.toFixed(3))+')'):'')+'</span>';
+  else if(c.lvl==='THIN') sub=' <span class="muted-s">too few jobs to test</span>';
+  else sub=' <span class="muted-s">not statistically separable from peers</span>';
+  return '<span class="pill '+x[0]+'">'+x[1]+'</span>'+sub;
 }
 function covCell(pct,fleet){ if(pct==null)return '<span class="muted-s">n/a</span>'; var bad=fleet&&pct<0.7*fleet; return '<b style="color:'+(bad?'var(--bad)':'var(--ink)')+'">'+Math.round(100*pct)+'%</b>'; }
 function matRow(p,fleet){
@@ -622,24 +657,21 @@ function problemCard(p,fleet){
   if(p.ppu!=null&&p.ppu<0.7*fleet.ppu) probs.push('books only <b>'+m1(p.ppu)+'</b> of packing per item of goods — fleet '+m1(fleet.ppu));
   if(p.pk!=null&&p.pk<0.7*fleet.pk) probs.push('records <b>'+num(p.pk,0)+'</b> packing $ per 100 CF — fleet '+num(fleet.pk,0));
   if(p.zero&&p.zero>0.08) probs.push('<b>'+pct(100*p.zero)+'</b> of real moves booked zero packing');
-  if(p.cfr!=null&&p.cfr<0.85) probs.push('logs only <b>'+pct(100*p.cfr)+'</b> of the cubic feet sold');
   if(!probs.length) probs.push('mild under-recording across signals');
   var first=esc(p.name.split(' ')[0]);
-  var worst=[]; if(p.covPct!=null&&p.covPct<0.7*fleet.covPct)worst.push('mattress covers'); if(p.wrapPct!=null&&p.wrapPct<0.7*fleet.wrapPct)worst.push('shrink wrap'); if(p.tapePct!=null&&p.tapePct<0.7*fleet.tapePct)worst.push('tape');
   var causes=[
-    'Selling their own packing materials off-book — brings own '+(worst.length?worst.join(' / '):'materials')+', charges the customer, keeps the cash; the company only sees the low recorded number.',
-    'Not offering or upselling packing on site — lost revenue rather than theft.',
-    'Recording gaps — uses materials but doesn’t log them against the job.',
-    'A genuinely labour-only mix — but customer-packed jobs are already excluded, so this is largely ruled out.'
+    'Customers packing their own goods — legitimate, and the #1 thing to rule out. Random per job, so it can’t explain a <i>consistent</i> shortfall (that’s what the confidence badge tests).',
+    'Selling their own packing materials off-book — brings own materials, charges the customer, keeps the cash.',
+    'Not offering/upselling packing, or recording gaps — lost revenue rather than theft.'
   ];
   var qs=[
-    'Which materials are short? <b>'+(worst.length?worst.join(', '):'spread across all')+'</b> — see the coverage row above.',
-    'Survives removing customer-packed jobs? <b>Yes</b> — those are already excluded.',
-    'Spot-check three of '+first+'’s biggest inventoried jobs: do the beds/dressers/TVs on the truck match the covers & wrap on the invoice?'
+    'Is the shortfall consistent or just a few jobs? <b>'+(p.conf.lvl==='STRONG'?'Consistent — beyond what self-packing explains':p.conf.lvl==='WEAK'?'Borderline — could be chance':'Too few jobs to say')+'</b>',
+    'Confidence: <b>'+p.conf.lvl+'</b> — significant on '+p.conf.sig.length+' of '+p.conf.testable+' independent measures.',
+    'Spot-check three of '+first+'’s biggest inventoried jobs: do the beds/dressers on the truck match the covers & wrap booked?'
   ];
-  return '<div class="card pcard"><div class="pc-h"><span class="pc-name">'+esc(p.name)+'</span>'+scoreBar(p.score)+'<span class="muted-s">'+p.jobs+' jobs</span><button class="exp" style="margin-left:auto" onclick="gotoForeman('+p.fi+')">Open profile →</button></div>'
+  return '<div class="card pcard"><div class="pc-h"><span class="pc-name">'+esc(p.name)+'</span>'+scoreBar(p.score)+confBadge(p.conf)+'<span class="muted-s" style="margin-left:auto">'+p.jobs+' jobs</span><button class="exp" onclick="gotoForeman('+p.fi+')">Open →</button></div>'
     +matRow(p,fleet)
-    +'<div class="pc-sec"><div class="pc-lbl bad">What’s wrong</div><ul class="pc-ul bad">'+probs.map(function(t){return '<li>'+t+'</li>';}).join('')+'</ul></div>'
+    +'<div class="pc-sec"><div class="pc-lbl bad">What’s low</div><ul class="pc-ul bad">'+probs.map(function(t){return '<li>'+t+'</li>';}).join('')+'</ul></div>'
     +'<div class="pc-2col"><div class="pc-sec"><div class="pc-lbl">Likely causes</div><ol class="pc-ol">'+causes.map(function(t){return '<li>'+t+'</li>';}).join('')+'</ol></div>'
     +'<div class="pc-sec"><div class="pc-lbl">Questions to resolve</div><ul class="pc-ul q">'+qs.map(function(t){return '<li>'+t+'</li>';}).join('')+'</ul></div></div></div>';
 }
@@ -650,30 +682,30 @@ function jobProblems(){
     var rc=reqCovers(r); if(rc>=1 && recCovers(r)===0) why.push(Math.round(rc)+' mattress'+(rc>1?'es':'')+' moved, 0 covers sold');
     if(hasInv(r)&&r.ivWrap>=4 && recWrap(r)===0) why.push(Math.round(r.ivWrap)+' wrappable pieces, no shrink wrap');
     if(r.cf>=300 && r.act<20) why.push('Real '+Math.round(r.cf)+' CF move, $0 packing');
-    if(r.ivEst>=80 && r.act<0.25*r.ivEst) why.push('Quoted '+money(r.ivEst)+', booked '+money(r.act));
     if(why.length) rows.push({r:r,why:why,sev:why.length*1e6+r.cf});
   });
   rows.sort(function(a,b){return b.sev-a.sev;});
   if(!rows.length) return '';
-  return '<div class="card">'+cardH(rows.length+' individual jobs to review','Items moved without their packing. Confirm one (e.g. customer supplied own) to drop it from the stats.')+'<div class="tbl"><table><thead><tr><th class="l">Job</th><th class="l">Foreman</th><th>Real CF</th><th>Packing</th><th class="l">Materials gap</th><th></th></tr></thead><tbody>'+rows.slice(0,200).map(function(o){var r=o.r;return '<tr><td class="l">'+esc(JOBS[r.ji][Jc])+'</td><td class="l">'+esc(FOREMEN[r.fi])+'</td><td class="num">'+Math.round(r.cf)+'</td><td class="num">'+money(r.act)+'</td><td class="l reason">'+o.why.map(esc).join('; ')+'</td><td><button class="ckbtn" onclick="markChecked('+r.ji+',this)">✓ reviewed</button></td></tr>';}).join('')+'</tbody></table></div>'+(rows.length>200?'<div class="muted-s" style="margin-top:8px">Showing first 200 of '+rows.length+'.</div>':'')+'</div>';
+  return '<div class="card">'+cardH(rows.length+' individual jobs to spot-check','Items moved without their packing — but any single one may just be a customer who packed their own. Confirm to drop it from the stats.')+'<div class="tbl"><table><thead><tr><th class="l">Job</th><th class="l">Foreman</th><th>Real CF</th><th>Packing</th><th class="l">Materials gap</th><th></th></tr></thead><tbody>'+rows.slice(0,200).map(function(o){var r=o.r;return '<tr><td class="l">'+esc(JOBS[r.ji][Jc])+'</td><td class="l">'+esc(FOREMEN[r.fi])+'</td><td class="num">'+Math.round(r.cf)+'</td><td class="num">'+money(r.act)+'</td><td class="l reason">'+o.why.map(esc).join('; ')+'</td><td><button class="ckbtn" onclick="markChecked('+r.ji+',this)">✓ reviewed</button></td></tr>';}).join('')+'</tbody></table></div>'+(rows.length>200?'<div class="muted-s" style="margin-top:8px">Showing first 200 of '+rows.length+'.</div>':'')+'</div>';
 }
 function fleetMatCard(fleet){
   function bar(lbl,pct){var w=Math.round(100*(pct||0));var col=w<50?'var(--bad)':w<75?'var(--warn)':'var(--good)';return '<div class="fmrow"><span class="fmlbl">'+lbl+'</span><span class="fmtrack"><span class="fmfill" style="width:'+w+'%;background:'+col+'"></span></span><b>'+w+'%</b></div>';}
-  return '<div class="card">'+cardH('Materials coverage — fleet','Of the packing each move’s inventory calls for, how much actually gets sold. Mattress covers per bed, shrink wrap per dresser/sofa/cabinet, tape per ~8 boxes.')+bar('Mattress covers',fleet.covPct)+bar('Shrink wrap',fleet.wrapPct)+bar('Tape',fleet.tapePct)+'</div>';
+  return '<div class="card">'+cardH('Materials coverage — fleet','Of the packing each move’s inventory calls for, how much actually gets sold across the whole team.')+bar('Mattress covers',fleet.covPct)+bar('Shrink wrap',fleet.wrapPct)+bar('Tape',fleet.tapePct)+'</div>';
 }
 function renderProblems(){
   var host=document.getElementById('v-problems'); if(!host) return;
   var P=computeProblems(); var fleet=P.fleet; var flagged=P.per.filter(function(p){return p.score>=12;});
-  var html='<h2 class="sec">Problem board</h2><p class="sub">Every packing material checked against the inventory each move actually carried — covers for beds, shrink wrap for dressers/sofas/cabinets, tape for boxes — plus packing per CF and per item. Foremen ranked 0–100 by how much of the required packing they fail to book, on real non customer-packed moves. Flags who to review, not proof.</p>';
+  var strong=P.per.filter(function(p){return p.conf.lvl==='STRONG';}).length;
+  var html='<h2 class="sec">Problem board</h2><p class="sub">Foremen ranked by how much of the packing their jobs’ inventory calls for goes unbooked (covers, shrink wrap, tape, $ per CF, $ per item). Customers often pack their own goods — legitimate and random — so each card carries a <b>confidence badge</b>: a rank-sum test of whether the shortfall is consistent enough to be a real pattern, not chance. With ~65 comparisons, expect ~3 false "weak" hits, so weight the strong ones.</p>';
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 14px"><button class="connbtn" style="background:var(--ink)" onclick="pullCalendar(this)">⟳ Sync calendar</button><button class="connbtn" style="background:var(--ink)" onclick="downloadCalJSON()">⬇ Export data</button></div>';
   html+='<div class="kpis">'+[
-    ['Foremen flagged',flagged.length,'concern ≥ 12','bad'],
-    ['Top concern',flagged.length?esc(flagged[0].name.split(' ')[0]):'—',flagged.length?('score '+flagged[0].score):'none','bad'],
-    ['Covers sold / needed',Math.round(100*(fleet.covPct||0))+'%','fleet',''],
-    ['Wrap sold / needed',Math.round(100*(fleet.wrapPct||0))+'%','fleet','']
+    ['Strong-signal foremen',strong,'beyond chance',strong?'bad':''],
+    ['Flagged (any)',flagged.length,'score ≥ 12','warn'],
+    ['Covers sold/needed',Math.round(100*(fleet.covPct||0))+'%','fleet',''],
+    ['Wrap sold/needed',Math.round(100*(fleet.wrapPct||0))+'%','fleet','']
   ].map(function(x){return '<div class="kpi"><div class="v bignum">'+x[1]+'</div><div class="l">'+x[0]+'</div><div class="d '+(x[3]==='bad'?'dn':'')+'">'+x[2]+'</div></div>';}).join('')+'</div>';
   html+=fleetMatCard(fleet);
-  html+='<div class="card">'+cardH('Concern score by foreman','Higher = books less of the required packing across covers, wrap, tape, $ per CF and $ per item.','ch-prob')+'<div class="chartbox tall"><canvas id="ch-prob"></canvas></div></div>';
+  html+='<div class="card">'+cardH('Concern score by foreman','Bar = score; the badge on each card below tells you how statistically solid it is.','ch-prob')+'<div class="chartbox tall"><canvas id="ch-prob"></canvas></div></div>';
   if(!flagged.length) html+='<div class="card">No foreman crosses the concern threshold.</div>';
   flagged.forEach(function(p){ html+=problemCard(p,fleet); });
   html+=jobProblems();
@@ -681,7 +713,8 @@ function renderProblems(){
 }
 function cfgProb(){
   var P=computeProblems(); var d=P.per.filter(function(p){return p.score>=8;});
-  return {type:'bar',data:{labels:d.map(function(p){return p.name;}),datasets:[{data:d.map(function(p){return p.score;}),backgroundColor:d.map(function(p){return COL[bandOf(p.score)];}),borderRadius:5,maxBarThickness:22}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return 'concern '+c.raw;}}}},scales:{x:{beginAtZero:true,suggestedMax:40,grid:{color:COL.line},ticks:{color:COL.dim}},y:{grid:{display:false},ticks:{color:COL.ink,font:{weight:'600'}}}}}};
+  var colmap={STRONG:COL.bad,WEAK:COL.warn,THIN:COL.dim,NORMAL:COL.dim};
+  return {type:'bar',data:{labels:d.map(function(p){return p.name;}),datasets:[{data:d.map(function(p){return p.score;}),backgroundColor:d.map(function(p){return colmap[p.conf.lvl]||COL.dim;}),borderRadius:5,maxBarThickness:22}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return 'concern '+c.raw+' · '+d[c.dataIndex].conf.lvl;}}}},scales:{x:{beginAtZero:true,suggestedMax:40,grid:{color:COL.line},ticks:{color:COL.dim}},y:{grid:{display:false},ticks:{color:COL.ink,font:{weight:'600'}}}}}};
 }
 function renderCalendar(){
   var host=document.getElementById('v-calendar');if(!host)return;
