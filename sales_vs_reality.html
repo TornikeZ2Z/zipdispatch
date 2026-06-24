@@ -357,7 +357,7 @@ function toast(m){let t=document.getElementById('svr-toast');if(!t){t=document.c
 function ensureToken(cb){
   if(GTOKEN&&Date.now()<GTOKEXP-60000)return cb();
   if(window._gsiFail||!gReady()){toast('Google sign-in unavailable here \u2014 open on the hosted (GitHub Pages) URL.');return;}
-  _tc=_tc||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/spreadsheets',callback:function(){}});
+  _tc=_tc||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:function(){}});
   _tc.callback=function(resp){if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);
     try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP,scope:GSCOPE_VER}));localStorage.setItem('zd_gconn',GSCOPE_VER);}catch(e){}
     updateConnUI();cb();}else toast('Sign-in failed.');};
