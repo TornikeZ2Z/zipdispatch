@@ -206,9 +206,21 @@
 .trbar{width:100%;background:var(--problem);border-radius:5px 5px 0 0;min-height:2px}
 .trval{font-family:var(--fm);font-size:11px;color:var(--ink-2)}
 .trlab{font-family:var(--fm);font-size:10px;color:var(--muted);white-space:nowrap}
-.collap{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-right:6px;padding:2px 5px;border-radius:5px;line-height:1}
-.collap:hover{background:var(--line-2);color:var(--ink)}
+.collap{background:var(--line-2);border:1px solid var(--line);color:var(--ink-2);cursor:pointer;font-family:var(--fm);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;margin-right:10px;padding:4px 10px;border-radius:6px;vertical-align:middle}
+.collap:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.issue-reason{font-size:11px;color:var(--muted);font-style:italic;white-space:nowrap}
 section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{display:none}
+.gswitch{display:inline-flex;gap:4px;margin-left:10px;background:var(--line-2);border-radius:8px;padding:3px;vertical-align:middle}
+.gswitch button{font-family:var(--fm);font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;border:none;background:none;color:var(--muted);padding:5px 9px;border-radius:6px;cursor:pointer}
+.gswitch button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(21,35,63,.12)}
+.sp-diverge{position:relative;height:18px;background:var(--line-2);border-radius:5px;overflow:hidden;flex:1}
+.sp-diverge .dv-mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--muted);z-index:1}
+.sp-diverge .dv-bar{position:absolute;top:0;bottom:0}
+.sp-diverge .dv-bar.pos{background:var(--problem)}
+.sp-diverge .dv-bar.neg{background:#2c7fb8}
+#hist{margin:6px 2px 2px}
+.axis-ends{margin:12px 4px 0;display:flex;justify-content:space-between;font-family:var(--fm);font-size:11px;color:var(--muted)}
+.hist-legend{margin-top:16px;display:flex;flex-wrap:wrap;gap:20px}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 </head>
@@ -278,12 +290,6 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
   </section>
 
   <section>
-    <div class="shead"><h2 class="t">Recent issues</h2><span class="ri-sub" id="ri-window"></span>
-      <span class="sub">Problem jobs (over 50% off) moved in the last week.</span></div>
-    <div class="panel" id="ri-panel"></div>
-  </section>
-
-  <section>
     <div class="shead"><h2 class="t">Where the error lives</h2>
       <span class="sub">Every banded job by how far it ran from sold. Hover a bar for detail.</span></div>
     <div class="panel">
@@ -298,20 +304,16 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
   </section>
 
   <section>
-    <div class="shead"><h2 class="t">Accuracy over time</h2>
-      <span class="sub">Share of problem jobs by month on the selected metric.</span></div>
-    <div class="panel"><div id="trend-panel"></div></div>
-  </section>
-
-  <section>
     <div class="shead"><h2 class="t">Accuracy by sales person</h2>
-      <span class="sub">Each lead salesperson's job mix on this axis. Hover a segment for counts.</span></div>
+      <div class="gswitch" data-for="sp"><button data-gv="mix" aria-pressed="true">Mix</button><button data-gv="prob">Problem %</button><button data-gv="miss">Avg miss</button></div>
+      <span class="sub">Lead sales person on the selected metric — switch the chart view above.</span></div>
     <div class="panel" id="sp-chart"></div>
   </section>
 
   <section>
     <div class="shead"><h2 class="t">Accuracy by foreman</h2>
-      <span class="sub">Lead foreman (Foreman 1) job mix on the selected metric — full names from Crew Members.</span></div>
+      <div class="gswitch" data-for="fm"><button data-gv="mix" aria-pressed="true">Mix</button><button data-gv="prob">Problem %</button><button data-gv="miss">Avg miss</button></div>
+      <span class="sub">Lead foreman (Foreman 1), full names from Crew Members — switch the chart view above.</span></div>
     <div class="panel" id="fm-chart"></div>
   </section>
 
@@ -322,10 +324,11 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
   </section>
 
   <section>
-    <div class="shead"><h2 class="t" id="tbl-title">Per-job comparison</h2>
+    <div class="shead"><h2 class="t" id="tbl-title">All Jobs</h2>
       <div class="tswitch" id="tswitch" role="group" aria-label="Table view">
         <button data-tv="active" aria-pressed="true">Active</button>
         <button data-tv="excluded" aria-pressed="false">Excluded <b id="tv-exc-n">0</b></button>
+        <button data-tv="issues" aria-pressed="false">Data issues <b id="tv-issue-n">0</b></button>
       </div><span id="fchip-wrap"></span>
       <span class="sub" id="tbl-sub">Newest first. Click a column to sort. Use Ignore to set a job aside.</span></div>
     <div class="tbl-wrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
@@ -362,7 +365,7 @@ const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov',
 const DOW=['Mo','Tu','We','Th','Fr','Sa','Su'];
 const BANDCOL=['var(--ok)','var(--normal)','var(--problem)'], BANDKEY=['ok','normal','problem'], BANDLAB=['Okay','Normal','Problem'];
 
-const state={dim:'inv',from:'',to:'',type:'all',sales:'all',q:'',band:null,foreman:'all',tableView:'active',sortKey:'date',sortDir:-1,page:1,perPage:25};
+const state={dim:'inv',from:'',to:'',type:'all',sales:'all',q:'',band:null,foreman:'all',tableView:'active',spView:'mix',fmView:'mix',sortKey:'date',sortDir:-1,page:1,perPage:25};
 
 /* ---- date helpers (local, TZ-safe) ---- */
 function isoOf(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -505,7 +508,7 @@ function renderHist(rows){
   if(vals.length<3){host.innerHTML='<div class="empty">Not enough data in this selection.</div>';document.getElementById('hist-n').textContent='';return;}
   const sorted=[...vals].sort((a,b)=>a-b);
   const lo=Math.min(quantile(sorted,0.02),-60), hi=Math.max(quantile(sorted,0.98),60);
-  const NB=29,W=1000,H=210,padB=26,padT=10,span=hi-lo,bw=W/NB,counts=new Array(NB).fill(0);
+  const NB=29,W=1000,H=224,padB=34,padT=12,span=hi-lo,bw=W/NB,counts=new Array(NB).fill(0);
   vals.forEach(v=>{let b=Math.floor((Math.min(Math.max(v,lo),hi)-lo)/span*NB);if(b>=NB)b=NB-1;if(b<0)b=0;counts[b]++;});
   const maxC=Math.max(...counts,1), xOf=v=>(Math.min(Math.max(v,lo),hi)-lo)/span*W;
   const sgn=v=>(v>0?'+':'')+Math.round(v)+'%';
@@ -515,27 +518,36 @@ function renderHist(rows){
     bars+=`<rect x="${x+1}" y="${y}" width="${bw-2}" height="${h}" rx="2" fill="${BANDCOL[band(Math.abs(mid)/100)]}" opacity="${counts[i]?0.92:0}" data-tip="${info}"></rect>`;}
   let guides='';[-50,-20,20,50].forEach(g=>{if(g>lo&&g<hi){const x=xOf(g);guides+=`<line x1="${x}" y1="${padT}" x2="${x}" y2="${H-padB}" stroke="#9aa8bf" stroke-width="1" stroke-dasharray="2 3"/><text x="${x}" y="${H-9}" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#697b97">${g>0?'+':''}${g}%</text>`;}});
   const zx=xOf(0);
-  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:210px" role="img" aria-label="Distribution of percentage difference">
+  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:224px" role="img" aria-label="Distribution of percentage difference">
     ${bars}${guides}<line x1="${zx}" y1="${padT}" x2="${zx}" y2="${H-padB}" stroke="#15233f" stroke-width="1.6"/>
     <text x="${zx}" y="${H-9}" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#15233f" font-weight="700">0</text></svg>`;
   document.getElementById('hist-n').textContent=`n = ${vals.length} jobs · x-axis: % difference from the ${D.basis}`;
 }
 
 /* ---------- salesperson ---------- */
-function renderSP(){
-  const D=DIMS[state.dim], rows=filtered(true), g={};
-  rows.forEach(r=>{(g[r[I.sales]]=g[r[I.sales]]||[]).push(r);});
-  let arr=Object.entries(g).map(([name,rs])=>{const banded=rs.filter(r=>band(r[D.pe])!==null),c=[0,0,0];banded.forEach(r=>c[band(r[D.pe])]++);
-    return {name,n:banded.length,c,pp:banded.length?c[2]/banded.length:0};}).filter(a=>a.n>=5);
-  arr.sort((a,b)=>b.pp-a.pp||b.n-a.n);
-  const host=document.getElementById('sp-chart');
-  if(!arr.length){host.innerHTML='<div class="empty">No salesperson has ≥5 comparable jobs in this selection.</div>';return;}
-  host.innerHTML=arr.map(a=>{const hl=(state.sales!=='all'&&a.name===state.sales),w=i=>a.n?a.c[i]/a.n*100:0;
-    const seg=i=>`<span class="b-${BANDKEY[i]}" style="width:${w(i)}%" data-tip="<b>${a.name}</b><br>${BANDLAB[i]}: ${fmtInt(a.c[i])} of ${a.n} jobs (${Math.round(w(i))}%)"></span>`;
-    return `<div class="sp-row"><div class="sp-name ${hl?'hl':''}" title="${a.name}">${a.name}</div>
-      <div class="sp-stack">${seg(0)}${seg(1)}${seg(2)}</div>
-      <div class="sp-meta"><b>${Math.round(a.pp*100)}%</b> problem<small>${a.n} jobs</small></div></div>`;}).join('');
+function groupStats(rows,keyFn){
+  const D=DIMS[state.dim],g={};
+  rows.forEach(r=>{const k=keyFn(r)||'—';(g[k]=g[k]||[]).push(r);});
+  return Object.entries(g).map(([name,rs])=>{const banded=rs.filter(r=>band(r[D.pe])!==null),c=[0,0,0];banded.forEach(r=>c[band(r[D.pe])]++);
+    const med=median(banded.map(r=>(r[D.gap]<0?-1:1)*Math.abs(r[D.pe])*100));
+    return {name,n:banded.length,c,pp:banded.length?c[2]/banded.length:0,miss:(med==null?0:med)};});
 }
+function renderGroupChart(hostId,arr,view,minN,hlName){
+  const host=document.getElementById(hostId);if(!host)return;
+  arr=arr.filter(a=>a.n>=minN);
+  if(!arr.length){host.innerHTML='<div class="empty">Not enough comparable jobs (need ≥'+minN+').</div>';return;}
+  const hl=n=>(hlName&&n===hlName)?' hl':'';
+  if(view==='prob'){arr.sort((a,b)=>b.pp-a.pp);const mx=Math.max(...arr.map(a=>a.pp),0.01);
+    host.innerHTML=arr.map(a=>`<div class="sp-row"><div class="sp-name${hl(a.name)}" title="${esc(a.name)}">${esc(a.name)}</div><div class="sp-stack"><span class="b-problem" style="width:${a.pp/mx*100}%" data-tip="<b>${esc(a.name)}</b><br>${Math.round(a.pp*100)}% problem of ${a.n}"></span></div><div class="sp-meta"><b>${Math.round(a.pp*100)}%</b> problem<small>${a.n} jobs</small></div></div>`).join('');
+  } else if(view==='miss'){arr.sort((a,b)=>b.miss-a.miss);const mx=Math.max(1,Math.max.apply(null,arr.map(a=>Math.abs(a.miss))));
+    host.innerHTML=arr.map(a=>{const m=a.miss,w=Math.abs(m)/mx*50,neg=m<0;
+      return `<div class="sp-row"><div class="sp-name${hl(a.name)}" title="${esc(a.name)}">${esc(a.name)}</div><div class="sp-diverge"><span class="dv-mid"></span><span class="dv-bar ${neg?'neg':'pos'}" style="width:${w}%;${neg?'right':'left'}:50%" data-tip="<b>${esc(a.name)}</b><br>median ${m>0?'+':''}${Math.round(m)}% vs estimate · ${a.n} jobs"></span></div><div class="sp-meta"><b>${m>0?'+':''}${Math.round(m)}%</b><small>${a.n} jobs</small></div></div>`;}).join('');
+  } else {arr.sort((a,b)=>b.pp-a.pp||b.n-a.n);
+    host.innerHTML=arr.map(a=>{const w=i=>a.n?a.c[i]/a.n*100:0;const seg=i=>`<span class="b-${BANDKEY[i]}" style="width:${w(i)}%" data-tip="<b>${esc(a.name)}</b><br>${BANDLAB[i]}: ${fmtInt(a.c[i])} of ${a.n} (${Math.round(w(i))}%)"></span>`;
+      return `<div class="sp-row"><div class="sp-name${hl(a.name)}" title="${esc(a.name)}">${esc(a.name)}</div><div class="sp-stack">${seg(0)}${seg(1)}${seg(2)}</div><div class="sp-meta"><b>${Math.round(a.pp*100)}%</b> problem<small>${a.n} jobs</small></div></div>`;}).join('');
+  }
+}
+function renderSP(){renderGroupChart('sp-chart',groupStats(filtered(true),r=>r[I.sales]),state.spView,5,state.sales!=='all'?state.sales:null);}
 
 /* ---------- table ---------- */
 function buildHead(){
@@ -552,23 +564,26 @@ function buildHead(){
 }
 function docCell(r){let a='';if(r[I.surl])a+=`<a class="docbtn" href="${esc(r[I.surl])}" target="_blank" rel="noopener">Sheet</a>`;if(r[I.bol])a+=`<a class="docbtn bol" href="${esc(r[I.bol])}" target="_blank" rel="noopener">BoL</a>`;return a||'—';}
 function tableRows(base){const D=DIMS[state.dim];let rows=base.filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);if(state.band!=null)rows=rows.filter(r=>band(r[D.pe])===state.band);return rows;}
+function isDataIssue(r){const D=DIMS[state.dim],e=r[D.sold],a=r[D.real];if(e==null||e<=0)return 'no estimate';if(a==null||a<=0)return 'no actual';return null;}
 function renderTable(baseRows){
-  const D=DIMS[state.dim],k=state.sortKey,dir=state.sortDir,excluded=state.tableView==='excluded';
+  const D=DIMS[state.dim],k=state.sortKey,dir=state.sortDir,view=state.tableView;
+  const tvi=document.getElementById('tv-issue-n');if(tvi)tvi.textContent=baseRows.filter(r=>isDataIssue(r)).length;
   let rows;
-  if(excluded){const byJob={};DATA.forEach(r=>byJob[r[I.job]]=r);rows=Exceptions.list().map(e=>byJob[e.job]).filter(Boolean);
+  if(view==='excluded'){const byJob={};DATA.forEach(r=>byJob[r[I.job]]=r);rows=Exceptions.list().map(e=>byJob[e.job]).filter(Boolean);
     rows=rows.filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);if(state.band!=null)rows=rows.filter(r=>band(r[D.pe])===state.band);}
-  else rows=tableRows(baseRows);
+  else if(view==='issues'){rows=baseRows.filter(r=>isDataIssue(r)).filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);}
+  else rows=tableRows(baseRows).filter(r=>!isDataIssue(r));
   const acc=r=>({job:r[I.job],date:r[I.date],sales:r[I.sales],fore:r[I.fore],sold:r[D.sold],real:r[D.real],gap:r[D.gap],pe:(r[D.pe]==null?null:Math.abs(r[D.pe]))}[k]);
   const sorted=[...rows].sort((a,b)=>{let x=acc(a),y=acc(b);const xn=x==null||x==='',yn=y==null||y==='';if(xn&&yn)return 0;if(xn)return 1;if(yn)return -1;return typeof x==='string'?dir*x.localeCompare(y):dir*(x-y);});
   const total=sorted.length,pages=Math.max(1,Math.ceil(total/state.perPage));
   if(state.page>pages)state.page=pages;
   const a=(state.page-1)*state.perPage,b=Math.min(a+state.perPage,total),body=document.querySelector('#tbl tbody');
-  if(!total)body.innerHTML=`<tr><td colspan="12" class="empty">${excluded?'No excluded jobs in this view.':'No jobs match these filters.'}</td></tr>`;
+  if(!total)body.innerHTML=`<tr><td colspan="12" class="empty">${view==='excluded'?'No manually-excluded jobs.':view==='issues'?'No data issues in this selection.':'No jobs match these filters.'}</td></tr>`;
   else body.innerHTML=sorted.slice(a,b).map(r=>{const bd=band(r[D.pe]),signed=r[D.pe]==null?null:(r[D.gap]<0?-1:1)*r[D.pe]*100;
     const chip=bd==null?'<span class="chip na">no est</span>':`<span class="chip ${BANDKEY[bd]}">${BANDKEY[bd]}</span>`;
-    const ex=excluded?Exceptions.get(r[I.job]):null;
+    const ex=view==='excluded'?Exceptions.get(r[I.job]):null;
     const jc=ex&&ex.comment?`<span class="jc" title="${esc(ex.comment)}${ex.by?' — '+esc(ex.by):''}">${r[I.job]} ●</span>`:`<span class="jc">${r[I.job]}</span>`;
-    const act=excluded?`<button class="ig-btn" data-restore="${r[I.job]}">↩ Restore</button>`:`<button class="ig-btn" data-ignore="${r[I.job]}">Ignore</button>`;
+    let act;if(view==='excluded')act=`<button class="ig-btn" data-restore="${r[I.job]}">↩ Restore</button>`;else if(view==='issues')act=`<span class="issue-reason">${esc(isDataIssue(r)||'')}</span>`;else act=`<button class="ig-btn" data-ignore="${r[I.job]}">Ignore</button>`;
     return `<tr><td>${jc}</td><td>${fmtDate(r[I.date])}</td><td><span class="chip type">${r[I.type]}</span></td>
       <td>${r[I.sales]||'—'}</td><td>${r[I.fore]||'—'}</td><td class="num">${r[D.sold]==null?'—':fmt(r[D.sold],D.dp)}</td><td class="num">${r[D.real]==null?'—':fmt(r[D.real],D.dp)}</td>
       <td class="gap">${fmtSigned(r[D.gap],D.dp)}</td><td class="num">${signed==null?'—':fmtSigned(signed,0)+'%'}</td>
@@ -597,20 +612,7 @@ function openIgnore(job){modalJob=job;
 function closeModal(){document.getElementById('modal-bg').classList.remove('show');modalJob=null;}
 
 /* ---------- orchestration ---------- */
-function renderForeman(){
-  const D=DIMS[state.dim], rows=filtered(true), g={};
-  rows.forEach(r=>{const f=r[I.fore]||'—';(g[f]=g[f]||[]).push(r);});
-  let arr=Object.entries(g).map(([name,rs])=>{const banded=rs.filter(r=>band(r[D.pe])!==null),c=[0,0,0];banded.forEach(r=>c[band(r[D.pe])]++);
-    return {name,n:banded.length,c,pp:banded.length?c[2]/banded.length:0};}).filter(a=>a.n>=3);
-  arr.sort((a,b)=>b.pp-a.pp||b.n-a.n);
-  const host=document.getElementById('fm-chart');
-  if(!arr.length){host.innerHTML='<div class="empty">No foreman has ≥3 comparable jobs in this selection.</div>';return;}
-  host.innerHTML=arr.map(a=>{const hl=(state.foreman!=='all'&&a.name===state.foreman),w=i=>a.n?a.c[i]/a.n*100:0;
-    const seg=i=>`<span class="b-${BANDKEY[i]}" style="width:${w(i)}%" data-tip="<b>${esc(a.name)}</b><br>${BANDLAB[i]}: ${fmtInt(a.c[i])} of ${a.n} (${Math.round(w(i))}%)"></span>`;
-    return `<div class="sp-row"><div class="sp-name ${hl?'hl':''}" title="${esc(a.name)}">${esc(a.name)}</div>
-      <div class="sp-stack">${seg(0)}${seg(1)}${seg(2)}</div>
-      <div class="sp-meta"><b>${Math.round(a.pp*100)}%</b> problem<small>${a.n} jobs</small></div></div>`;}).join('');
-}
+function renderForeman(){renderGroupChart('fm-chart',groupStats(filtered(true),r=>r[I.fore]),state.fmView,3,state.foreman!=='all'?state.foreman:null);}
 function updateFilterChips(){
   const wrap=document.getElementById('fchip-wrap');if(!wrap)return;let h='';
   if(state.band!=null)h+=`<span class="fchip">${BANDLAB[state.band]} only<button data-clear="band" title="clear">×</button></span>`;
@@ -647,15 +649,15 @@ function renderByType(rows){
 function makeCollapsible(){
   let saved={};try{saved=JSON.parse(localStorage.getItem('svr_collapsed')||'{}');}catch(e){}
   document.querySelectorAll('.wrap > section').forEach((sec,i)=>{const sh=sec.querySelector('.shead');if(!sh||sh.querySelector('.collap'))return;const key='s'+i;
-    const btn=document.createElement('button');btn.className='collap';btn.type='button';btn.setAttribute('aria-label','Collapse section');btn.textContent='▾';
+    const btn=document.createElement('button');btn.className='collap';btn.type='button';btn.textContent='Collapse';
     sh.insertBefore(btn,sh.firstChild);
-    if(saved[key]){sec.classList.add('collapsed');btn.textContent='▸';}
-    btn.onclick=()=>{const c=sec.classList.toggle('collapsed');btn.textContent=c?'▸':'▾';saved[key]=c?1:0;try{localStorage.setItem('svr_collapsed',JSON.stringify(saved));}catch(e){}};});
+    if(saved[key]){sec.classList.add('collapsed');btn.textContent='Expand';}
+    btn.onclick=()=>{const c=sec.classList.toggle('collapsed');btn.textContent=c?'Expand':'Collapse';saved[key]=c?1:0;try{localStorage.setItem('svr_collapsed',JSON.stringify(saved));}catch(e){}};});
 }
 function renderAll(){
   const rows=filtered();
-  document.getElementById('shown').textContent=rows.length.toLocaleString();
-  renderScorecard(rows);renderOverview(rows);renderRecent();renderHist(rows);renderTrend(rows);renderSP();renderForeman();renderByType(rows);renderTable(rows);renderExceptions();
+  document.getElementById('shown').textContent=rows.filter(r=>!isDataIssue(r)).length.toLocaleString();
+  renderScorecard(rows);renderOverview(rows);renderHist(rows);renderSP();renderForeman();renderByType(rows);renderTable(rows);renderExceptions();
 }
 
 /* ---------- date picker ---------- */
@@ -719,7 +721,7 @@ function initControls(){
     document.getElementById('f-type').value='all';document.getElementById('f-sales').value='all';
     var ff=document.getElementById('f-fore');if(ff)ff.value='all';var fs=document.getElementById('f-status');if(fs)fs.value='all';
     document.querySelectorAll('#tswitch button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.tv==='active'));
-    document.getElementById('tbl-title').textContent='Per-job comparison';dpLabel();renderAll();};
+    document.getElementById('tbl-title').textContent='All Jobs';dpLabel();renderAll();};
   document.querySelectorAll('#dimsel button').forEach(b=>b.onclick=()=>{state.dim=b.dataset.v;state.page=1;
     document.querySelectorAll('#dimsel button').forEach(x=>x.setAttribute('aria-pressed',x===b));buildHead();renderAll();});
   document.getElementById('prev').onclick=()=>{if(state.page>1){state.page--;renderTable(filtered());}};
@@ -743,10 +745,12 @@ function initControls(){
   });
   document.querySelectorAll('#tswitch button').forEach(b=>b.onclick=()=>{state.tableView=b.dataset.tv;state.page=1;
     document.querySelectorAll('#tswitch button').forEach(x=>x.setAttribute('aria-pressed',x===b));
-    document.getElementById('tbl-title').textContent=state.tableView==='excluded'?'Excluded jobs':'Per-job comparison';
-    document.getElementById('tbl-sub').textContent=state.tableView==='excluded'?'Jobs held out of the numbers above. Restore returns them. Comments shown on hover.':'Newest first. Click a column to sort. Use Ignore to set a job aside.';
+    var tv=state.tableView;
+    document.getElementById('tbl-title').textContent=tv==='excluded'?'Excluded jobs':tv==='issues'?'Data issues (auto-excluded)':'All Jobs';
+    document.getElementById('tbl-sub').textContent=tv==='excluded'?'Manually held out of the numbers above. Restore returns them; comments on hover.':tv==='issues'?'Automatically excluded from the stats — missing or zero estimate/actual on the selected metric.':'Newest first. Click a column to sort. Use Ignore to set a job aside.';
     renderTable(filtered());});
   const _cn=document.getElementById('connbtn');if(_cn)_cn.onclick=connectGoogle;
+  document.querySelectorAll('.gswitch button').forEach(b=>b.onclick=()=>{const grp=b.parentNode.dataset.for;if(grp==='sp')state.spView=b.dataset.gv;else state.fmView=b.dataset.gv;b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));grp==='sp'?renderSP():renderForeman();});
   document.getElementById('m-cancel').onclick=closeModal;
   document.getElementById('modal-bg').onclick=e=>{if(e.target.id==='modal-bg')closeModal();};
   document.getElementById('m-confirm').onclick=()=>{if(modalJob){Exceptions.ignore(modalJob,document.getElementById('m-comment').value,document.getElementById('m-name').value);}closeModal();renderAll();};
