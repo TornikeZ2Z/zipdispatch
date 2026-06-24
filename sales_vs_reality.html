@@ -196,6 +196,19 @@
 #connbtn:hover{border-color:var(--ink-2);color:var(--ink)}
 .fchip{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:#fff;border-radius:999px;padding:3px 6px 3px 11px;font-family:var(--fm);font-size:11px;margin-left:8px;vertical-align:middle}
 .fchip button{background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:50%;width:16px;height:16px;cursor:pointer;line-height:14px;padding:0;font-size:12px}
+.ovtbl{width:100%;border-collapse:collapse;font-size:13px}
+.ovtbl th,.ovtbl td{padding:8px 12px;border-bottom:1px solid var(--line-2);text-align:left}
+.ovtbl th.num,.ovtbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.ovtbl .ovname{font-weight:700}.ovtbl .ovok{color:var(--ok)}.ovtbl .ovnm{color:var(--normal)}.ovtbl .ovpr{color:var(--problem)}
+.trend{display:flex;gap:10px;align-items:flex-end;padding:6px 2px;overflow-x:auto}
+.trcol{flex:1 0 46px;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:46px}
+.trbarwrap{height:120px;width:100%;display:flex;align-items:flex-end}
+.trbar{width:100%;background:var(--problem);border-radius:5px 5px 0 0;min-height:2px}
+.trval{font-family:var(--fm);font-size:11px;color:var(--ink-2)}
+.trlab{font-family:var(--fm);font-size:10px;color:var(--muted);white-space:nowrap}
+.collap{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-right:6px;padding:2px 5px;border-radius:5px;line-height:1}
+.collap:hover{background:var(--line-2);color:var(--ink)}
+section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{display:none}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 </head>
@@ -222,8 +235,9 @@
       </div>
     </div>
     <div class="fgroup"><span class="flabel">Job type</span><select id="f-type"><option value="all">All</option></select></div>
-    <div class="fgroup"><span class="flabel">Salesperson</span><select id="f-sales"><option value="all">All</option></select></div>
-    <input type="search" id="f-search" placeholder="Search job or name…" aria-label="Search">
+    <div class="fgroup"><span class="flabel">Sales Person</span><select id="f-sales"><option value="all">All</option></select></div>
+    <div class="fgroup"><span class="flabel">Foreman</span><select id="f-fore"><option value="all">All</option></select></div>
+    <div class="fgroup"><span class="flabel">Status</span><select id="f-status"><option value="all">All</option><option value="0">Okay (&lt;20%)</option><option value="1">Normal (20–50%)</option><option value="2">Problem (&gt;50%)</option></select></div>
     <span class="spacer"></span>
     <span class="count">Showing <b id="shown">0</b> of <b id="total">0</b><span id="exc-count"></span></span>
     <button class="reset" id="reset">Reset</button>
@@ -258,6 +272,12 @@
   </section>
 
   <section>
+    <div class="shead"><h2 class="t">All metrics at a glance</h2>
+      <span class="sub">Okay / Normal / Problem split and the typical miss for Time, Inventory and Cubic feet under the current filters.</span></div>
+    <div class="panel"><div id="ov-panel"></div></div>
+  </section>
+
+  <section>
     <div class="shead"><h2 class="t">Recent issues</h2><span class="ri-sub" id="ri-window"></span>
       <span class="sub">Problem jobs (over 50% off) moved in the last week.</span></div>
     <div class="panel" id="ri-panel"></div>
@@ -278,15 +298,27 @@
   </section>
 
   <section>
-    <div class="shead"><h2 class="t">Accuracy by salesperson</h2>
+    <div class="shead"><h2 class="t">Accuracy over time</h2>
+      <span class="sub">Share of problem jobs by month on the selected metric.</span></div>
+    <div class="panel"><div id="trend-panel"></div></div>
+  </section>
+
+  <section>
+    <div class="shead"><h2 class="t">Accuracy by sales person</h2>
       <span class="sub">Each lead salesperson's job mix on this axis. Hover a segment for counts.</span></div>
     <div class="panel" id="sp-chart"></div>
   </section>
 
   <section>
     <div class="shead"><h2 class="t">Accuracy by foreman</h2>
-      <span class="sub">Lead foreman (Foreman 1) job mix on this axis. Click a foreman to filter the table below.</span></div>
+      <span class="sub">Lead foreman (Foreman 1) job mix on the selected metric — full names from Crew Members.</span></div>
     <div class="panel" id="fm-chart"></div>
+  </section>
+
+  <section>
+    <div class="shead"><h2 class="t">Accuracy by job type</h2>
+      <span class="sub">How each job type compares against the estimate on the selected metric.</span></div>
+    <div class="panel" id="type-chart"></div>
   </section>
 
   <section>
@@ -408,10 +440,8 @@ function loadExceptionsFromSheet(cb){
 }
 
 function passBase(r,ignoreSales){
-  const q=state.q.toLowerCase();
   if(state.type!=='all'&&r[I.type]!==state.type)return false;
   if(!ignoreSales&&state.sales!=='all'&&r[I.sales]!==state.sales)return false;
-  if(q&&!(String(r[I.job]).toLowerCase().includes(q)||String(r[I.sales]||'').toLowerCase().includes(q)))return false;
   return true;
 }
 function filtered(ignoreSales){
@@ -435,9 +465,9 @@ function renderScorecard(rows){
   const tip=i=>`<b>${BANDLAB[i]}</b><br>${fmtInt(s.c[i])} jobs · ${Math.round(p(i))}% of ${fmtInt(s.n)}`;
   const bsel=i=>state.band===i?' sel':'';
   document.getElementById('bandbar').innerHTML=
-    `<span class="b-ok bclick${bsel(0)}" data-band="0" style="width:${p(0)}%" data-tip="${tip(0)}">${lbl(p(0))}</span>`+
-    `<span class="b-normal bclick${bsel(1)}" data-band="1" style="width:${p(1)}%" data-tip="${tip(1)}">${lbl(p(1))}</span>`+
-    `<span class="b-problem bclick${bsel(2)}" data-band="2" style="width:${p(2)}%" data-tip="${tip(2)}">${lbl(p(2))}</span>`;
+    `<span class="b-ok${bsel(0)}" style="width:${p(0)}%" data-tip="${tip(0)}">${lbl(p(0))}</span>`+
+    `<span class="b-normal${bsel(1)}" style="width:${p(1)}%" data-tip="${tip(1)}">${lbl(p(1))}</span>`+
+    `<span class="b-problem${bsel(2)}" style="width:${p(2)}%" data-tip="${tip(2)}">${lbl(p(2))}</span>`;
   const dir=s.under>s.over?'under-estimated (reality came in higher)':s.over>s.under?'over-sold (reality came in lower)':'split evenly';
   document.getElementById('sc-caption').innerHTML=`Typical job lands <b>${fmtSigned(s.medGap,D.dp)} ${D.gunit}</b> vs the ${D.basis}. Most misses are <b>${dir}</b>.`;
   const cell=(cls,k,n)=>`<div class="scs ${cls}"><div class="k">${k}</div><div class="v">${fmtInt(n)}<small>${s.n?Math.round(n/s.n*100):0}%</small></div></div>`;
@@ -510,7 +540,7 @@ function renderSP(){
 /* ---------- table ---------- */
 function buildHead(){
   const D=DIMS[state.dim];
-  const cols=[['job','Job'],['date','Date'],['type','Type'],['sales','Salesperson'],['fore','Foreman'],['sold',D.sl],['real',D.rl],['gap','Gap'],['pe','Diff'],['band','Band'],['docs','Docs'],['act','']];
+  const cols=[['job','Job'],['date','Date'],['type','Type'],['sales','Sales Person'],['fore','Foreman'],['sold',D.sl],['real',D.rl],['gap','Gap'],['pe','Diff'],['band','Band'],['docs','Docs'],['act','']];
   const numeric=new Set(['sold','real','gap','pe']);
   document.querySelector('#tbl thead').innerHTML='<tr>'+cols.map(([k,l])=>{
     const sortable=!['type','band','docs','act'].includes(k);
@@ -577,7 +607,7 @@ function renderForeman(){
   if(!arr.length){host.innerHTML='<div class="empty">No foreman has ≥3 comparable jobs in this selection.</div>';return;}
   host.innerHTML=arr.map(a=>{const hl=(state.foreman!=='all'&&a.name===state.foreman),w=i=>a.n?a.c[i]/a.n*100:0;
     const seg=i=>`<span class="b-${BANDKEY[i]}" style="width:${w(i)}%" data-tip="<b>${esc(a.name)}</b><br>${BANDLAB[i]}: ${fmtInt(a.c[i])} of ${a.n} (${Math.round(w(i))}%)"></span>`;
-    return `<div class="sp-row fm-row" data-fore="${esc(a.name)}"><div class="sp-name ${hl?'hl':''}" title="${esc(a.name)}">${esc(a.name)}</div>
+    return `<div class="sp-row"><div class="sp-name ${hl?'hl':''}" title="${esc(a.name)}">${esc(a.name)}</div>
       <div class="sp-stack">${seg(0)}${seg(1)}${seg(2)}</div>
       <div class="sp-meta"><b>${Math.round(a.pp*100)}%</b> problem<small>${a.n} jobs</small></div></div>`;}).join('');
 }
@@ -587,10 +617,45 @@ function updateFilterChips(){
   if(state.foreman!=='all')h+=`<span class="fchip">Foreman: ${esc(state.foreman)}<button data-clear="foreman" title="clear">×</button></span>`;
   wrap.innerHTML=h;
 }
+function renderOverview(rows){
+  const host=document.getElementById('ov-panel');if(!host)return;
+  const cell=(D)=>{const banded=rows.filter(r=>band(r[D.pe])!==null),c=[0,0,0];banded.forEach(r=>c[band(r[D.pe])]++);const n=banded.length;
+    const med=median(banded.map(r=>r[D.gap])),pc=i=>n?Math.round(c[i]/n*100):0;
+    return `<tr><td class="ovname">${D.label}</td><td class="num">${fmtInt(n)}</td><td class="num ovok">${pc(0)}%</td><td class="num ovnm">${pc(1)}%</td><td class="num ovpr">${pc(2)}%</td><td class="num">${n?fmtSigned(med,D.dp)+' '+D.gunit:'—'}</td></tr>`;};
+  host.innerHTML=`<table class="ovtbl"><thead><tr><th>Metric</th><th class="num">Measured</th><th class="num">Okay</th><th class="num">Normal</th><th class="num">Problem</th><th class="num">Median miss</th></tr></thead><tbody>${['time','inv','cf'].map(k=>cell(DIMS[k])).join('')}</tbody></table>`;
+}
+function renderTrend(rows){
+  const D=DIMS[state.dim],host=document.getElementById('trend-panel');if(!host)return;const g={};
+  rows.forEach(r=>{if(!r[I.date]||band(r[D.pe])===null)return;const m=r[I.date].slice(0,7);(g[m]=g[m]||[]).push(r);});
+  const months=Object.keys(g).sort();
+  if(!months.length){host.innerHTML='<div class="empty">Not enough measured jobs for a trend.</div>';return;}
+  const dd=months.map(m=>{const rs=g[m],prob=rs.filter(r=>band(r[D.pe])===2).length;return {m,n:rs.length,pp:rs.length?prob/rs.length:0};});
+  const maxpp=Math.max(...dd.map(d=>d.pp),0.01);
+  host.innerHTML='<div class="trend">'+dd.map(d=>{const h=Math.round(d.pp/maxpp*100);const p=d.m.split('-'),lab=MONTHS[+p[1]-1]+' '+p[0].slice(2);
+    return `<div class="trcol" data-tip="<b>${lab}</b><br>${Math.round(d.pp*100)}% problem · ${d.n} job${d.n===1?'':'s'}"><div class="trbarwrap"><div class="trbar" style="height:${h}%"></div></div><div class="trval">${Math.round(d.pp*100)}%</div><div class="trlab">${lab}</div></div>`;}).join('')+'</div>';
+}
+function renderByType(rows){
+  const D=DIMS[state.dim],host=document.getElementById('type-chart');if(!host)return;const g={};
+  rows.forEach(r=>{const t=r[I.type]||'—';(g[t]=g[t]||[]).push(r);});
+  let arr=Object.entries(g).map(([name,rs])=>{const banded=rs.filter(r=>band(r[D.pe])!==null),c=[0,0,0];banded.forEach(r=>c[band(r[D.pe])]++);return {name,n:banded.length,c,pp:banded.length?c[2]/banded.length:0};}).filter(a=>a.n>=1);
+  arr.sort((a,b)=>b.pp-a.pp||b.n-a.n);
+  if(!arr.length){host.innerHTML='<div class="empty">No measured jobs in this selection.</div>';return;}
+  host.innerHTML=arr.map(a=>{const w=i=>a.n?a.c[i]/a.n*100:0;
+    const seg=i=>`<span class="b-${BANDKEY[i]}" style="width:${w(i)}%" data-tip="<b>${esc(a.name)}</b><br>${BANDLAB[i]}: ${fmtInt(a.c[i])} of ${a.n} (${Math.round(w(i))}%)"></span>`;
+    return `<div class="sp-row"><div class="sp-name" title="${esc(a.name)}">${esc(a.name)}</div><div class="sp-stack">${seg(0)}${seg(1)}${seg(2)}</div><div class="sp-meta"><b>${Math.round(a.pp*100)}%</b> problem<small>${a.n} jobs</small></div></div>`;}).join('');
+}
+function makeCollapsible(){
+  let saved={};try{saved=JSON.parse(localStorage.getItem('svr_collapsed')||'{}');}catch(e){}
+  document.querySelectorAll('.wrap > section').forEach((sec,i)=>{const sh=sec.querySelector('.shead');if(!sh||sh.querySelector('.collap'))return;const key='s'+i;
+    const btn=document.createElement('button');btn.className='collap';btn.type='button';btn.setAttribute('aria-label','Collapse section');btn.textContent='▾';
+    sh.insertBefore(btn,sh.firstChild);
+    if(saved[key]){sec.classList.add('collapsed');btn.textContent='▸';}
+    btn.onclick=()=>{const c=sec.classList.toggle('collapsed');btn.textContent=c?'▸':'▾';saved[key]=c?1:0;try{localStorage.setItem('svr_collapsed',JSON.stringify(saved));}catch(e){}};});
+}
 function renderAll(){
   const rows=filtered();
   document.getElementById('shown').textContent=rows.length.toLocaleString();
-  renderScorecard(rows);renderRecent();renderHist(rows);renderSP();renderForeman();renderTable(rows);renderExceptions();updateFilterChips();
+  renderScorecard(rows);renderOverview(rows);renderRecent();renderHist(rows);renderTrend(rows);renderSP();renderForeman();renderByType(rows);renderTable(rows);renderExceptions();
 }
 
 /* ---------- date picker ---------- */
@@ -644,11 +709,15 @@ function initControls(){
   [...new Set(DATA.map(r=>r[I.type]))].forEach(t=>document.getElementById('f-type').add(new Option(t,t)));
   const counts={};DATA.forEach(r=>counts[r[I.sales]]=(counts[r[I.sales]]||0)+1);
   Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>document.getElementById('f-sales').add(new Option(`${n} (${c})`,n)));
+  const fcounts={};DATA.forEach(r=>{if(r[I.fore])fcounts[r[I.fore]]=(fcounts[r[I.fore]]||0)+1;});
+  Object.entries(fcounts).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>document.getElementById('f-fore').add(new Option(`${n} (${c})`,n)));
   document.getElementById('f-type').onchange=e=>{state.type=e.target.value;state.page=1;renderAll();};
   document.getElementById('f-sales').onchange=e=>{state.sales=e.target.value;state.page=1;renderAll();};
-  document.getElementById('f-search').oninput=e=>{state.q=e.target.value;state.page=1;renderAll();};
+  document.getElementById('f-fore').onchange=e=>{state.foreman=e.target.value;state.page=1;renderAll();};
+  document.getElementById('f-status').onchange=e=>{state.band=e.target.value==='all'?null:+e.target.value;state.page=1;renderAll();};
   document.getElementById('reset').onclick=()=>{Object.assign(state,{from:META.minIso,to:META.maxIso,type:'all',sales:'all',q:'',band:null,foreman:'all',tableView:'active',page:1});
-    document.getElementById('f-type').value='all';document.getElementById('f-sales').value='all';document.getElementById('f-search').value='';
+    document.getElementById('f-type').value='all';document.getElementById('f-sales').value='all';
+    var ff=document.getElementById('f-fore');if(ff)ff.value='all';var fs=document.getElementById('f-status');if(fs)fs.value='all';
     document.querySelectorAll('#tswitch button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.tv==='active'));
     document.getElementById('tbl-title').textContent='Per-job comparison';dpLabel();renderAll();};
   document.querySelectorAll('#dimsel button').forEach(b=>b.onclick=()=>{state.dim=b.dataset.v;state.page=1;
@@ -678,12 +747,6 @@ function initControls(){
     document.getElementById('tbl-sub').textContent=state.tableView==='excluded'?'Jobs held out of the numbers above. Restore returns them. Comments shown on hover.':'Newest first. Click a column to sort. Use Ignore to set a job aside.';
     renderTable(filtered());});
   const _cn=document.getElementById('connbtn');if(_cn)_cn.onclick=connectGoogle;
-  document.addEventListener('click',e=>{
-    const cl=e.target.closest('[data-clear]');if(cl){if(cl.dataset.clear==='band')state.band=null;else state.foreman='all';state.page=1;renderAll();return;}
-    const bb=e.target.closest('[data-band]');if(bb){const bi=+bb.dataset.band;state.band=(state.band===bi?null:bi);state.page=1;renderAll();return;}
-    const fr=e.target.closest('[data-fore]');if(fr){state.foreman=(state.foreman===fr.dataset.fore?'all':fr.dataset.fore);state.page=1;renderAll();
-      const sec=document.getElementById('tbl');if(sec&&sec.scrollIntoView)sec.scrollIntoView({behavior:'smooth',block:'center'});return;}
-  });
   document.getElementById('m-cancel').onclick=closeModal;
   document.getElementById('modal-bg').onclick=e=>{if(e.target.id==='modal-bg')closeModal();};
   document.getElementById('m-confirm').onclick=()=>{if(modalJob){Exceptions.ignore(modalJob,document.getElementById('m-comment').value,document.getElementById('m-name').value);}closeModal();renderAll();};
@@ -695,7 +758,19 @@ function hrs(v){v=String(v||'').trim();const m=v.match(/^(\d+):(\d{2})(?::(\d{2}
 function isoDate(s){s=String(s||'').trim();let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return m[3]+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2);m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[1]+'-'+m[2]+'-'+m[3]:'';}
 function dimc(est,real){if(est==null||est===0||real==null)return [est,real,null,null,0];const gap=real-est,pe=gap/Math.abs(est),flag=gap>0?1:(gap<0?2:0);return [est,real,gap,pe,flag];}
 function buildRow(o){const t=dimc(num(o.act_time),hrs(o.labor_time)),iv=dimc(num(o.inventory_estimate),num(o.actual_inventory)),cf=dimc(num(o.estimate_cf),num(o.real_cf));
-  return [o.job_code,isoDate(o.date_of_move),o.job_type||'',o.sales_person_1||'',t[0],t[1],t[2],t[3],t[4],iv[0],iv[1],iv[2],iv[3],iv[4],cf[0],cf[1],cf[2],cf[3],cf[4],o.foreman_1||'',o.spreadsheet_url||'',o.bill_of_lading_contract_url||''];}
+  return [o.job_code,isoDate(o.date_of_move),o.job_type||'',o.sales_person_1||'',t[0],t[1],t[2],t[3],t[4],iv[0],iv[1],iv[2],iv[3],iv[4],cf[0],cf[1],cf[2],cf[3],cf[4],resolveForeman(o.foreman_1),o.spreadsheet_url||'',o.bill_of_lading_contract_url||''];}
+let NICKMAP={};
+function loadCrew(cb){
+  const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent('Crew Members')+'&_t='+Date.now();
+  fetch(url).then(r=>r.ok?r.text():'').then(t=>{try{
+    const rows=pcsv(t);if(rows.length>=2){const H=rows[0].map(x=>String(x).trim().toLowerCase());
+      const ni=H.indexOf('nickname'),fi=H.indexOf('first name'),li=H.indexOf('last name');
+      rows.slice(1).forEach(r=>{const full=(((fi>=0?r[fi]:'')||'')+' '+((li>=0?r[li]:'')||'')).replace(/\s+/g,' ').trim();if(!full)return;
+        const nick=((ni>=0?r[ni]:'')||'').trim().toLowerCase();if(nick&&!NICKMAP[nick])NICKMAP[nick]=full;
+        const fn=((fi>=0?r[fi]:'')||'').trim().toLowerCase();if(fn&&!NICKMAP[fn])NICKMAP[fn]=full;});}
+  }catch(e){}cb&&cb();}).catch(()=>{cb&&cb();});
+}
+function resolveForeman(raw){const k=String(raw||'').trim().toLowerCase();if(!k)return '';return NICKMAP[k]||String(raw).trim();}
 function loadData(){
   const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent('Estimate VS Real')+'&_t='+Date.now();
   fetch(url).then(r=>r.text()).then(t=>{
@@ -714,9 +789,9 @@ function boot(){
   DP={start:parseISO(META.minIso),end:parseISO(META.maxIso),view:new Date(parseISO(META.maxIso).getFullYear(),parseISO(META.maxIso).getMonth(),1)};
   MIN=parseISO(META.minIso);MAX=parseISO(META.maxIso);
   document.getElementById('total').textContent=META.total.toLocaleString();
-  updateConnUI();dpLabel();initControls();buildHead();renderAll();
+  updateConnUI();dpLabel();initControls();buildHead();renderAll();makeCollapsible();
 }
-loadData();
+loadCrew(loadData);
 </script>
 </body>
 </html>
