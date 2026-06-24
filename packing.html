@@ -34,7 +34,7 @@ a{color:inherit}
 .brand .dot svg{width:18px;height:18px}
 .brand h1{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;letter-spacing:.04em;text-transform:uppercase;margin:0;line-height:1}
 .brand .gen{font-size:11px;color:var(--faint);letter-spacing:.02em}
-.connbtn{font:inherit;font-size:12.5px;font-weight:600;border-radius:9px;padding:7px 12px;cursor:pointer}
+.connbtn,.connpill{font:inherit;font-size:12.5px;font-weight:600;border-radius:9px;padding:7px 12px;cursor:pointer}
 .connbtn{background:var(--acc);color:#fff;border:none}
 .connbtn:hover{filter:brightness(.95)}
 .conn{color:var(--good);font-weight:600;font-size:12.5px;display:flex;align-items:center;gap:6px}
@@ -57,8 +57,8 @@ h2.sec{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;
 .exp:hover{color:var(--acc-ink);border-color:var(--acc-bd)}
 .exp svg{width:13px;height:13px}
 .grid{display:grid;gap:18px}
-.g2{grid-template-columns:1fr 1fr}
-@media(max-width:900px){.g2{grid-template-columns:1fr}}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
 .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:18px}
 @media(max-width:1000px){.kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
@@ -78,6 +78,7 @@ tbody td.l{text-align:left}
 tbody tr:last-child td{border-bottom:none}
 tbody tr.click{cursor:pointer}
 tbody tr.click:hover{background:var(--soft)}
+tbody tr.muted td{color:var(--faint)}
 .num{font-variant-numeric:tabular-nums}
 .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.01em}
 .p-bad{background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad-bd)}
@@ -140,7 +141,8 @@ tbody tr.click:hover{background:var(--soft)}
 .fmlbl{width:120px;font-size:12.5px;color:var(--dim)}
 .fmtrack{flex:1;height:9px;background:var(--line);border-radius:5px;overflow:hidden}
 .fmfill{display:block;height:100%;border-radius:5px}
-.fmrow b{width:42px;text-align:right;font-variant-numeric:tabular-nums}</style>
+.fmrow b{width:42px;text-align:right;font-variant-numeric:tabular-nums}
+</style>
 </head>
 <body>
 <div class="bar"><div class="bar-in">
@@ -393,6 +395,30 @@ function cardH(title,hint,expId){return '<div class="card-h"><div><h3>'+esc(titl
 function catLegend(){var seen={},out=[];ICAT.forEach(function(c){if(!seen[c]){seen[c]=1;out.push(c);}});return '<div class="legend">'+out.map(function(c){return '<span><i style="background:'+CAT_COLOR[c]+'"></i>'+CAT_LABEL[c]+'</span>';}).join('')+'</div>';}
 
 /* ============================ RISK RADAR ============================ */
+function renderRisk(){
+  var r=S.ranked, bench=S.bench, fleet=S.fleet;
+  var top=r.filter(function(p){return p.risk>=30;});
+  var html='<h2 class="sec">Integrity radar</h2><p class="sub">Foremen ranked by a peer-relative anomaly score (0–100) from four independent signals on real (≥200 CF) moves: packing $ per 100 CF, tape rolls per 100 CF, shrink-wrap per 100 CF, and zero-packing rate. A high score means a foreman records less packing than peers on comparable jobs — a reason to review, not proof.</p>';
+  html+='<div class="kpis">'+[
+    ['Needs review',top.length,'risk ≥ 30',top.length?'bad':'good'],
+    ['On watch',r.filter(function(p){return p.risk>=15&&p.risk<30;}).length,'risk 15–29','warn'],
+    ['Benchmark',bench?esc(bench.name.split(' ')[0]):'—','cleanest high-volume','good'],
+    ['Foremen scored',r.length,'15+ real moves','']
+  ].map(function(x){return '<div class="kpi"><div class="v bignum">'+x[1]+'</div><div class="l">'+x[0]+'</div><div class="d '+(x[3]==='bad'?'dn':x[3]==='good'?'up':'')+'">'+x[2]+'</div></div>';}).join('')+'</div>';
+  html+='<div class="card">'+cardH('Risk score by foreman','Sorted high → low. Red = needs review, amber = watch, green = normal.','ch-risk')+'<div class="chartbox tall"><canvas id="ch-risk"></canvas></div></div>';
+  html+='<div class="card">'+cardH('The list','Click a row for the full profile and evidence.')+'<div class="tbl"><table><thead><tr><th class="l">#</th><th class="l">Foreman</th><th>Jobs</th><th>Confidence</th><th class="l">Packing $/100CF</th><th class="l">Tape/100CF</th><th>Zero-pack</th><th class="l">Risk</th><th class="l">Status</th></tr></thead><tbody>';
+  r.forEach(function(p,i){
+    html+='<tr class="click" onclick="gotoForeman('+p.fi+')"><td class="l num">'+(i+1)+'</td><td class="l">'+esc(p.name)+'</td><td class="num">'+p.n_big+'</td><td>'+confPill(p.conf)+'</td>'+
+      '<td class="l"><div class="evid"><span class="v num">'+num(p.pk100,1)+'</span>'+deltaHTML(p.pk100,fleet.pk,false)+'</div></td>'+
+      '<td class="l"><div class="evid"><span class="v num">'+num(p.tape100,2)+'</span>'+deltaHTML(p.tape100,fleet.tape,false)+'</div></td>'+
+      '<td class="num">'+pct(100*p.zero)+'</td><td class="l">'+scoreBar(p.risk)+'</td><td class="l">'+pillB(p.risk)+'</td></tr>';
+  });
+  html+='</tbody></table></div></div>';
+  if(top.length){
+    html+='<div class="note"><b>Why these names:</b> '+top.slice(0,4).map(function(p){return esc(p.name.split(' ')[0])+' records '+Math.max(0,Math.round(100-100*p.pk100/fleet.pk))+'% less packing $/CF and '+Math.max(0,Math.round(100-100*p.tape100/fleet.tape))+'% less tape/CF than the fleet, with '+pct(100*p.zero)+' of big moves at zero packing';}).join('; ')+'. When dollars, tape and zero-rate all point the same way, off-book sales are the most likely explanation.</div>';
+  }
+  $('#v-risk').innerHTML=html;
+}
 
 /* ============================ OVERVIEW ============================ */
 function invSummary(){
@@ -476,6 +502,18 @@ function jobFlagTable(list,withBtn){
 }
 
 /* ============================ BENCHMARK ============================ */
+function renderBench(){
+  var b=S.bench;
+  var html='<h2 class="sec">Benchmark</h2><p class="sub">The cleanest high-volume foreman sets the standard; everyone else is measured against him.</p>';
+  if(!b){$('#v-bench').innerHTML=html+'<div class="card">Not enough data for a benchmark.</div>';return;}
+  html+='<div class="bench-hero"><div class="av">'+esc(initials(b.name))+'</div><div><div style="font-family:Barlow Condensed,sans-serif;font-weight:600;font-size:24px;line-height:1">'+esc(b.name)+'</div><div class="muted-s">'+b.n_big+' big moves · risk '+b.risk+' · '+pct(100*b.zero)+' zero-pack</div></div><div style="margin-left:auto;display:flex;gap:22px;flex-wrap:wrap">'+[
+    ['$/100 CF',num(b.pk100,1)],['Tape/100 CF',num(b.tape100,2)],['Wrap/100 CF',num(b.wrap100,2)]
+  ].map(function(x){return '<div><div class="bignum" style="font-size:24px">'+x[1]+'</div><div class="muted-s">'+x[0]+'</div></div>';}).join('')+'</div></div>';
+  html+='<div class="note"><b>Opportunity:</b> if every foreman recorded packing at the benchmark’s '+num(b.pk100,1)+' $/100 CF on their existing big moves, recorded packing would rise by roughly <b>'+money(S.opp)+'</b> — a rough size of what may be going unrecorded.</div>';
+  html+='<div class="card">'+cardH('Gap to benchmark — $/100 CF','How far below (red) or above (green) the benchmark each foreman sits.','ch-gap')+'<div class="chartbox tall"><canvas id="ch-gap"></canvas></div></div>';
+  html+='<div class="card">'+cardH('Full comparison','Sorted by $/100 CF. Click a row for the profile.')+benchTable()+'</div>';
+  $('#v-bench').innerHTML=html;
+}
 function benchTable(){
   var b=S.bench;
   var rows=S.per.filter(function(p){return p.pk100!=null;}).slice().sort(function(x,y){return x.pk100-y.pk100;}).map(function(p){
@@ -486,6 +524,14 @@ function benchTable(){
 }
 
 /* ============================ CHECK QUEUE ============================ */
+function renderCheck(){
+  var fj=flaggedJobs();
+  var html='<h2 class="sec">Check queue</h2><p class="sub">Individual jobs worth a manual look — zero packing on a real move, no tape on a large move, a big under-delivery vs the estimate, or packing far below the foreman’s own norm. Confirm one (e.g. customer supplied their own boxes) to drop it from every stat on this page.</p>';
+  html+='<div class="kpis"><div class="kpi"><div class="v bignum">'+fj.length+'</div><div class="l">Jobs to review</div></div><div class="kpi"><div class="v bignum">'+CHECKED.size+'</div><div class="l">Already reviewed</div></div><div class="kpi" style="grid-column:span 4;display:flex;align-items:center"><div id="checkconn" class="muted-s"></div></div></div>';
+  html+='<div class="card">'+cardH('Flagged jobs','Highest severity first.')+(fj.length?jobFlagTable(fj,true):'<div class="muted-s">Nothing flagged — every live job looks normal.</div>')+'</div>';
+  $('#v-check').innerHTML=html;
+  var cc=$('#checkconn');if(cc)cc.innerHTML=(GTOKEN&&Date.now()<GTOKEXP-60000)?'<span class="conn">● Google connected — “reviewed” saves to the sheet</span>':'<button class="connbtn" onclick="connectGoogle()">Connect Google to save reviews</button>';
+}
 
 function renderAll(){renderProblems();renderForeman();renderOverview();buildTabs();refreshCharts(activeView);updateConnUI();}
 function gotoForeman(fi){curForeman=fi;renderForeman();showView('foreman');}
@@ -503,6 +549,33 @@ function cfgInvUnit(){
   d.sort(function(a,b){return a.ppu-b.ppu;});
   var fleet=median(recs.map(ppu));
   return {type:'bar',data:{labels:d.map(function(x){return x.name;}),datasets:[{data:d.map(function(x){return +num(x.ppu,2);}),backgroundColor:d.map(function(x){return x.ppu<0.6*fleet?COL.bad:(x.ppu>1.2*fleet?COL.good:COL.warn);}),borderRadius:5,maxBarThickness:22}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},refline:{axis:'x',value:fleet,label:'fleet '+num(fleet,1)},tooltip:{callbacks:{label:function(c){return '$'+c.raw+' packing per box+furniture unit';}}}},scales:{x:{beginAtZero:true,grid:{color:COL.line},ticks:{color:COL.dim}},y:{grid:{display:false},ticks:{color:COL.ink,font:{size:10,weight:'600'}}}}}};
+}
+function renderInventory(){
+  var host=document.getElementById('v-inventory');if(!host)return;
+  var recs=S.recs.filter(function(r){return r.ivBoxes!=null;});
+  function ppu(r){return r.act/((r.ivBoxes+r.ivWrap)||1);}
+  function tpb(r){return r.ivBoxes>0?(jobItemQty[r.ji][tapeIdx]||0)/r.ivBoxes:null;}
+  var qual=recs.filter(function(r){return (r.ivBoxes+r.ivWrap)>=3;});
+  if(!qual.length){host.innerHTML='<h2 class="sec">Inventory-grounded integrity</h2><div class="card">No baked inventory in this build.</div>';return;}
+  var fleetPPU=median(qual.map(ppu)), fleetTPB=median(qual.map(tpb));
+  var by={};qual.forEach(function(r){(by[r.fi]=by[r.fi]||[]).push(r);});
+  var rows=[];for(var fi in by){var a=by[fi];if(a.length<8)continue;rows.push({fi:+fi,name:FOREMEN[fi],n:a.length,ppu:median(a.map(ppu)),tpb:median(a.map(tpb))});}
+  rows.sort(function(x,y){return x.ppu-y.ppu;});
+  var html='<h2 class="sec">Inventory-grounded integrity</h2><p class="sub">The strongest test: packing recorded against the <b>actual goods moved</b> — boxes + furniture from the sales inventory, not just cubic feet. A packing-unit = one box or one wrappable furniture piece. Low $/unit or low tape/box means a foreman books less packing than peers for the same physical load. Covers the '+qual.length+' field jobs that carry a full inventory.</p>';
+  html+='<div class="kpis">'+[
+    ['Jobs w/ inventory',qual.length,'matched + itemised'],
+    ['Fleet $ / packing-unit',num(fleetPPU,2),'median'],
+    ['Fleet tape / box',num(fleetTPB,2),'median'],
+    ['Foremen ranked',rows.length,'8+ such jobs']
+  ].map(function(x){return '<div class="kpi"><div class="v bignum">'+x[1]+'</div><div class="l">'+x[0]+'</div><div class="d">'+x[2]+'</div></div>';}).join('')+'</div>';
+  html+='<div class="card">'+cardH('Packing $ per unit of goods moved','Recorded packing divided by (boxes + wrappable furniture). Dashed line = fleet median; red = well below.','ch-invunit')+'<div class="chartbox tall"><canvas id="ch-invunit"></canvas></div></div>';
+  html+='<div class="card">'+cardH('Inventory-normalised table','Click a row for the foreman profile.')+'<div class="tbl"><table><thead><tr><th class="l">Foreman</th><th>Jobs</th><th>$/unit</th><th class="l">vs fleet</th><th>Tape/box</th><th class="l">vs fleet</th></tr></thead><tbody>'+rows.map(function(x){var dp=x.ppu-fleetPPU, dt=(x.tpb!=null?x.tpb-fleetTPB:null);return '<tr class="click" onclick="gotoForeman('+x.fi+')"><td class="l">'+esc(x.name)+'</td><td class="num">'+x.n+'</td><td class="num">'+num(x.ppu,2)+'</td><td class="l"><span class="delta '+(dp<-1?'dn':dp>1?'up':'eq')+'">'+(dp>=0?'+':'')+num(dp,1)+'</span></td><td class="num">'+(x.tpb!=null?num(x.tpb,2):'—')+'</td><td class="l">'+(dt==null?'—':'<span class="delta '+(dt<-0.05?'dn':dt>0.05?'up':'eq')+'">'+(dt>=0?'+':'')+num(dt,2)+'</span>')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  var leaks=recs.filter(function(r){return r.ivEst>=80 && !r.ivNoPack && r.act<0.25*r.ivEst;}).sort(function(a,b){return (b.ivEst-b.act)-(a.ivEst-a.act);});
+  if(leaks.length){
+    html+='<div class="card">'+cardH(leaks.length+' hard quote-leak job'+(leaks.length===1?'':'s'),'Sales quoted real packing ($80+) but the field recorded almost none — and the inventory is not packed-by-owner.')+'<div class="tbl"><table><thead><tr><th class="l">Job</th><th class="l">Foreman</th><th>Boxes</th><th>Quoted $</th><th>Recorded $</th></tr></thead><tbody>'+leaks.slice(0,40).map(function(r){return '<tr class="click" onclick="gotoForeman('+r.fi+')"><td class="l">'+esc(JOBS[r.ji][Jc])+'</td><td class="l">'+esc(FOREMEN[r.fi])+'</td><td class="num">'+r.ivBoxes+'</td><td class="num">'+money(r.ivEst)+'</td><td class="num">'+money(r.act)+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  }
+  html+='<div class="note"><b>Read it right:</b> packing is largely a field upsell — foremen book more than sales quotes — so this ranks who books the <i>least</i> per item handled, not absolute proof. Coverage grows as more jobs carry an itemised inventory.</div>';
+  host.innerHTML=html;
 }
 var _matIdx=null;
 function matIdx(){if(_matIdx)return _matIdx;var qk=-1,tf=-1,wr=[];ITEM_NAMES.forEach(function(n,i){var L=n.toLowerCase();if(L.indexOf('mattress cover')>=0){if(/queen|king/.test(L))qk=i;else tf=i;}if(ICAT[i]==='wrap')wr.push(i);});_matIdx={qk:qk,tf:tf,wr:wr};return _matIdx;}
@@ -663,6 +736,54 @@ function cfgProb(){
   var P=computeProblems(); var d=P.per.filter(function(p){return p.score>=8;});
   var colmap={STRONG:COL.bad,WEAK:COL.warn,THIN:COL.dim,NORMAL:COL.dim};
   return {type:'bar',data:{labels:d.map(function(p){return p.name;}),datasets:[{data:d.map(function(p){return p.score;}),backgroundColor:d.map(function(p){return colmap[p.conf.lvl]||COL.dim;}),borderRadius:5,maxBarThickness:22}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return 'concern '+c.raw+' · '+d[c.dataIndex].conf.lvl;}}}},scales:{x:{beginAtZero:true,suggestedMax:40,grid:{color:COL.line},ticks:{color:COL.dim}},y:{grid:{display:false},ticks:{color:COL.ink,font:{weight:'600'}}}}}};
+}
+function renderCalendar(){
+  var host=document.getElementById('v-calendar');if(!host)return;
+  var html='<h2 class="sec">Calendar enrichment</h2><p class="sub">Pulls every 2026 event from the operations calendar, matches it to a job by its <b>Job Code</b>, and layers the sales-side fields (estimated CF, moving type, sales packing estimate, customer) onto the analysis — using the same Google connection as the dispatch and clean-up systems.</p>';
+  if(!CAL_PULLED){
+    html+='<div class="card" style="text-align:center;padding:34px"><div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:600;margin-bottom:6px">Connect the calendar to enlarge the analysis</div><p class="muted-s" style="max-width:560px;margin:0 auto 16px">Reads 2026 events from '+esc(GCAL_ID)+', finds each event’s Job Code, and joins it to the '+JOBS.length.toLocaleString()+' packing jobs. Nothing is written to your calendar.</p><button class="connbtn" style="font-size:14px;padding:10px 18px" onclick="pullCalendar(this)">Pull 2026 calendar</button></div>';
+    html+='<div class="note"><b>What it adds:</b> an independent <b>CF cross-check</b> (calendar-estimated CF vs the CF the foreman recorded — a second way to spot under-reporting), <b>moving-type / job-type segmentation</b> so labor-only and partial jobs don’t distort the scores, the <b>sales packing estimate</b> per job, and customer + address context.</div>';
+    host.innerHTML=html;return;
+  }
+  var st=CAL_STATS;
+  html+='<div class="kpis">'+[
+    ['2026 events',st.events.toLocaleString(),''],
+    ['With a Job Code',st.withCode.toLocaleString(),''],
+    ['Matched to jobs',st.matched.toLocaleString()+' / '+st.jobs.toLocaleString(),Math.round(100*st.matched/Math.max(st.jobs,1))+'% of dataset'],
+    ['Unmatched jobs',(st.jobs-st.matched).toLocaleString(),'no 2026 event']
+  ].map(function(x){return '<div class="kpi"><div class="v bignum">'+x[1]+'</div><div class="l">'+x[0]+'</div>'+(x[2]?'<div class="d">'+x[2]+'</div>':'')+'</div>';}).join('')+'</div>';
+  html+='<div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="connbtn" onclick="pullCalendar(this)">Re-pull 2026 calendar</button><button class="connbtn" style="background:var(--ink)" onclick="downloadCalJSON()">⬇ Download calendar data (JSON)</button></div>';
+  var rows=S.recs.filter(function(r){return r.calCF!=null&&r.calCF>0&&r.cf>0;});
+  var byf={};rows.forEach(function(r){(byf[r.fi]=byf[r.fi]||[]).push(r);});
+  var cf=[];Object.keys(byf).forEach(function(fi){var a=byf[fi];var recM=median(a.map(function(r){return r.cf;}));var calM=median(a.map(function(r){return r.calCF;}));var under=a.filter(function(r){return r.cf<0.8*r.calCF;}).length;cf.push({fi:+fi,name:FOREMEN[fi],n:a.length,recM:recM,calM:calM,ratio:calM?recM/calM:null,under:under});});
+  cf.sort(function(a,b){return (a.ratio==null?9:a.ratio)-(b.ratio==null?9:b.ratio);});
+  if(cf.length){
+    html+='<div class="card">'+cardH('CF cross-check — recorded vs calendar','Foremen whose recorded CF runs below the sales-estimated CF (ratio < 1) may be under-reporting move size. Matched jobs only.','ch-cfgap')+'<div class="chartbox tall"><canvas id="ch-cfgap"></canvas></div></div>';
+    html+='<div class="card">'+cardH('CF cross-check table','Click a row for the profile.')+'<div class="tbl"><table><thead><tr><th class="l">Foreman</th><th>Matched</th><th>Rec CF</th><th>Cal CF</th><th class="l">Rec/Cal</th><th>Under-reported</th></tr></thead><tbody>'+cf.map(function(x){var rc=x.ratio==null?'eq':(x.ratio<0.85?'dn':(x.ratio>1.15?'up':'eq'));return '<tr class="click" onclick="gotoForeman('+x.fi+')"><td class="l">'+esc(x.name)+'</td><td class="num">'+x.n+'</td><td class="num">'+num(x.recM,0)+'</td><td class="num">'+num(x.calM,0)+'</td><td class="l"><span class="delta '+rc+'">'+(x.ratio!=null?num(x.ratio,2):'—')+'</span></td><td class="num">'+x.under+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  }
+  var mt={};S.recs.forEach(function(r){if(!r.movingType)return;(mt[r.movingType]=mt[r.movingType]||[]).push(r);});
+  var mtk=Object.keys(mt).sort(function(a,b){return mt[b].length-mt[a].length;});
+  if(mtk.length){
+    html+='<div class="card">'+cardH('By moving type','Median packing $/100 CF and zero-pack rate per segment — context for which work legitimately carries little packing.')+'<div class="tbl"><table><thead><tr><th class="l">Moving type</th><th>Jobs</th><th>Median $/100CF</th><th>Zero-pack</th></tr></thead><tbody>'+mtk.map(function(k){var a=mt[k];var b=a.filter(function(r){return r.big;});var pks=median(b.map(function(r){return r.pk100;}));var zr=b.length?b.filter(function(r){return r.zero;}).length/b.length:0;return '<tr><td class="l">'+esc(k)+'</td><td class="num">'+a.length+'</td><td class="num">'+(pks!=null?num(pks,1):'—')+'</td><td class="num">'+pct(100*zr)+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  }
+  var mj=S.recs.filter(function(r){return r.calCF!=null&&r.calCF>0&&r.cf>0;}).map(function(r){return {r:r,gap:r.calCF-r.cf};}).sort(function(a,b){return b.gap-a.gap;}).slice(0,200);
+  if(mj.length){
+    html+='<div class="card">'+cardH('Matched jobs — biggest CF gaps first','Calendar-estimated CF minus recorded CF. Large positive gaps = move recorded smaller than sold.')+'<div class="tbl"><table><thead><tr><th class="l">Job</th><th class="l">Foreman</th><th class="l">Moving type</th><th>Rec CF</th><th>Cal CF</th><th class="l">ΔCF</th><th>Packing</th><th>Sales est</th></tr></thead><tbody>'+mj.map(function(o){var r=o.r,cal=CALByIdx[r.ji]||{};return '<tr class="click" onclick="gotoForeman('+r.fi+')"><td class="l">'+esc(JOBS[r.ji][Jc])+'</td><td class="l">'+esc(FOREMEN[r.fi])+'</td><td class="l">'+esc(cal.movingType||'—')+'</td><td class="num">'+num(r.cf,0)+'</td><td class="num">'+num(r.calCF,0)+'</td><td class="l"><span class="delta '+(o.gap>50?'dn':'eq')+'">'+(o.gap>=0?'+':'')+num(o.gap,0)+'</span></td><td class="num">'+money(r.act)+'</td><td class="num">'+(cal.packEst!=null?money(cal.packEst):'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  }
+  var qrecs=S.recs.filter(function(r){return r.hasQuote&&!r.noPack&&r.calPack&&Object.keys(r.calPack).length;});
+  if(qrecs.length){
+    var qf={};qrecs.forEach(function(r){var o=qf[r.fi]=qf[r.fi]||{jobs:0,qEst:0,rAct:0,qTape:0,rTape:0,qUnits:0,rUnits:0};o.jobs++;o.qEst+=(r.packEst||0);o.rAct+=(r.act||0);for(var k in r.calPack){var q=r.calPack[k];var a=jobItemQty[r.ji][k]||0;o.qUnits+=q;o.rUnits+=Math.min(a,q);if(+k===tapeIdx){o.qTape+=q;o.rTape+=a;}}});
+    var qrows=Object.keys(qf).map(function(fi){var o=qf[fi];return {fi:+fi,name:FOREMEN[fi],jobs:o.jobs,qEst:o.qEst,rAct:o.rAct,gap:o.qEst-o.rAct,ful:o.qUnits?o.rUnits/o.qUnits:null,tf:o.qTape?o.rTape/o.qTape:null};});
+    qrows.sort(function(a,b){return (a.ful==null?9:a.ful)-(b.ful==null?9:b.ful);});
+    html+='<div class="card">'+cardH('Quoted vs recorded packing — fulfilment','For jobs where sales quoted a packing list (excluding packing-not-included / customer-packed jobs): the share of quoted materials the field actually recorded. Low % = sold but not booked.','ch-fulfil')+'<div class="chartbox tall"><canvas id="ch-fulfil"></canvas></div></div>';
+    html+='<div class="card">'+cardH('Fulfilment table','Quoted $ = sales packing estimate; recorded $ = field actual. Click a row for the profile.')+'<div class="tbl"><table><thead><tr><th class="l">Foreman</th><th>Jobs w/ quote</th><th>Quoted $</th><th>Recorded $</th><th class="l">$ gap</th><th>Unit fulfilment</th><th>Tape fulfilment</th></tr></thead><tbody>'+qrows.map(function(x){var fc=x.ful==null?'eq':(x.ful<0.5?'dn':(x.ful>0.85?'up':'eq'));return '<tr class="click" onclick="gotoForeman('+x.fi+')"><td class="l">'+esc(x.name)+'</td><td class="num">'+x.jobs+'</td><td class="num">'+money(x.qEst)+'</td><td class="num">'+money(x.rAct)+'</td><td class="l"><span class="delta '+(x.gap>50?'dn':'eq')+'">'+money(x.gap)+'</span></td><td class="num"><span class="delta '+fc+'">'+(x.ful!=null?pct(100*x.ful):'—')+'</span></td><td class="num">'+(x.tf!=null?pct(100*x.tf):'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+    var leaks=qrecs.map(function(r){var missItems=[];for(var k in r.calPack){var q=r.calPack[k];var a=jobItemQty[r.ji][k]||0;if(a===0&&q>0)missItems.push(ITEM_NAMES[k]);}return {r:r,missItems:missItems};}).filter(function(o){return o.missItems.length;}).sort(function(a,b){return (b.r.packEst||0)-(a.r.packEst||0);}).slice(0,150);
+    if(leaks.length){
+      html+='<div class="card">'+cardH(leaks.length+' jobs: quoted packing not recorded','Sales quoted these materials; the field recorded none of them. Highest quoted $ first.')+'<div class="tbl"><table><thead><tr><th class="l">Job</th><th class="l">Foreman</th><th>Quoted $</th><th>Recorded $</th><th class="l">Items quoted but not recorded</th></tr></thead><tbody>'+leaks.map(function(o){var r=o.r;return '<tr class="click" onclick="gotoForeman('+r.fi+')"><td class="l">'+esc(JOBS[r.ji][Jc])+'</td><td class="l">'+esc(FOREMEN[r.fi])+'</td><td class="num">'+money(r.packEst)+'</td><td class="num">'+money(r.act)+'</td><td class="l reason">'+o.missItems.map(function(n){return esc(String(n).replace(/\s*\(.*\)/,''));}).join(', ')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+    }
+  }
+  html+='<div class="muted-s">Source: Google Calendar ('+esc(GCAL_ID)+'), 2026 events, matched by Job Code. Read-only.</div>';
+  host.innerHTML=html;
 }
 function cfgCfGap(){
   var rows=S.recs.filter(function(r){return r.calCF!=null&&r.calCF>0&&r.cf>0;});
