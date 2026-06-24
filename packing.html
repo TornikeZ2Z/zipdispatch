@@ -142,6 +142,17 @@ tbody tr.muted td{color:var(--faint)}
 .fmtrack{flex:1;height:9px;background:var(--line);border-radius:5px;overflow:hidden}
 .fmfill{display:block;height:100%;border-radius:5px}
 .fmrow b{width:42px;text-align:right;font-variant-numeric:tabular-nums}
+.strend{display:flex;gap:8px;align-items:flex-end;overflow-x:auto;padding:8px 2px 2px}
+.stcol{flex:1 0 42px;min-width:42px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.stbarwrap{height:112px;width:100%;display:flex;align-items:flex-end}
+.stbar{width:100%;border-radius:4px 4px 0 0;min-height:2px}
+.stval{font-size:11px;font-weight:700;color:var(--ink)}
+.stlab{font-size:10px;color:var(--dim);white-space:nowrap}
+.daterange{display:inline-flex;align-items:center;gap:6px}
+.daterange input[type=date]{font:inherit;font-size:12px;padding:5px 7px;border:1px solid var(--line2);border-radius:7px;background:#fff;color:var(--ink)}
+.daterange label{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:700}
+.daterange button{font:inherit;font-size:11px;border:1px solid var(--line2);background:#fff;color:var(--dim);border-radius:7px;padding:5px 9px;cursor:pointer}
+.daterange button:hover{border-color:var(--ink);color:var(--ink)}
 </style>
 </head>
 <body>
@@ -151,6 +162,7 @@ tbody tr.muted td{color:var(--faint)}
     <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
     <div><h1>Packing Materials Control</h1><div class="gen" id="gen"></div></div>
   </div>
+  <div class="daterange"><label>From</label><input type="date" id="dfrom" onchange="DFROM=this.value;recompute();renderAll();"><label>To</label><input type="date" id="dto" onchange="DTO=this.value;recompute();renderAll();"><button id="dclear" onclick="DFROM='';DTO='';var a=document.getElementById('dfrom');if(a)a.value='';var b=document.getElementById('dto');if(b)b.value='';recompute();renderAll();">All dates</button></div>
   <span id="connstatus"></span>
 </div></div>
 
@@ -176,6 +188,7 @@ const CAT_LABEL={box:'Boxes & cartons',tape:'Tape',wrap:'Shrink wrap',paper:'Pap
 const CAT_COLOR={box:'#B26B0B',tape:'#2563EB',wrap:'#0E9488',paper:'#9333EA',protection:'#DB2777'};
 /* J = [code,fIdx,date,cf,est,act,charge,tipPct] */
 const Jc=0,Jf=1,Jd=2,Jcf=3,Je=4,Ja=5,Jch=6,Jt=7;
+var DFROM='',DTO='';
 let CHECKED=new Set();
 let S=null;            // computed stats
 let curForeman=0;
@@ -314,6 +327,7 @@ function recompute(){
   var recs=[];
   for(var ji=0;ji<JOBS.length;ji++){
     if(!isLive(ji))continue;
+    if(DFROM||DTO){var _d=JOBS[ji][Jd]||'';if(!_d||(DFROM&&_d<DFROM)||(DTO&&_d>DTO))continue;}
     var j=JOBS[ji],cf=j[Jcf],act=j[Ja],est=j[Je];
     var _cal=CALByIdx[ji]||null; var _cb=CALBAKE[j[Jc]]||null;
     recs.push({ji:ji,fi:j[Jf],cf:cf,est:est,act:act,charge:j[Jch],tip:j[Jt],
@@ -346,10 +360,16 @@ function recompute(){
     for(var ai=0;ai<nItems;ai++){(function(ai){var m=median(rb.map(function(r){return 100*jobItemQty[r.ji][ai]/r.cf;}));attach[ai]={f:m,fleet:fleetItem[ai],ratio:(fleetItem[ai]?(m/fleetItem[ai]):null)};})(ai);}
     var mm={};ra.forEach(function(r){var mo=(JOBS[r.ji][Jd]||'').slice(0,7);if(!mo)return;(mm[mo]=mm[mo]||[]).push(r.pk100);});
     var months=Object.keys(mm).sort().map(function(mo){return {m:mo,pk:median(mm[mo])};});
+    var mmb={};rb.forEach(function(r){var _mo=(JOBS[r.ji][Jd]||'').slice(0,7);if(_mo)(mmb[_mo]=mmb[_mo]||[]).push(r);});
+    var mscore=Object.keys(mmb).sort().map(function(_mo){var rr=mmb[_mo];
+      var _pk=median(rr.map(function(r){return r.pk100;})),_tp=median(rr.map(function(r){return r.tape100;})),_wr=median(rr.map(function(r){return r.wrap100;})),_av=median(rr.map(function(r){return r.ave;}));
+      var _ze=rr.length?sum(rr.map(function(r){return r.zero;}))/rr.length:0;
+      var _spk=(_pk!=null&&fleet.pk)?clip(100*(1-_pk/fleet.pk)):0,_stp=(_tp!=null&&fleet.tape)?clip(100*(1-_tp/fleet.tape)):0,_swr=(_wr!=null&&fleet.wrap)?clip(100*(1-_wr/fleet.wrap)):0,_sze=clip(100*_ze/0.30),_sav=(_av!=null)?clip(100*(1-_av/0.90)):0;
+      return {m:_mo,risk:Math.round(.30*_spk+.25*_stp+.15*_swr+.20*_sze+.10*_sav),n:rr.length};});
     per.push({fi:fi,name:FOREMEN[fi],n_big:rb.length,n_all:ra.length,
       pk100:pk,tape100:tp,wrap100:wr,zero:ze,ave:av,
       s:{pk:s_pk,tape:s_tape,wrap:s_wrap,zero:s_zero,ave:s_ave},risk:risk,
-      band:bandOf(risk),conf:confOf(rb.length),attach:attach,months:months,
+      band:bandOf(risk),conf:confOf(rb.length),attach:attach,months:months,mscore:mscore,
       totalPack:sum(ra.map(function(r){return r.act;})),
       totalBigCF:sum(rb.map(function(r){return r.cf;})),
       medCharge:median(ra.map(function(r){return r.charge;})),
@@ -370,6 +390,7 @@ function flaggedJobs(){
   var out=[];
   for(var ji=0;ji<JOBS.length;ji++){
     if(!isLive(ji))continue;
+    if(DFROM||DTO){var _fd=JOBS[ji][Jd]||'';if(!_fd||(DFROM&&_fd<DFROM)||(DTO&&_fd>DTO))continue;}
     var j=JOBS[ji],cf=j[Jcf],act=j[Ja],est=j[Je],fi=j[Jf];
     var p=S?S.per[fi]:null, fpk=p?p.pk100:null, pk100=100*act/cf, tape=jobTape[ji], rs=[];
     if(cf>=300&&act<20)rs.push('Zero packing on a '+Math.round(cf)+' CF move');
@@ -468,6 +489,13 @@ function itemTable(){
 }
 
 /* ============================ FOREMAN PROFILE ============================ */
+function scoreTrendHTML(ms){
+  if(!ms||ms.length<2)return '<div class="muted-s">Not enough dated jobs for a monthly trend (need 2+ months with ≥200 CF jobs).</div>';
+  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var mx=Math.max(30,Math.max.apply(null,ms.map(function(x){return x.risk;})));
+  return '<div class="strend">'+ms.map(function(x){var col=x.risk>=30?'var(--bad)':x.risk>=15?'var(--warn)':'var(--good)';var h=Math.round(x.risk/mx*100);var p=String(x.m).split('-');var lab=(MON[(+p[1])-1]||'')+' '+String(p[0]).slice(2);
+    return '<div class="stcol" title="'+esc(x.m)+': concern '+x.risk+' · '+x.n+' big jobs"><div class="stbarwrap"><div class="stbar" style="height:'+h+'%;background:'+col+'"></div></div><div class="stval">'+x.risk+'</div><div class="stlab">'+esc(lab)+'</div></div>';}).join('')+'</div>';
+}
 function renderForeman(){
   var opts=S.per.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(p){return '<option value="'+p.fi+'"'+(p.fi===curForeman?' selected':'')+'>'+esc(p.name)+(p.conf==='Insufficient'?' (few jobs)':'')+'</option>';}).join('');
   var p=S.per[curForeman], fleet=S.fleet;
@@ -485,6 +513,7 @@ function renderForeman(){
     ['Median tip',money(p.medTip),''],['Median charge',money(p.medCharge),''],
     ['Total packing sold',k$(p.totalPack),'']
   ].map(function(x){return '<div class="stat"><div class="v num">'+x[1]+'</div><div class="l">'+x[0]+'</div>'+(x[2]?'<div class="c">'+x[2]+'</div>':'')+'</div>';}).join('')+'</div></div>';
+  html+='<div class="card">'+cardH('Monthly concern score','Lower is better — watch this fall as a foreman fixes the issue (uses ≥200 CF jobs each month, vs the fleet baseline).')+scoreTrendHTML(p.mscore)+'</div>';
   html+='<div class="grid g2">';
   html+='<div class="card">'+cardH('Signal profile vs fleet','100 = fleet median; bars under 100 mean less recorded than peers.','ch-radar')+'<div class="chartbox"><canvas id="ch-radar"></canvas></div></div>';
   html+='<div class="card">'+cardH('Item attach vs fleet','Median units per 100 CF — this foreman vs fleet, per item.','ch-attach')+'<div class="chartbox"><canvas id="ch-attach"></canvas></div></div>';
