@@ -96,12 +96,30 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
   .job{padding:11px 12px;gap:11px}.jtime{width:50px}.jtime b{font-size:16px}
   .jcust{font-size:14.5px}
 }
+.connbtn{margin-left:auto;font:inherit;font-size:12px;font-weight:600;border:1px solid var(--line2);background:var(--card);color:var(--dim);border-radius:9px;padding:7px 12px;cursor:pointer}
+.connbtn:hover{border-color:var(--acc-bd);color:var(--ink)}
+.jconf{margin-top:8px;display:inline-block;font-size:12.5px;font-weight:700}
+.jconf.btn{cursor:pointer;border:1px solid var(--acc-bd);background:var(--acc-bg);color:var(--acc-ink);border-radius:9px;padding:6px 12px}
+.jconf.btn:hover{filter:brightness(.97)}
+.jconf.done{color:#1f6f3f;background:#e9f4ec;border:1px solid #bfe0c8;border-radius:9px;padding:5px 11px}
+.jconf.taken{color:var(--faint);font-weight:600}
+.cfm-bg{position:fixed;inset:0;background:rgba(20,28,40,.45);display:flex;align-items:center;justify-content:center;z-index:80;padding:18px}
+.cfm{background:var(--card);border-radius:16px;max-width:380px;width:100%;padding:20px 22px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.cfm h3{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.03em}
+.cfm-d{background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+.cfm-d b{font-size:15px}.cfm-row{font-size:13px;color:var(--dim);margin-top:3px}
+.cfm-note{font-size:12.5px;color:var(--dim);margin:13px 0}
+.cfm-act{display:flex;gap:10px;justify-content:flex-end}
+.cfm-act button{font:inherit;font-size:13.5px;font-weight:600;border-radius:9px;padding:9px 16px;cursor:pointer;border:1px solid var(--line2);background:var(--card);color:var(--ink)}
+.cfm-ok{background:var(--acc);color:#fff;border-color:var(--acc)}
 </style>
+<script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 </head>
 <body>
 <div class="bar"><div class="bar-in">
   <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
   <div class="htxt"><h1>Production Calendar</h1><div class="sub">Zip to Zip &middot; local jobs &middot; nearest first &middot; foreman for today &amp; tomorrow</div></div>
+  <button class="connbtn" id="connbtn" onclick="connectGoogle()">Connect Google</button>
 </div></div>
 <div class="wrap">
   <div class="filters">
@@ -125,10 +143,54 @@ var SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
 var SHEET_TAB='Google Calendar';
 var CREW_TAB='Crew Members';
 var GCAL_ID='contact@ziptozipmoving.com';
-var JOBS=[], CREW={}, puSel=new Set();
+var JOBS=[], CREW={}, puSel=new Set(), CONFIRMED={};
+var GCAL_CLIENT_ID='712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com';
+var GSCOPE_VER='cal+sheets-1', CONF_TAB='Photo Confirmations';
+var GTOKEN=null,GTOKEXP=0,_tc=null;
+try{var _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.scope===GSCOPE_VER&&_g.exp>Date.now()+60000){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
 function $(s){return document.querySelector(s);}
 function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function toast(m){var t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show');},4200);}
+function gReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
+function updateConnUI(){var b=$('#connbtn');if(b)b.textContent=GTOKEN?'Google \u2713':'Connect Google';}
+function ensureToken(cb){
+  if(GTOKEN&&Date.now()<GTOKEXP-60000)return cb();
+  if(window._gsiFail||!gReady()){toast('Open this on the hosted (GitHub Pages) URL to sign in.');return;}
+  _tc=_tc||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:function(){}});
+  _tc.callback=function(resp){if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP,scope:GSCOPE_VER}));localStorage.setItem('zd_gconn',GSCOPE_VER);}catch(e){}updateConnUI();cb();}else toast('Sign-in failed.');};
+  _tc.requestAccessToken({prompt:localStorage.getItem('zd_gconn')===GSCOPE_VER?'':'consent'});
+}
+function connectGoogle(){ensureToken(function(){updateConnUI();toast('Google connected.');});}
+function shFetch(path,opt){return fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+path,Object.assign({headers:{'Authorization':'Bearer '+GTOKEN,'Content-Type':'application/json'}},opt||{})).then(function(r){if(!r.ok)return r.text().then(function(b){throw new Error('Sheets '+r.status+' '+String(b).slice(0,100));});return r.status===204?null:r.json();});}
+function shAppendRow(tab,obj){var enc=encodeURIComponent("'"+tab+"'");return shFetch('/values/'+enc+'?valueRenderOption=FORMATTED_VALUE').catch(function(){return {};}).then(function(v){var vals=(v&&v.values)||[];var header=vals[0]||[];var pre=Promise.resolve();if(!header.length){pre=shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})}).catch(function(){}).then(function(){header=Object.keys(obj);return shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});});}return pre.then(function(){var row=header.map(function(h){return obj[h]!=null?String(obj[h]):'';});Object.keys(obj).forEach(function(k){if(header.indexOf(k)<0)row.push(String(obj[k]));});return shFetch('/values/'+enc+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});});});}
+function loadConfirmations(){
+  var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(CONF_TAB)+'&_t='+Date.now();
+  return fetch(url).then(function(r){return r.ok?r.text():'';}).then(function(t){try{var rows=pcsv(t);if(rows.length>=2){var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});var jd=H.indexOf('job date'),jc=H.indexOf('job code');rows.slice(1).forEach(function(r){var d=(jd>=0?r[jd]:'').trim(),c=(jc>=0?r[jc]:'').trim();if(d&&c)CONFIRMED[d]=c;});}}catch(e){}}).catch(function(){});
+}
+function jobByCode(c){for(var i=0;i<JOBS.length;i++)if(JOBS[i].jobCode===c)return JOBS[i];return null;}
+function confirmBlock(j){
+  if(!j.date)return '';
+  var mine=CONFIRMED[j.date];
+  if(mine===j.jobCode)return '<div class="jconf done">\u2713 You confirmed this job</div>';
+  if(mine)return '<div class="jconf taken">Another job already confirmed for this day</div>';
+  return '<button class="jconf btn" data-confirm="'+esc(j.jobCode)+'">\ud83d\udcf8 Confirm I will shoot this</button>';
+}
+function openConfirm(j){
+  var ov=document.createElement('div');ov.className='cfm-bg';var dh=dayHeader(j.date);var tm=fmt12(j.tmin);
+  ov.innerHTML='<div class="cfm"><h3>Confirm this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dh.label)+(j.tmin!=null?' \u00b7 '+esc(tm.t)+' '+esc(tm.ap):'')+'</div><div class="cfm-row">'+esc(j.jobCode)+' \u00b7 '+esc(j.puState||'?')+'\u2192'+esc(j.delState||'?')+' \u00b7 '+Math.round(j.cf||0).toLocaleString()+' CF</div><div class="cfm-row">'+esc(j.pickup||'')+'</div></div><p class="cfm-note">You can confirm only one job per day. Support will be notified you are going.</p><div class="cfm-act"><button class="cfm-cancel">Cancel</button><button class="cfm-ok">Yes, confirm</button></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  ov.querySelector('.cfm-cancel').onclick=function(){ov.remove();};
+  ov.querySelector('.cfm-ok').onclick=function(){ov.remove();doConfirm(j);};
+}
+function doConfirm(j){
+  if(CONFIRMED[j.date]&&CONFIRMED[j.date]!==j.jobCode){toast('You already confirmed a job for that day.');render();return;}
+  ensureToken(function(){
+    shAppendRow(CONF_TAB,{'Job Date':j.date,'Job Code':j.jobCode,'Customer':j.customer||'','Pickup':j.pickup||'','Event Link':calEventLink(j.eventId),'Confirmed At':new Date().toISOString(),'Notify':'pending'})
+      .then(function(){CONFIRMED[j.date]=j.jobCode;toast('\u2713 Confirmed \u2014 support will be notified.');render();})
+      .catch(function(e){toast('Could not save: '+e.message);});
+  });
+}
 function haversine(a,b,c,d){var R=3958.8,dl=(c-a)*Math.PI/180,dn=(d-b)*Math.PI/180,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dn/2)*Math.sin(dn/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 function zipFromAddr(s){var m=String(s||'').match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b\d{5}\b)/);return m?m[1]:null;}
 function geoFull(zip){var z=ZIPDB[zip];return z?{lat:z[0],lon:z[1],st:z[3]}:null;}
@@ -186,7 +248,7 @@ function loadSheet(){
   }).catch(function(e){toast('⚠ Could not read the sheet: '+e.message);});
 }
 function localJobs(){return JOBS.filter(function(j){return /local/i.test(j.mt)&&!/long/i.test(j.mt);});}
-function finishLoad(){buildPuDropdown();render();}
+function finishLoad(){buildPuDropdown();render();updateConnUI();}
 function updatePuBtn(){var b=$('#puBtn');if(!b)return;b.textContent=puSel.size?(puSel.size===1?Array.from(puSel)[0]:puSel.size+' states'):'All states';}
 function buildPuDropdown(){
   var s={};localJobs().forEach(function(j){if(j.puState)s[j.puState]=1;});var list=Object.keys(s).sort();
@@ -223,6 +285,7 @@ function jobCard(r){
       +'<div class="jmeta">'+route+'<span class="sep">·</span><span class="jt">'+esc(j.mt||'Local')+'</span><span class="sep">·</span><span class="sz">'+Math.round(j.cf||0).toLocaleString()+' CF</span><span class="sep">·</span><span>'+r.dist.toFixed(1)+' mi</span></div>'
       +'<a class="jaddr" href="'+mapsLink(j.pickup)+'" target="_blank" rel="noopener">'+pin+esc(j.pickup||'(no address)')+'</a>'
       +foremanBlock(j)
+      +confirmBlock(j)
     +'</div></div>';
 }
 function render(){
@@ -267,7 +330,8 @@ function render(){
 var cam=$('#fCam');if(cam)cam.addEventListener('change',render);
 $('#puBtn').addEventListener('click',function(e){e.stopPropagation();$('#puPanel').classList.toggle('open');});
 document.addEventListener('click',function(e){var p=$('#puPanel');if(p&&p.classList.contains('open')&&!$('#puMs').contains(e.target))p.classList.remove('open');});
-Promise.all([loadCrew(),loadSheet()]).then(finishLoad);
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-confirm]');if(b){var j=jobByCode(b.getAttribute('data-confirm'));if(j)openConfirm(j);}});
+Promise.all([loadCrew(),loadSheet(),loadConfirmations()]).then(finishLoad);
 </script>
 </body>
 </html>
