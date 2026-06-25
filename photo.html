@@ -148,6 +148,7 @@ var ZIPDB=window.ZIPDB||{};
 var SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
 var SHEET_TAB='Google Calendar';
 var PHOTO_SINCE='2026-06-25'; // only events created on/after this date are eligible for photoshoot
+var MIN_CF=1000; // only show jobs at least this big (cubic feet)
 var CREW_TAB='Crew Members';
 var GCAL_ID='contact@ziptozipmoving.com';
 var JOBS=[], CREW={}, puSel=new Set(['NJ','NY','CT']), CONFIRMED={};
@@ -310,11 +311,12 @@ function jobCard(r){
 }
 function render(){
   var out=$('#out');
-  if(!JOBS.length){out.innerHTML='<div class="empty"><b>No jobs found</b>The calendar returned no usable upcoming jobs. Events created Jun 25+ need <b>Allowed Photo Shooting: YES</b> in the description to appear; older events show without it.</div>';return;}
+  if(!JOBS.length){out.innerHTML='<div class="empty"><b>No photoshoots right now</b>There are no jobs available to photograph at the moment. Please check back soon.</div>';return;}
   var H=homeCoord(),today=isoLocal(new Date());
   var rows=[];
   JOBS.forEach(function(j){
     if(!j.date||j.date<today)return;
+    if((j.cf||0)<MIN_CF)return;
     if(j.lat==null||j.lon==null)return;
     if(!puSel.has(j.puState))return;
     var dist=haversine(H.lat,H.lon,j.lat,j.lon);
@@ -322,7 +324,7 @@ function render(){
     rows.push({j:j,dist:dist});
   });
   rows.sort(function(a,b){return (a.j.date||'').localeCompare(b.j.date||'')||((a.j.tmin==null?9999:a.j.tmin)-(b.j.tmin==null?9999:b.j.tmin))||(a.dist-b.dist);});
-  if(!rows.length){out.innerHTML='<div class="empty"><b>Nothing within range</b>No eligible upcoming photoshoots within 50 miles for the selected states.</div>';return;}
+  if(!rows.length){out.innerHTML='<div class="empty"><b>No photoshoots right now</b>There are no jobs to photograph for the selected states. Try turning on more states above.</div>';return;}
   var html='',curDate=null;
   rows.forEach(function(r){
     if(r.j.date!==curDate){
