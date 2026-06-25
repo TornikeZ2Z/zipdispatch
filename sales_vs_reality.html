@@ -843,7 +843,7 @@ function num(v){if(v==null)return null;v=String(v).trim();if(v==='')return null;
 function hrs(v){v=String(v||'').trim();const m=v.match(/^(\d+):(\d{2})(?::(\d{2}))?$/);if(m)return +m[1]+(+m[2])/60+((+m[3]||0)/3600);const n=parseFloat(v);return isFinite(n)?n:null;}
 function isoDate(s){s=String(s||'').trim();let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return m[3]+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2);m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[1]+'-'+m[2]+'-'+m[3]:'';}
 function dimc(est,real){if(est==null||est===0||real==null)return [est,real,null,null,0];const gap=real-est,pe=gap/Math.abs(est),flag=gap>0?1:(gap<0?2:0);return [est,real,gap,pe,flag];}
-function buildRow(o){const t=dimc(num(o.act_time),hrs(o.labor_time)),iv=dimc(num(o.inventory_estimate),num(o.actual_inventory)),cf=dimc(num(o.estimate_cf),num(o.real_cf));
+function buildRow(o){const _lab=hrs(o.labor_time),_min=num(o.minimum_labor_time);const _eff=(_lab==null)?null:(_min!=null?Math.max(_lab,_min):_lab);const t=dimc(num(o.act_time),_eff),iv=dimc(num(o.inventory_estimate),num(o.actual_inventory)),cf=dimc(num(o.estimate_cf),num(o.real_cf));
   return [o.job_code,isoDate(o.date_of_move),o.job_type||'',o.sales_person_1||'',t[0],t[1],t[2],t[3],t[4],iv[0],iv[1],iv[2],iv[3],iv[4],cf[0],cf[1],cf[2],cf[3],cf[4],resolveForeman(o.foreman_1),o.spreadsheet_url||'',o.bill_of_lading_contract_url||''];}
 let NICKMAP={};
 function loadCrew(cb){
@@ -864,7 +864,7 @@ function loadData(){
     const H=rows[0].map(x=>String(x).trim().toLowerCase()),idx={};H.forEach((h,i)=>{if(idx[h]==null)idx[h]=i;});
     const g=(r,n)=>{const i=idx[n];return i==null?'':r[i];};const out=[];
     rows.slice(1).forEach(r=>{if(String(g(r,'job_leg_type')).trim().toUpperCase()!=='PICKUP JOB')return;const jc=String(g(r,'job_code')).trim();if(!jc)return;
-      out.push(buildRow({job_code:jc,date_of_move:g(r,'date_of_move'),job_type:g(r,'job_type'),sales_person_1:g(r,'sales_person_1'),act_time:g(r,'act_time'),labor_time:g(r,'labor_time'),inventory_estimate:g(r,'inventory_estimate'),actual_inventory:g(r,'actual_inventory'),estimate_cf:g(r,'estimate_cf'),real_cf:g(r,'real_cf'),foreman_1:g(r,'foreman_1'),spreadsheet_url:g(r,'spreadsheet_url'),bill_of_lading_contract_url:g(r,'bill_of_lading_contract_url')}));});
+      out.push(buildRow({job_code:jc,date_of_move:g(r,'date_of_move'),job_type:g(r,'job_type'),sales_person_1:g(r,'sales_person_1'),act_time:g(r,'act_time'),labor_time:g(r,'labor_time'),minimum_labor_time:g(r,'minimum_labor_time'),inventory_estimate:g(r,'inventory_estimate'),actual_inventory:g(r,'actual_inventory'),estimate_cf:g(r,'estimate_cf'),real_cf:g(r,'real_cf'),foreman_1:g(r,'foreman_1'),spreadsheet_url:g(r,'spreadsheet_url'),bill_of_lading_contract_url:g(r,'bill_of_lading_contract_url')}));});
     DATA=out;const dts=out.map(r=>r[I.date]).filter(Boolean).sort();
     META={minIso:dts[0]||isoOf(new Date()),maxIso:dts[dts.length-1]||isoOf(new Date()),total:out.length};
     loadExceptionsFromSheet(function(){boot();});
