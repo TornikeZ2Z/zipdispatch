@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Studio Results · Sales vs Reality</title>
+<title>What Sales Person Estimated vs What Foreman Sold · Zip To Zip</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -228,8 +228,7 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Studio Results · Estimation Audit</div>
-    <h1>What sales sell, <em>vs the truck</em>.</h1>
+    <h1>What Sales Person Estimated <em>vs</em> What Foreman Sold</h1>
   </header>
 
   <div class="filters" role="region" aria-label="Filters">
@@ -777,7 +776,7 @@ function loadCrew(cb){
 }
 function resolveForeman(raw){const k=String(raw||'').trim().toLowerCase();if(!k)return '';return NICKMAP[k]||String(raw).trim();}
 function loadData(){
-  const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent('Estimate VS Real')+'&_t='+Date.now();
+  const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent('Estimate VS Actual')+'&_t='+Date.now();
   fetch(url).then(r=>r.text()).then(t=>{
     const rows=pcsv(t);if(rows.length<2){alert('Estimate VS Real sheet is empty.');return;}
     const H=rows[0].map(x=>String(x).trim().toLowerCase()),idx={};H.forEach((h,i)=>{if(idx[h]==null)idx[h]=i;});
