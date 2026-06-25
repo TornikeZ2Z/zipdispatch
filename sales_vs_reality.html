@@ -184,9 +184,11 @@
     .dp-pop{flex-direction:column} .dp-presets{border-right:none;border-bottom:1px solid var(--line-2);padding-right:0;padding-bottom:10px;flex-direction:row;flex-wrap:wrap}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
-.tswitch{display:inline-flex;gap:4px;margin-left:10px;background:var(--line-2);border-radius:8px;padding:3px;vertical-align:middle}
-.tswitch button{font-family:var(--fm);font-size:11px;letter-spacing:.04em;text-transform:uppercase;border:none;background:none;color:var(--muted);padding:5px 10px;border-radius:6px;cursor:pointer}
-.tswitch button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(21,35,63,.12)}
+.tswitch{display:inline-flex;gap:14px;margin-left:14px;vertical-align:middle}
+.tswitch button{font-family:var(--fm);font-size:11px;letter-spacing:.04em;text-transform:uppercase;border:none;background:none;color:var(--muted);padding:3px 1px;cursor:pointer;border-bottom:2px solid transparent;transition:color .12s,border-color .12s}
+.tswitch button:hover{color:var(--ink)}
+.tswitch button[aria-pressed=true]{color:var(--ink);border-bottom-color:var(--ink)}
+.orphan-tag{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:var(--line-2);border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle}
 .docbtn{display:inline-block;font-family:var(--fb);font-size:11px;font-weight:600;text-decoration:none;color:var(--ink-2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:1px 4px 1px 0;white-space:nowrap}
 .docbtn:hover{border-color:var(--ink-2);color:var(--ink)}
 .docbtn.bol{color:var(--problem);border-color:var(--problem-soft)}
@@ -262,7 +264,7 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
       <button data-v="inv" aria-pressed="true">Inventory</button>
       <button data-v="cf" aria-pressed="false">Cubic feet</button>
     </div>
-    <div class="bandkey">
+    <div class="bandkey" id="bandkey">
       <span class="bk"><span class="dot" style="background:var(--ok)"></span>under 20% = okay</span>
       <span class="bk"><span class="dot" style="background:var(--normal)"></span>20–50% = normal</span>
       <span class="bk"><span class="dot" style="background:var(--problem)"></span>over 50% = problem</span>
@@ -379,6 +381,13 @@ function fmtSigned(v,dp){if(v==null)return'—';const s=Math.abs(v).toLocaleStri
 function fmtDate(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');return d+' '+MONTHS[+m-1];}
 function fmtDateY(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');return d+' '+MONTHS[+m-1]+' '+y;}
 function band(pe){if(pe==null)return null;const a=Math.abs(pe);return a<0.20?0:a<0.50?1:2;}
+/* dimension-aware band: Time uses absolute hours (<=1 good, <=2 okay, else problem); others use % */
+function jbandK(r,k){const D=DIMS[k];
+  if(k==='time'){const g=r[D.gap];if(g==null)return null;const a=Math.abs(g);return a<=1?0:a<=2?1:2;}
+  const pe=r[D.pe];if(pe==null)return null;const p=Math.abs(pe);return p<0.20?0:p<0.50?1:2;}
+function jband(r){return jbandK(r,state.dim);}
+function bandThresh(){return state.dim==='time'?['under 1h','1–2h','over 2h']:['under 20%','20–50%','over 50%'];}
+function bandStat(){return state.dim==='time'?['Within 1h · okay','1–2h · normal','Over 2h · problem']:['Within 20% · okay','20–50% · normal','Over 50% · problem'];}
 
 /* ---- exceptions store (local now; sync layer ready) ---- */
 const SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
@@ -454,8 +463,8 @@ function filtered(ignoreSales){
 
 /* ---------- scorecard ---------- */
 function dimStats(rows){
-  const D=DIMS[state.dim], banded=rows.filter(r=>band(r[D.pe])!==null), c=[0,0,0];
-  banded.forEach(r=>c[band(r[D.pe])]++);
+  const D=DIMS[state.dim], banded=rows.filter(r=>jband(r)!==null), c=[0,0,0];
+  banded.forEach(r=>c[jband(r)]++);
   const under=banded.filter(r=>r[D.flag]===1).length, over=banded.filter(r=>r[D.flag]===2).length;
   return {n:banded.length,c,noBase:rows.length-banded.length,under,over,medGap:median(banded.map(r=>r[D.gap]))};
 }
@@ -474,9 +483,10 @@ function renderScorecard(rows){
   const dir=s.under>s.over?'under-estimated (reality came in higher)':s.over>s.under?'over-sold (reality came in lower)':'split evenly';
   document.getElementById('sc-caption').innerHTML=`Typical job lands <b>${fmtSigned(s.medGap,D.dp)} ${D.gunit}</b> vs the ${D.basis}. Most misses are <b>${dir}</b>.`;
   const cell=(cls,k,n)=>`<div class="scs ${cls}"><div class="k">${k}</div><div class="v">${fmtInt(n)}<small>${s.n?Math.round(n/s.n*100):0}%</small></div></div>`;
+  const SL=bandStat();
   document.getElementById('sc-stats').innerHTML=
-    cell('ok','Within 20% · okay',s.c[0])+cell('normal','20–50% · normal',s.c[1])+
-    cell('problem','Over 50% · problem',s.c[2])+
+    cell('ok',SL[0],s.c[0])+cell('normal',SL[1],s.c[1])+
+    cell('problem',SL[2],s.c[2])+
     `<div class="scs na"><div class="k">No ${D.basis}</div><div class="v">${fmtInt(s.noBase)}<small>excl.</small></div></div>`;
 }
 
@@ -528,7 +538,7 @@ function renderHist(rows){
 function groupStats(rows,keyFn){
   const D=DIMS[state.dim],g={};
   rows.forEach(r=>{const k=keyFn(r)||'—';(g[k]=g[k]||[]).push(r);});
-  return Object.entries(g).map(([name,rs])=>{const banded=rs.filter(r=>band(r[D.pe])!==null),c=[0,0,0];banded.forEach(r=>c[band(r[D.pe])]++);
+  return Object.entries(g).map(([name,rs])=>{const banded=rs.filter(r=>jband(r)!==null),c=[0,0,0];banded.forEach(r=>c[jband(r)]++);
     const med=median(banded.map(r=>(r[D.gap]<0?-1:1)*Math.abs(r[D.pe])*100));
     return {name,n:banded.length,c,pp:banded.length?c[2]/banded.length:0,miss:(med==null?0:med)};});
 }
@@ -563,14 +573,16 @@ function buildHead(){
     th.onclick=h;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();h();}};});
 }
 function docCell(r){let a='';if(r[I.surl])a+=`<a class="docbtn" href="${esc(r[I.surl])}" target="_blank" rel="noopener">Sheet</a>`;if(r[I.bol])a+=`<a class="docbtn bol" href="${esc(r[I.bol])}" target="_blank" rel="noopener">BoL</a>`;return a||'—';}
-function tableRows(base){const D=DIMS[state.dim];let rows=base.filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);if(state.band!=null)rows=rows.filter(r=>band(r[D.pe])===state.band);return rows;}
+function tableRows(base){let rows=base.filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);if(state.band!=null)rows=rows.filter(r=>jband(r)===state.band);return rows;}
 function isDataIssue(r){const D=DIMS[state.dim],e=r[D.sold],a=r[D.real];if(e==null||e<=0)return 'no estimate';if(a==null||a<=0)return 'no actual';return null;}
 function renderTable(baseRows){
   const D=DIMS[state.dim],k=state.sortKey,dir=state.sortDir,view=state.tableView;
   const tvi=document.getElementById('tv-issue-n');if(tvi)tvi.textContent=baseRows.filter(r=>isDataIssue(r)).length;
   let rows;
-  if(view==='excluded'){const byJob={};DATA.forEach(r=>byJob[r[I.job]]=r);rows=Exceptions.list().map(e=>byJob[e.job]).filter(Boolean);
-    rows=rows.filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);if(state.band!=null)rows=rows.filter(r=>band(r[D.pe])===state.band);}
+  if(view==='excluded'){const byJob={};DATA.forEach(r=>byJob[r[I.job]]=r);
+    rows=Exceptions.list().map(function(e){const r=byJob[e.job];if(r)return r;const o=[];o[I.job]=e.job;o[I.date]='';o[I.type]='';o[I.sales]='';o[I.fore]='';o._orphan=1;return o;});
+    rows=rows.filter(r=>r._orphan||state.foreman==='all'||r[I.fore]===state.foreman);
+    if(state.band!=null)rows=rows.filter(r=>r._orphan||jband(r)===state.band);}
   else if(view==='issues'){rows=baseRows.filter(r=>isDataIssue(r)).filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);}
   else rows=tableRows(baseRows).filter(r=>!isDataIssue(r));
   const acc=r=>({job:r[I.job],date:r[I.date],sales:r[I.sales],fore:r[I.fore],sold:r[D.sold],real:r[D.real],gap:r[D.gap],pe:(r[D.pe]==null?null:Math.abs(r[D.pe]))}[k]);
@@ -579,10 +591,11 @@ function renderTable(baseRows){
   if(state.page>pages)state.page=pages;
   const a=(state.page-1)*state.perPage,b=Math.min(a+state.perPage,total),body=document.querySelector('#tbl tbody');
   if(!total)body.innerHTML=`<tr><td colspan="12" class="empty">${view==='excluded'?'No manually-excluded jobs.':view==='issues'?'No data issues in this selection.':'No jobs match these filters.'}</td></tr>`;
-  else body.innerHTML=sorted.slice(a,b).map(r=>{const bd=band(r[D.pe]),signed=r[D.pe]==null?null:(r[D.gap]<0?-1:1)*r[D.pe]*100;
+  else body.innerHTML=sorted.slice(a,b).map(r=>{const bd=jband(r),signed=r[D.pe]==null?null:(r[D.gap]<0?-1:1)*r[D.pe]*100;
     const chip=bd==null?'<span class="chip na">no est</span>':`<span class="chip ${BANDKEY[bd]}">${BANDKEY[bd]}</span>`;
     const ex=view==='excluded'?Exceptions.get(r[I.job]):null;
-    const jc=ex&&ex.comment?`<span class="jc" title="${esc(ex.comment)}${ex.by?' — '+esc(ex.by):''}">${r[I.job]} ●</span>`:`<span class="jc">${r[I.job]}</span>`;
+    const orph=r._orphan?' <span class="orphan-tag" title="This exclusion is from older data no longer loaded. Restore to clear it.">not in current data</span>':'';
+    const jc=(ex&&ex.comment?`<span class="jc" title="${esc(ex.comment)}${ex.by?' — '+esc(ex.by):''}">${r[I.job]} ●</span>`:`<span class="jc">${r[I.job]}</span>`)+orph;
     let act;if(view==='excluded')act=`<button class="ig-btn" data-restore="${r[I.job]}">↩ Restore</button>`;else if(view==='issues')act=`<span class="issue-reason">${esc(isDataIssue(r)||'')}</span>`;else act=`<button class="ig-btn" data-ignore="${r[I.job]}">Ignore</button>`;
     return `<tr><td>${jc}</td><td>${fmtDate(r[I.date])}</td><td><span class="chip type">${r[I.type]}</span></td>
       <td>${r[I.sales]||'—'}</td><td>${r[I.fore]||'—'}</td><td class="num">${r[D.sold]==null?'—':fmt(r[D.sold],D.dp)}</td><td class="num">${r[D.real]==null?'—':fmt(r[D.real],D.dp)}</td>
@@ -621,10 +634,10 @@ function updateFilterChips(){
 }
 function renderOverview(rows){
   const host=document.getElementById('ov-panel');if(!host)return;
-  const cell=(D)=>{const banded=rows.filter(r=>band(r[D.pe])!==null),c=[0,0,0];banded.forEach(r=>c[band(r[D.pe])]++);const n=banded.length;
+  const cell=(k)=>{const D=DIMS[k];const banded=rows.filter(r=>jbandK(r,k)!==null),c=[0,0,0];banded.forEach(r=>c[jbandK(r,k)]++);const n=banded.length;
     const med=median(banded.map(r=>r[D.gap])),pc=i=>n?Math.round(c[i]/n*100):0;
     return `<tr><td class="ovname">${D.label}</td><td class="num">${fmtInt(n)}</td><td class="num ovok">${pc(0)}%</td><td class="num ovnm">${pc(1)}%</td><td class="num ovpr">${pc(2)}%</td><td class="num">${n?fmtSigned(med,D.dp)+' '+D.gunit:'—'}</td></tr>`;};
-  host.innerHTML=`<table class="ovtbl"><thead><tr><th>Metric</th><th class="num">Measured</th><th class="num">Okay</th><th class="num">Normal</th><th class="num">Problem</th><th class="num">Median miss</th></tr></thead><tbody>${['time','inv','cf'].map(k=>cell(DIMS[k])).join('')}</tbody></table>`;
+  host.innerHTML=`<table class="ovtbl"><thead><tr><th>Metric</th><th class="num">Measured</th><th class="num">Okay</th><th class="num">Normal</th><th class="num">Problem</th><th class="num">Median miss</th></tr></thead><tbody>${['time','inv','cf'].map(cell).join('')}</tbody></table>`;
 }
 function renderTrend(rows){
   const D=DIMS[state.dim],host=document.getElementById('trend-panel');if(!host)return;const g={};
@@ -639,7 +652,7 @@ function renderTrend(rows){
 function renderByType(rows){
   const D=DIMS[state.dim],host=document.getElementById('type-chart');if(!host)return;const g={};
   rows.forEach(r=>{const t=r[I.type]||'—';(g[t]=g[t]||[]).push(r);});
-  let arr=Object.entries(g).map(([name,rs])=>{const banded=rs.filter(r=>band(r[D.pe])!==null),c=[0,0,0];banded.forEach(r=>c[band(r[D.pe])]++);return {name,n:banded.length,c,pp:banded.length?c[2]/banded.length:0};}).filter(a=>a.n>=1);
+  let arr=Object.entries(g).map(([name,rs])=>{const banded=rs.filter(r=>jband(r)!==null),c=[0,0,0];banded.forEach(r=>c[jband(r)]++);return {name,n:banded.length,c,pp:banded.length?c[2]/banded.length:0};}).filter(a=>a.n>=1);
   arr.sort((a,b)=>b.pp-a.pp||b.n-a.n);
   if(!arr.length){host.innerHTML='<div class="empty">No measured jobs in this selection.</div>';return;}
   host.innerHTML=arr.map(a=>{const w=i=>a.n?a.c[i]/a.n*100:0;
@@ -654,8 +667,18 @@ function makeCollapsible(){
     if(saved[key]){sec.classList.add('collapsed');btn.textContent='Expand';}
     btn.onclick=()=>{const c=sec.classList.toggle('collapsed');btn.textContent=c?'Expand':'Collapse';saved[key]=c?1:0;try{localStorage.setItem('svr_collapsed',JSON.stringify(saved));}catch(e){}};});
 }
+function renderBandKey(){
+  const el=document.getElementById('bandkey');if(el){const t=bandThresh();
+    el.innerHTML='<span class="bk"><span class="dot" style="background:var(--ok)"></span>'+t[0]+' = okay</span>'
+      +'<span class="bk"><span class="dot" style="background:var(--normal)"></span>'+t[1]+' = normal</span>'
+      +'<span class="bk"><span class="dot" style="background:var(--problem)"></span>'+t[2]+' = problem</span>';}
+  const fs=document.getElementById('f-status');
+  if(fs){const lab=state.dim==='time'?['Okay (≤1h)','Normal (≤2h)','Problem (>2h)']:['Okay (<20%)','Normal (20–50%)','Problem (>50%)'];
+    if(fs.options[1])fs.options[1].text=lab[0];if(fs.options[2])fs.options[2].text=lab[1];if(fs.options[3])fs.options[3].text=lab[2];}
+}
 function renderAll(){
   const rows=filtered();
+  renderBandKey();
   document.getElementById('shown').textContent=rows.filter(r=>!isDataIssue(r)).length.toLocaleString();
   renderScorecard(rows);renderOverview(rows);renderHist(rows);renderSP();renderForeman();renderByType(rows);renderTable(rows);renderExceptions();
 }
