@@ -86,6 +86,26 @@ header .hgrow{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wra
 .ldtable .dl.soon{color:var(--hazard)}
 .ldtable .fade{color:var(--faint)}
 .empty{padding:50px 16px;text-align:center;color:var(--dim);background:var(--card);border:1px solid var(--line);border-radius:13px}
+#ldgrid{overflow-x:auto}
+.stcell{min-width:150px}
+.stpill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.02em;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.stwhy{display:block;font-size:10.5px;color:var(--dim);margin-top:3px;line-height:1.3}
+.st-red{background:var(--hazard-bg);color:var(--hazard);border:1px solid var(--hazard-bd)}
+.st-amber{background:var(--rental-bg);color:var(--rental);border:1px solid var(--rental-bd)}
+.st-ok{background:var(--fleet-bg);color:var(--green);border:1px solid var(--fleet-bd)}
+.ldtable tbody tr.st-row-red td:first-child{box-shadow:inset 3px 0 0 var(--hazard)}
+.ldtable tbody tr.st-row-amber td:first-child{box-shadow:inset 3px 0 0 var(--rental)}
+.st-routed{background:var(--travel-bg);color:var(--travel);border:1px solid var(--travel-bd)}
+.ldtable tbody tr.st-row-routed td:first-child{box-shadow:inset 3px 0 0 var(--travel)}
+.consoltop{margin:18px 28px 0}
+.consoltop .consol{flex-direction:row;flex-wrap:wrap;max-height:none;overflow:visible;gap:12px}
+.consoltop .cgroup{flex:1 1 300px;max-width:540px}
+.chint{font-family:'Inter';font-size:12px;font-weight:500;color:var(--faint);text-transform:none;letter-spacing:0;margin-left:8px}
+.mapcard{margin:18px 28px 0}
+.cgroup .actions button.acc{background:var(--green);color:#fff;border-color:var(--green)}
+.cgroup .actions button.acc:hover{filter:brightness(1.07)}
+.cgroup.accepted{border-color:var(--fleet-bd);background:var(--fleet-bg)}
+.cgroup .accbadge{font-family:'Inter';font-size:12.5px;font-weight:700;color:var(--green);padding:6px 4px}
 .gmodal{position:fixed;inset:0;background:rgba(20,25,30,.46);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px}
 .gmodal.show{display:flex}
 .gbox{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:22px 24px;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.25)}
@@ -94,33 +114,54 @@ header .hgrow{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wra
 .gbody{font-size:14.5px;line-height:1.55}
 .gsub{font-size:14.5px;line-height:1.55;color:var(--ink)}
 .gfoot{margin-top:16px;display:flex;gap:10px;justify-content:flex-end}
+/* white header bar + photoshoot-style filter tiles */
+.bar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(31,35,41,.03)}
+.bar-in{max-width:1560px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 28px}
+.back{flex:0 0 auto;width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:var(--card);color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:23px;line-height:1;text-decoration:none;font-family:'Barlow Condensed',sans-serif}
+.back:hover{border-color:var(--rental-bd);color:var(--rental);background:var(--rental-bg)}
+.bar .logo{height:30px;width:auto;flex:0 0 auto;display:block}
+.htxt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.htitle{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:22px;letter-spacing:.05em;text-transform:uppercase;margin:0;line-height:1}
+.hsub{font-size:12px;color:var(--dim)}
+.hactions{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filters{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(31,35,41,.04),0 8px 24px rgba(31,35,41,.05);padding:14px 18px;margin:18px 28px 0}
+.fgroup{display:flex;flex-direction:column;gap:8px}
+.ftlabel{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)}
+.tiles{display:flex;gap:8px;flex-wrap:wrap;min-height:38px;align-items:center}
+.tile{font:inherit;font-size:14px;font-weight:700;letter-spacing:.04em;padding:8px 18px;border-radius:11px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.tile:hover{border-color:var(--rental-bd)}
+.tile.active{background:var(--rental);border-color:var(--rental);color:#fff;box-shadow:0 2px 8px rgba(178,107,11,.25)}
+.tilenote{font-size:12.5px;color:var(--faint);padding:6px 2px}
+@media(max-width:700px){.bar-in{padding:10px 16px;gap:11px}.htitle{font-size:19px}.hsub{display:none}.filters{margin:14px 16px 0;gap:18px}}
 </style></head><body>
+<div class="bar"><div class="bar-in">
+  <a class="back" href="index.html" title="Back to all tools" aria-label="Back to all tools">&#8249;</a>
+  <img class="logo" src="logo.png" alt="Zip To Zip" onerror="this.style.display='none'">
+  <div class="htxt">
+    <h1 class="htitle">Long Distance Planning</h1>
+    <div class="hsub">Pickups only &middot; plan straight runs &amp; consolidations</div>
+  </div>
+  <div class="hactions">
+    <button id="calbtn" class="btn">↻ Refresh</button>
+    <span id="rfstamp"></span>
+  </div>
+</div></div>
 <div class="wrap">
-  <header>
-    <div>
-      <h1>Long Distance Planning</h1>
-      <div class="sub">Pickups only &middot; straight runs in amber, regular in white</div>
-    </div>
-    <div class="hgrow">
-      <button id="calbtn" class="btn">Connect Calendar</button>
-      <button id="rfbtn" class="btn" title="Pull the latest from Google Calendar">Refresh</button>
-      <span id="rfstamp"></span>
-    </div>
-  </header>
+  <div class="filters">
+    <div class="fgroup"><span class="ftlabel">Destination</span><div class="tiles" id="ldDestTiles"></div></div>
+  </div>
   <div class="stats">
-    <div class="stat"><div class="v" id="stPick">0</div><div class="k">Pickups</div></div>
+    <div class="stat"><div class="v" id="stPick">0</div><div class="k">Jobs</div></div>
     <div class="stat"><div class="v amber" id="stStr">0</div><div class="k">Straight</div></div>
     <div class="stat"><div class="v" id="stReg">0</div><div class="k">Regular</div></div>
     <div class="stat"><div class="v green" id="stCon">0</div><div class="k">Consolidations</div></div>
   </div>
-  <div class="split">
-    <section class="card"><div class="cardhd">Route map</div><div id="map"></div></section>
-    <aside class="card"><div class="cardhd">Consolidation</div><div id="consol" class="consol"><div class="none">Connect to see suggestions.</div></div></aside>
-  </div>
+  <section class="card consoltop"><div class="cardhd">Consolidation suggestions <span class="chint">accept a group to lock it in as a route</span></div><div id="consol" class="consol"><div class="none">Loading...</div></div></section>
   <div class="tablewrap">
-    <div class="tabhd">Future Jobs <span class="lg"><span><i style="background:var(--straight);border:1px solid var(--straight-bd)"></i>Straight</span><span><i style="background:#fff;border:1px solid var(--line2)"></i>Regular</span></span></div>
-    <div id="ldgrid"><div class="empty">Connect Google Calendar to load upcoming long-distance jobs.</div></div>
+    <div class="tabhd">Long Distance Jobs <span class="lg"><span><i style="background:var(--straight);border:1px solid var(--straight-bd)"></i>Straight</span><span><i style="background:#fff;border:1px solid var(--line2)"></i>Regular</span></span></div>
+    <div id="ldgrid"><div class="empty">Loading...</div></div>
   </div>
+  <section class="card mapcard"><div class="cardhd">Route map</div><div id="map"></div></section>
 </div>
 <div id="gmodalhost"></div>
 <script src="zipdb.js?v=1"></script>
@@ -857,7 +898,81 @@ function parseCalEvent(ev){
 let LDJOBS=[];
 const CAL_PAST_DAYS=2, CAL_FUTURE_DAYS=120;
 const OUR_STATES=['NJ','PA','NY','DE','CT','MA'];
-function updateCalBtns(){ const b=$('calbtn'); if(b){ b.className='btn'+(GTOKEN?' upd':''); b.textContent=GTOKEN?'\u2934 Connected':'\U0001F5D3 Connect Calendar'; } }
+/* ===== Sheet-backed data: read the "Long Distance Data" tab via public gviz (no sign-in) ===== */
+const LD_SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
+const LD_SHEET_TAB='Long Distance Data';
+function pcsv(t){var rows=[],r=[],c='',q=false;for(var i=0;i<t.length;i++){var ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++;}else q=false;}else c+=ch;}else{if(ch==='"')q=true;else if(ch===','){r.push(c);c='';}else if(ch==='\n'){r.push(c);rows.push(r);r=[];c='';}else if(ch!=='\r')c+=ch;}}if(c!==''||r.length){r.push(c);rows.push(r);}return rows;}
+function ldStateZip(s){s=String(s||'').trim();var st=(s.match(/[A-Za-z]{2}/)||[''])[0].toUpperCase();var z=(s.match(/\d{5}/)||[''])[0];return {state:st,zip:z};}
+function parseSheetDT(s){s=String(s||'').trim();var m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[ T](\d{1,2}):(\d{2}))?/);if(m){var y=+m[3];if(y<100)y+=2000;return y+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2)+(m[4]?(' '+('0'+m[4]).slice(-2)+':'+m[5]):'');}m=s.match(/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/);if(m)return m[1]+'-'+m[2]+'-'+m[3]+(m[4]?(' '+('0'+m[4]).slice(-2)+':'+m[5]):'');return '';}
+async function loadLDSheet(){
+  const url='https://docs.google.com/spreadsheets/d/'+LD_SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(LD_SHEET_TAB)+'&_t='+Date.now();
+  const t=await fetch(url).then(r=>r.text());
+  const rows=pcsv(t); if(rows.length<2){LDJOBS=[];return {jobs:0};}
+  const H=rows[0].map(x=>String(x).trim().toLowerCase()); const ci=n=>H.indexOf(n);
+  const I={loc:ci('location'),date:ci('event date'),eid:ci('event id'),req:ci('request #'),code:ci('job code'),
+    mtype:ci('moving type'),moveto:ci('moving to'),pzip:ci('pickup zip code'),dzip:ci('delivery zip code'),
+    jtype:ci('job type'),cust:ci('customer name'),cemail:ci('customer email'),cmob:ci('customer mobile'),
+    tf:ci('delivery time frame'),trip:ci('estimated trip days'),sr1:ci('sales rep 1'),forman:ci('forman'),
+    curloc:ci('current location'),isdel:ci('is delivered'),finfad:ci('final fad'),fadpaper:ci('fad by paper'),fad:ci('fad (first available date)'),
+    fincf:ci('final cf'),estcf:ci('estimated cf'),daysb:ci('days before fda'),sticker:ci('sticker'),blanket:ci('blanket'),
+    carrier:ci('carrier'),carphone:ci('carrier phone'),rate:ci('rate'),carpay:ci('carrier payment status'),
+    cartot:ci('total to carrier'),carbal:ci('balance carrier')};
+  const g=(r,k)=>I[k]>=0?String(r[I[k]]||'').trim():'';
+  const today=midnight(new Date()), out=[];
+  rows.slice(1).forEach(r=>{
+    if(g(r,'isdel').toLowerCase()==='delivered'||g(r,'curloc').toLowerCase()==='delivered')return;   // keep only NOT-delivered jobs
+    const code=g(r,'code'); if(!code)return;
+    const pz=ldStateZip(g(r,'pzip')), dz=ldStateZip(g(r,'dzip'));
+    const pg=zgeoJS(pz.zip), dg=zgeoJS(dz.zip);
+    const jt=g(r,'jtype');
+    const fadDate=parseLooseDate(g(r,'finfad')||g(r,'fadpaper')||g(r,'fad'));
+    const dRaw=g(r,'daysb').replace(/[^0-9-]/g,''); const dParsed=dRaw?parseInt(dRaw,10):NaN;
+    const daysLeft=isFinite(dParsed)?dParsed:(fadDate?Math.round((midnight(fadDate)-today)/86400000):null);
+    out.push({
+      code, eventId:g(r,'eid'), requestNo:g(r,'req'),
+      customer:g(r,'cust'), customerEmail:g(r,'cemail'), customerMobile:g(r,'cmob'),
+      pickupAddr:g(r,'loc'), deliveryAddr:g(r,'moveto'), pickupZip:pz.zip, deliveryZip:dz.zip,
+      pickup: pg?{lat:pg.lat,lon:pg.lon,city:pg.city,state:pg.state}:{state:pz.state},
+      delivery: dg?{lat:dg.lat,lon:dg.lon,city:dg.city,state:dg.state}:{state:dz.state},
+      stateFrom: pg?pg.state:pz.state, stateTo: dg?dg.state:dz.state,
+      cf: numV(g(r,'fincf'))||numV(g(r,'estcf')),
+      deliveryTimeFrame: g(r,'tf'),
+      tripDays: (function(){const v=parseFloat(g(r,'trip'));return isFinite(v)&&v>0?v:null;})(),
+      salesRep: g(r,'sr1'), foreman: g(r,'forman'),
+      straight: /straight/i.test(jt)?true:(/regular/i.test(jt)?false:false),
+      movingType: g(r,'mtype'), start: parseSheetDT(g(r,'date')), fadDate, daysLeft,
+      sticker:g(r,'sticker'), blanket:g(r,'blanket'),
+      carrier:g(r,'carrier'), carrierPhone:g(r,'carphone'), rate:g(r,'rate'),
+      carrierPay:g(r,'carpay'), carrierTotal:g(r,'cartot'), carrierBalance:g(r,'carbal'),
+      isPickup:true, isDelivery:false, first:true
+    });
+  });
+  out.sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
+  LDJOBS=out; return {jobs:LDJOBS.length};
+}
+/* ---- routes: accepted consolidations, persisted to a "Routes" tab ---- */
+const ROUTES_TAB='Routes'; let ROUTED=new Set();
+function loadRoutes(){
+  const url='https://docs.google.com/spreadsheets/d/'+LD_SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(ROUTES_TAB)+'&_t='+Date.now();
+  return fetch(url).then(r=>r.ok?r.text():'').then(t=>{ROUTED=new Set();try{const rows=pcsv(t);if(rows.length<2)return;const H=rows[0].map(x=>String(x).trim().toLowerCase());const jc=H.indexOf('job codes');rows.slice(1).forEach(r=>{String((jc>=0?r[jc]:'')||'').split(/[,;]+/).forEach(c=>{c=c.trim();if(c)ROUTED.add(c);});});}catch(e){}}).catch(()=>{});
+}
+function shFetch(path,opt){return fetch('https://sheets.googleapis.com/v4/spreadsheets/'+LD_SHEET_ID+path,Object.assign({headers:{'Authorization':'Bearer '+GTOKEN,'Content-Type':'application/json'}},opt||{})).then(function(r){if(!r.ok)return r.text().then(function(b){throw new Error('Sheets '+r.status+' '+String(b).slice(0,120));});return r.status===204?null:r.json();});}
+function shAppendRow(tab,obj){var enc=encodeURIComponent("'"+tab+"'");return shFetch('/values/'+enc+'?valueRenderOption=FORMATTED_VALUE').catch(function(){return {};}).then(function(v){var vals=(v&&v.values)||[];var header=vals[0]||[];var pre=Promise.resolve();if(!header.length){pre=shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})}).catch(function(){}).then(function(){header=Object.keys(obj);return shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});});}return pre.then(function(){var row=header.map(function(h){return obj[h]!=null?String(obj[h]):'';});Object.keys(obj).forEach(function(k){if(header.indexOf(k)<0)row.push(String(obj[k]));});return shFetch('/values/'+enc+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});});});}
+function acceptRoute(ci){
+  const c=CONSOL[ci]; if(!c)return;
+  const jobs=[c.S].concat(c.grp.map(g=>g.R)); const codes=jobs.map(j=>j.code).filter(Boolean);
+  const dest=(c.S.delivery&&c.S.delivery.state)||c.S.stateTo||'';
+  const fad=c.S.fadDate; const ymd=fad?(''+fad.getFullYear()+('0'+(fad.getMonth()+1)).slice(-2)+('0'+fad.getDate()).slice(-2)):'';
+  const rid='RT-'+(dest||'XX')+'-'+(ymd||Date.now().toString(36))+'-'+Math.random().toString(36).slice(2,5).toUpperCase();
+  const obj={'Route ID':rid,'Date':fad?fmtMDY(fad):'','Destination':dest,'Truck':c.truck?c.truck.n:'','Job Codes':codes.join(', '),'CF':Math.round(c.cf),'Created At':new Date().toISOString()};
+  ensureGToken(function(){
+    shAppendRow(ROUTES_TAB,obj).then(function(){
+      codes.forEach(x=>ROUTED.add(x)); renderConsol(); renderFutureJobs();
+      gModal('Route created','<div class="gsub">Route <b>'+esc(rid)+'</b> saved with '+codes.length+' jobs to the <b>Routes</b> tab.</div>');
+    }).catch(function(e){ gModal('Could not save route','<div class="gsub">'+esc((e&&e.message)||'error')+'</div>'); });
+  });
+}
+function updateCalBtns(){ const b=$('calbtn'); if(b){ b.className='btn'; b.textContent='\u21bb Refresh'; } }
 function parseLooseDate(s){
   s=String(s||'').trim(); if(!s)return null;
   let m=s.match(/(\d{4})-(\d{2})-(\d{2})/); if(m)return new Date(+m[1],+m[2]-1,+m[3]);
@@ -990,6 +1105,7 @@ function drawRoutes(){
   try{LROUTE_LAYER.clearLayers();}catch(e){} LD_ROUTE_REFS={}; const pts=[];
   LDJOBS.forEach((j,idx)=>{
     const a=j.pickup,b=j.delivery; if(!a||!b||a.lat==null||b.lat==null)return;
+    if(!jobVisible(j))return;
     const col=j.straight?'#B26B0B':'#3B72B0'; const cpts=[[a.lat,a.lon],[b.lat,b.lon]];
     try{
       L.polyline(cpts,{color:'#fff',weight:6,opacity:.9,lineCap:'round',interactive:false}).addTo(LROUTE_LAYER);
@@ -1015,10 +1131,47 @@ function selectJob(idx,fromMap){
   try{ref.line.setStyle({weight:5,opacity:1});}catch(e){}
   if(!fromMap&&LMAP){try{ref.dm.openPopup();LMAP.panTo(ref.b);}catch(e){}}
 }
+/* ---- filters: Run type + Destination (photoshoot-style tiles) ---- */
+const LDFILT={destOff:new Set()};
+function destStateOf(j){return (j.delivery&&j.delivery.state)||j.stateTo||'';}
+function jobVisible(j){
+  if(LDFILT.destOff.has(destStateOf(j)))return false;
+  return true;
+}
+function applyLDFilters(){renderFutureJobs();drawRoutes();updateStats();}
+function buildLDFilters(){
+  const dHost=$('ldDestTiles'); if(!dHost)return;
+  const states=Array.from(new Set(LDJOBS.map(destStateOf).filter(Boolean))).sort();
+  if(!states.length){dHost.innerHTML='<span class="tilenote">Connect the calendar to see destinations</span>';return;}
+  dHost.innerHTML=states.map(s=>'<button type="button" class="tile'+(LDFILT.destOff.has(s)?'':' active')+'" data-ds="'+esc(s)+'">'+esc(s)+'</button>').join('');
+  dHost.querySelectorAll('.tile').forEach(b=>b.onclick=()=>{const s=b.getAttribute('data-ds');if(LDFILT.destOff.has(s)){LDFILT.destOff.delete(s);b.classList.add('active');}else{LDFILT.destOff.add(s);b.classList.remove('active');}applyLDFilters();});
+}
+/* ---- per-job planning status (red / amber / ok) ---- */
+const LD_LEAVE_SOON=2, LD_ASSIGN_DAYS=7;
+function ldPickupDate(j){return parseLooseDate(String(j.start||'').slice(0,10));}
+function ldStatus(j){
+  if(ROUTED.has(j.code)) return {lvl:'routed',txt:'Routed',why:'in an accepted route'};
+  const today=midnight(new Date());
+  const pick=ldPickupDate(j); const dPick=pick?Math.round((midnight(pick)-today)/86400000):null;
+  if(!j.fadDate) return {lvl:'amber',txt:'No delivery date',why:'FAD / Final FAD is blank'};
+  if(j.straight){
+    const trip=j.tripDays||1;
+    const leaveBy=new Date(midnight(j.fadDate).getTime()-trip*86400000);
+    const dLeave=Math.round((midnight(leaveBy)-today)/86400000);
+    if(!j.foreman && dPick!=null && dPick<=LD_ASSIGN_DAYS) return {lvl:'red',txt:'Needs foreman',why:'no foreman · pickup '+(dPick<0?'overdue':'in '+dPick+'d')};
+    if(dLeave<=0) return {lvl:'red',txt:'Send now',why:trip+'-day trip · deliver by '+fmtMDY(j.fadDate)};
+    if(dLeave<=LD_LEAVE_SOON) return {lvl:'amber',txt:'Send soon',why:'leave by '+fmtMDY(leaveBy)+' · '+trip+'-day trip'};
+    return {lvl:'ok',txt:'On track',why:'leave by '+fmtMDY(leaveBy)};
+  }
+  if(!j.carrier && dPick!=null && dPick<=LD_ASSIGN_DAYS) return {lvl:'red',txt:'Needs carrier',why:'no carrier · pickup '+(dPick<0?'overdue':'in '+dPick+'d')};
+  if(!j.carrier) return {lvl:'amber',txt:'No carrier yet',why:'assign a carrier before pickup'};
+  return {lvl:'ok',txt:'Carrier set',why:j.carrier};
+}
 function renderFutureJobs(){
   const host=$('ldgrid'); if(!host)return;
-  if(!LDJOBS.length){host.innerHTML='<div class="empty">'+(!GTOKEN?'Connect Google Calendar to load upcoming long-distance jobs.':'No upcoming pickups in the calendar window.')+'</div>';return;}
-  const row=(j,idx)=>'<tr class="'+(j.straight?'straight':'regular')+'" data-idx="'+idx+'">'
+  if(!LDJOBS.length){host.innerHTML='<div class="empty">No long-distance jobs found in the sheet.</div>';return;}
+  const row=(j,idx)=>{const s=ldStatus(j);return '<tr class="'+(j.straight?'straight':'regular')+' st-row-'+s.lvl+'" data-idx="'+idx+'">'
+    +'<td class="stcell"><span class="stpill st-'+s.lvl+'">'+esc(s.txt)+'</span><span class="stwhy">'+esc(s.why)+'</span></td>'
     +'<td class="assign"><a href="#" data-code="'+esc(j.code||'')+'">Assign</a></td>'
     +'<td class="nowrap mono">'+esc(fmtMDY(parseLooseDate(String(j.start||'').slice(0,10))))+'</td>'
     +'<td class="num">'+(j.cf||'')+'</td>'
@@ -1029,8 +1182,18 @@ function renderFutureJobs(){
     +'<td>'+esc(j.customer||'')+'</td>'
     +'<td>'+esc(j.salesRep||'')+'</td>'
     +'<td>'+(j.foreman?esc(j.foreman):'<span class="fade">\u2014</span>')+'</td>'
-    +'<td class="num"><span class="dl'+(j.daysLeft!=null&&j.daysLeft<=2?' soon':'')+'">'+(j.daysLeft==null?'':j.daysLeft)+'</span></td></tr>';
-  host.innerHTML='<table class="ldtable"><thead><tr><th>Person</th><th>Date</th><th>CF</th><th>Delivery</th><th>Pickup</th><th>FAD</th><th>Timeframe</th><th>Customer</th><th>Sales Rep</th><th>Forman</th><th>Days Left</th></tr></thead><tbody>'+LDJOBS.map(row).join('')+'</tbody></table>';
+    +'<td class="num"><span class="dl'+(j.daysLeft!=null&&j.daysLeft<=2?' soon':'')+'">'+(j.daysLeft==null?'':j.daysLeft)+'</span></td>'
+    +'<td>'+esc(j.sticker||'')+'</td>'
+    +'<td>'+esc(j.blanket||'')+'</td>'
+    +'<td>'+esc(j.carrier||'')+'</td>'
+    +'<td class="nowrap">'+esc(j.carrierPhone||'')+'</td>'
+    +'<td class="num">'+esc(j.rate||'')+'</td>'
+    +'<td>'+esc(j.carrierPay||'')+'</td>'
+    +'<td class="num">'+esc(j.carrierTotal||'')+'</td>'
+    +'<td class="num">'+esc(j.carrierBalance||'')+'</td></tr>';}
+  const body=LDJOBS.map((j,idx)=>jobVisible(j)?row(j,idx):'').join('');
+  if(!body){host.innerHTML='<div class="empty">No jobs match the current filters.</div>';return;}
+  host.innerHTML='<table class="ldtable"><thead><tr><th>Status</th><th>Person</th><th>Date</th><th>CF</th><th>Delivery</th><th>Pickup</th><th>FAD</th><th>Timeframe</th><th>Customer</th><th>Sales Rep</th><th>Forman</th><th>Days Left</th><th>Sticker</th><th>Blanket</th><th>Carrier</th><th>Carrier Ph</th><th>Rate</th><th>Carrier Pay</th><th>To Carrier</th><th>Carrier Bal</th></tr></thead><tbody>'+body+'</tbody></table>';
   host.querySelectorAll('tbody tr').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('a'))return;selectJob(+tr.getAttribute('data-idx'),false);}));
 }
 function usableTrucks(){var L=(typeof DATA!=='undefined'&&DATA.trucks)||[];return L.filter(function(t){return t&&t.cf>0&&t.type==='Truck'&&/^active$/i.test(String(t.status||''));}).sort(function(a,b){return a.cf-b.cf;});}
@@ -1064,17 +1227,18 @@ function computeConsol(){
 }
 function renderConsol(){
   const host=$('consol'); if(!host)return;
-  if(!GTOKEN){host.innerHTML='<div class="none">Connect to see consolidation suggestions.</div>';return;}
   if(!CONSOL.length){host.innerHTML='<div class="none">No consolidation opportunities yet \u2014 no regular moves share a straight run\u2019s destination and fit its delivery timeframe.</div>';return;}
   host.innerHTML=CONSOL.map((c,ci)=>{
     const capCF=c.truck?c.truck.cf:c.cap;
     const pct=Math.min(100,Math.round(c.cf/capCF*100)),over=!c.truck||c.cf>capCF;
+    const accepted=ROUTED.has(c.S.code);
     const truckLbl=c.truck?('Truck '+c.truck.n+' \u00b7 '+Math.round(c.cf)+' / '+Math.round(c.truck.cf)+' CF'):(Math.round(c.cf)+' CF \u2014 over largest truck, split/rent');
     const anchor='<div class="leg anchor"><span class="lt">'+esc(fmtMDY(c.S.fadDate))+'</span><span>\u2605 '+esc(c.S.customer||'')+' \u2014 '+esc(stateZip(c.S.pickup,c.S.pickupZip))+' \u2192 '+esc(stateZip(c.S.delivery,c.S.deliveryZip))+' \u00b7 '+(c.S.cf||0)+' CF</span></div>';
     const legs=c.grp.map(g=>'<div class="leg"><span class="lt">'+(g.fit.mi||0)+' mi</span><span>'+esc(g.R.customer||'')+' \u2014 '+esc(stateZip(g.R.pickup,g.R.pickupZip))+' \u2192 '+esc(stateZip(g.R.delivery,g.R.deliveryZip))+' \u00b7 '+(g.R.cf||0)+' CF</span></div>').join('');
-    return '<div class="cgroup"><div class="ch"><span class="dest">'+esc((c.S.delivery&&c.S.delivery.state)||'')+' run</span><span class="when">'+esc(fmtMDY(c.S.fadDate))+' \u00b7 '+(c.grp.length+1)+' jobs</span><span class="cf">'+esc(truckLbl)+'</span></div><div class="cfbar"><i class="'+(over?'over':'')+'" style="width:'+pct+'%"></i></div>'+anchor+legs+'<div class="actions"><button class="prim" data-consol="'+ci+'">Show route on map</button></div></div>';
+    return '<div class="cgroup'+(accepted?' accepted':'')+'"><div class="ch"><span class="dest">'+esc((c.S.delivery&&c.S.delivery.state)||'')+' run</span><span class="when">'+esc(fmtMDY(c.S.fadDate))+' \u00b7 '+(c.grp.length+1)+' jobs</span><span class="cf">'+esc(truckLbl)+'</span></div><div class="cfbar"><i class="'+(over?'over':'')+'" style="width:'+pct+'%"></i></div>'+anchor+legs+'<div class="actions">'+(accepted?'<span class="accbadge">✓ Accepted</span>':'<button class="acc" data-acc="'+ci+'">Accept → Route</button>')+'<button class="prim" data-consol="'+ci+'">Show on map</button></div></div>';
   }).join('');
   host.querySelectorAll('button[data-consol]').forEach(b=>b.addEventListener('click',()=>showConsolRoute(+b.getAttribute('data-consol'))));
+  host.querySelectorAll('button[data-acc]').forEach(b=>b.addEventListener('click',()=>acceptRoute(+b.getAttribute('data-acc'))));
 }
 function showConsolRoute(ci){
   const c=CONSOL[ci]; if(!c)return; drawRoutes(); if(typeof L==='undefined'||!LMAP||!LROUTE_LAYER)return;
@@ -1084,20 +1248,20 @@ function showConsolRoute(ci){
   if(pts.length){try{LMAP.fitBounds(pts,{padding:[40,40]});}catch(e){}}
 }
 function updateStats(){
-  const p=LDJOBS.length,st=LDJOBS.filter(j=>j.straight).length;
+  const vis=LDJOBS.filter(jobVisible);
+  const p=vis.length,st=vis.filter(j=>j.straight).length;
   const set=(id,v)=>{const e=$(id); if(e)e.textContent=v;};
   set('stPick',p); set('stStr',st); set('stReg',p-st); set('stCon',CONSOL.length);
 }
 function pullAll(){
   $('rfstamp').textContent='Loading\u2026';
-  return calImport().then(r=>{ drawRoutes(); computeConsol(); renderFutureJobs(); renderConsol(); updateStats(); updateCalBtns(); if(_DEBUG)ldRenderDebug();
+  return Promise.all([loadLDSheet(),loadRoutes()]).then(r=>{ buildLDFilters(); drawRoutes(); computeConsol(); renderFutureJobs(); renderConsol(); updateStats(); updateCalBtns(); if(_DEBUG)ldRenderDebug();
     $('rfstamp').textContent=LDJOBS.length?(LDJOBS.length+' pickups \u00b7 pulled '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})):'no upcoming pickups';
   }).catch(e=>{ const g=$('ldgrid'); if(g)g.innerHTML='<div class="empty">Could not pull the calendar \u2014 '+esc((e&&e.message)||'error')+'</div>'; $('rfstamp').textContent=''; });
 }
-function ldConnect(){ if(GTOKEN){pullAll();} else ensureGToken(()=>{updateCalBtns();pullAll();}); }
-$('calbtn').addEventListener('click',ldConnect);
-$('rfbtn').addEventListener('click',ldConnect);
-function boot(){ initMap(); updateCalBtns(); renderFutureJobs(); renderConsol(); updateStats(); if(GTOKEN&&!boot._pulled){boot._pulled=1;pullAll();} }
+function ldConnect(){ pullAll(); }
+var _cb=$('calbtn'); if(_cb)_cb.addEventListener('click',ldConnect);
+function boot(){ initMap(); updateCalBtns(); buildLDFilters(); renderFutureJobs(); renderConsol(); updateStats(); if(!boot._pulled){boot._pulled=1;pullAll();} }
 boot();
 
 </script>
