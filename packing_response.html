@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Packing review · Zip To Zip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
+<style>
+:root{--paper:#F7F6F2;--card:#FFFFFF;--ink:#1F2329;--dim:#646B73;--faint:#969CA3;--line:#E6E4DC;--line2:#D3D0C6;--soft:#F1F0EA;--acc:#B26B0B;--acc-bg:#FBF1DC;--acc-bd:#E9D08A;--acc-ink:#8A530A;--bad:#C0392B;--good:#2E7D46;}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;padding:20px 16px 60px}
+.wrap{max-width:560px;margin:0 auto}
+.bar{display:flex;align-items:center;gap:11px;margin-bottom:18px}
+.dot{width:34px;height:34px;border-radius:10px;background:var(--acc-bg);border:1px solid var(--acc-bd);color:var(--acc);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.dot svg{width:19px;height:19px}
+h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0;line-height:1.05}
+.sub{font-size:12.5px;color:var(--dim);margin-top:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(31,35,41,.04),0 8px 24px rgba(31,35,41,.06);padding:18px 20px;margin-bottom:16px}
+.why{background:#fbeeec;border:1px solid #e7b4ad;color:#8a2820;border-radius:11px;padding:12px 14px;font-weight:600;font-size:14px;margin-bottom:16px}
+.why b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--bad);margin-bottom:3px;font-weight:700}
+.jc{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px}
+.jmeta{color:var(--dim);font-size:13px;margin-top:3px}
+.cmp{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.cmp .c{flex:1 1 120px;background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.cmp .c i{font-style:normal;display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:700}
+.cmp .c b{font-size:18px;font-weight:700}
+.cmp .c.act b{color:var(--bad)}
+label.fld{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:14px 0 5px}
+input,textarea{width:100%;font:inherit;font-size:15px;border:1px solid var(--line2);border-radius:10px;padding:11px 13px;background:var(--card);color:var(--ink)}
+textarea{min-height:120px;resize:vertical}
+.btn{width:100%;margin-top:16px;font:inherit;font-size:15px;font-weight:700;border:none;border-radius:11px;padding:13px;cursor:pointer;background:var(--acc);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+.muted{color:var(--dim);font-size:13px}
+.done{text-align:center;padding:30px 10px}
+.done .tick{width:54px;height:54px;border-radius:50%;background:#e9f4ec;border:1px solid #bfe0c8;color:var(--good);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.done .tick svg{width:28px;height:28px}
+.done h2{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;margin:0 0 6px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1E2228;color:#fff;padding:11px 18px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+    <div><h1>Packing review</h1><div class="sub">Please explain the packing on this job</div></div>
+  </div>
+  <div id="app"></div>
+</div>
+<script>
+var SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
+var EXPL_TAB='Packing Explanations';
+var GCAL_CLIENT_ID='712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com';
+var GSCOPE_VER='cal+sheets-1';
+var GTOKEN=null,GTOKEXP=0,_tc=null;
+try{var _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.scope===GSCOPE_VER&&_g.exp>Date.now()+60000){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
+function $(s){return document.querySelector(s);}
+function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function toast(m){var t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show');},4200);}
+function qp(k){try{return new URLSearchParams(location.search).get(k)||'';}catch(e){return '';}}
+function gReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
+function ensureToken(cb){
+  if(GTOKEN&&Date.now()<GTOKEXP-60000)return cb();
+  if(window._gsiFail||!gReady()){toast('Open this link on the hosted (https) page to sign in.');return;}
+  _tc=_tc||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:function(){}});
+  _tc.callback=function(resp){if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP,scope:GSCOPE_VER}));localStorage.setItem('zd_gconn',GSCOPE_VER);}catch(e){}cb();}else toast('Sign-in failed.');};
+  _tc.requestAccessToken({prompt:localStorage.getItem('zd_gconn')===GSCOPE_VER?'':'consent'});
+}
+function shFetch(path,opt){return fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+path,Object.assign({headers:{'Authorization':'Bearer '+GTOKEN,'Content-Type':'application/json'}},opt||{})).then(function(r){if(!r.ok)return r.text().then(function(b){throw new Error('Sheets '+r.status+' '+String(b).slice(0,100));});return r.status===204?null:r.json();});}
+function shAppendRow(tab,obj){var enc=encodeURIComponent("'"+tab+"'");return shFetch('/values/'+enc+'?valueRenderOption=FORMATTED_VALUE').catch(function(){return {};}).then(function(v){var vals=(v&&v.values)||[];var header=vals[0]||[];var pre=Promise.resolve();if(!header.length){pre=shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})}).catch(function(){}).then(function(){header=Object.keys(obj);return shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});});}return pre.then(function(){var row=header.map(function(h){return obj[h]!=null?String(obj[h]):'';});Object.keys(obj).forEach(function(k){if(header.indexOf(k)<0)row.push(String(obj[k]));});return shFetch('/values/'+enc+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});});});}
+var JOB={jc:qp('jc'),fn:qp('fn'),date:qp('d'),inv:qp('inv'),est:qp('est'),act:qp('act'),why:qp('why')};
+function renderForm(){
+  if(!JOB.jc){$('#app').innerHTML='<div class="card"><b>Missing job.</b><p class="muted">This link is incomplete. Please use the link from the Slack message.</p></div>';return;}
+  var cmp='<div class="cmp">'
+    +(JOB.inv?'<div class="c"><i>Requested inventory</i><b>'+esc(JOB.inv)+'</b></div>':'')
+    +(JOB.est?'<div class="c"><i>Estimated packing</i><b>'+esc(JOB.est)+'</b></div>':'')
+    +(JOB.act?'<div class="c act"><i>Actual sold</i><b>'+esc(JOB.act)+'</b></div>':'')
+    +'</div>';
+  $('#app').innerHTML='<div class="card">'
+    +(JOB.why?'<div class="why"><b>Why we are asking</b>'+esc(JOB.why)+'</div>':'')
+    +'<div class="jc">'+esc(JOB.jc)+'</div><div class="jmeta">'+(JOB.fn?esc(JOB.fn)+' · ':'')+(JOB.date?esc(JOB.date):'')+'</div>'
+    +cmp
+    +'<label class="fld">Your name</label><input id="who" placeholder="Foreman name" value="'+esc(JOB.fn)+'">'
+    +'<label class="fld">Your explanation</label><textarea id="ans" placeholder="Why was the packing low on this job? (e.g. customer packed themselves, labor-only job, materials not needed...)"></textarea>'
+    +'<button class="btn" id="send">Submit explanation</button>'
+    +'<p class="muted" style="margin-top:10px">You will be asked to sign in with Google once to save your answer.</p></div>';
+  $('#send').onclick=function(){
+    var ans=($('#ans').value||'').trim(), who=($('#who').value||'').trim();
+    if(!ans){toast('Please write an explanation first.');$('#ans').focus();return;}
+    $('#send').disabled=true;$('#send').textContent='Saving…';
+    ensureToken(function(){
+      shAppendRow(EXPL_TAB,{'Job Code':JOB.jc,'Foreman':who||JOB.fn,'Job Date':JOB.date,'Reason Flagged':JOB.why,'Explanation':ans,'Submitted By':who||JOB.fn,'Timestamp':new Date().toISOString()})
+        .then(function(){renderDone();})
+        .catch(function(e){$('#send').disabled=false;$('#send').textContent='Submit explanation';toast('Could not save: '+e.message);});
+    });
+    setTimeout(function(){if($('#send'))$('#send').disabled=false;},8000);
+  };
+}
+function renderDone(){
+  $('#app').innerHTML='<div class="card done"><div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>'
+    +'<h2>Thank you</h2><p class="muted">Your explanation for <b>'+esc(JOB.jc)+'</b> was saved. The office can now see your answer.</p></div>';
+}
+renderForm();
+</script>
+</body>
+</html>
