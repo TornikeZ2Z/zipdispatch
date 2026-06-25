@@ -42,6 +42,29 @@
   .reset{font-family:var(--fm);font-size:11px;letter-spacing:.06em;text-transform:uppercase;background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;text-decoration:underline;text-underline-offset:3px}
   .reset:hover{color:var(--problem)}
 
+  /* multiselect filter dropdown */
+  .ms{position:relative}
+  .ms-trigger{display:inline-flex;align-items:center;gap:8px;min-width:130px;justify-content:space-between;font-family:var(--fb);font-size:13px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;transition:border-color .15s}
+  .ms-trigger:hover{border-color:var(--ink-2)}
+  .ms-trigger.active{border-color:var(--ink)}
+  .ms-trigger .ms-sum{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+  .ms-trigger svg{width:13px;height:13px;color:var(--muted);flex:0 0 auto;transition:transform .15s}
+  .ms-trigger.on svg{transform:rotate(180deg)}
+  .ms-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:60;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(21,35,63,.16);padding:8px;min-width:208px;max-width:300px;display:none}
+  .ms-pop.show{display:block}
+  .ms-tools{display:flex;justify-content:space-between;align-items:center;padding:2px 6px 7px;border-bottom:1px solid var(--line-2);margin-bottom:5px}
+  .ms-tools .ttl{font-family:var(--fm);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .ms-tools .ms-clear{font-family:var(--fm);font-size:11px;background:none;border:none;color:var(--ink-2);cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:2px}
+  .ms-tools .ms-clear:hover{color:var(--problem)}
+  .ms-list{max-height:264px;overflow:auto;display:flex;flex-direction:column;gap:1px}
+  .ms-opt{display:flex;align-items:center;gap:9px;font-family:var(--fb);font-size:13px;color:var(--ink);padding:7px 8px;border-radius:7px;cursor:pointer;user-select:none}
+  .ms-opt:hover{background:var(--line-2)}
+  .ms-opt input{margin:0;width:15px;height:15px;accent-color:var(--ink);cursor:pointer;flex:0 0 auto}
+  .ms-opt .nm{flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center}
+  .ms-opt .ct{font-family:var(--fm);font-size:11px;color:var(--muted);flex:0 0 auto}
+  .ms-opt .bdot{width:8px;height:8px;border-radius:50%;margin-right:7px;flex:0 0 auto}
+  .ms-empty{font-family:var(--fb);font-size:12px;color:var(--muted);padding:8px}
+
   /* date range picker */
   .dp-trigger{display:inline-flex;align-items:center;gap:9px;min-width:184px;justify-content:flex-start;white-space:nowrap;font-family:var(--fm);font-size:13px;color:var(--ink);
     background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;transition:border-color .15s}
@@ -66,6 +89,10 @@
   .dp-day.edge{background:var(--ink);color:#fff;font-weight:700}
   .dp-day.disabled{opacity:.28;pointer-events:none}
   .dp-day.blank{visibility:hidden}
+  .dp-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line-2)}
+  .dp-hint{font-family:var(--fb);font-size:11.5px;color:var(--muted);line-height:1.3;max-width:160px}
+  .dp-apply{font-family:var(--fm);font-size:12px;font-weight:700;letter-spacing:.04em;background:var(--ink);color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;flex:0 0 auto}
+  .dp-apply:hover{opacity:.9}
 
   /* dimension master selector */
   .dimbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:22px 0 6px}
@@ -245,13 +272,18 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
         <div class="dp-cal">
           <div class="dp-cal-head"><button class="dp-nav" id="dp-prev" aria-label="Previous month">‹</button><span class="mlabel" id="dp-mlabel"></span><button class="dp-nav" id="dp-next" aria-label="Next month">›</button></div>
           <div class="dp-grid" id="dp-grid"></div>
+          <div class="dp-foot"><span class="dp-hint" id="dp-hint"></span><button class="dp-apply" id="dp-apply" type="button">Apply</button></div>
         </div>
       </div>
     </div>
-    <div class="fgroup"><span class="flabel">Job type</span><select id="f-type"><option value="all">All</option></select></div>
-    <div class="fgroup"><span class="flabel">Sales Person</span><select id="f-sales"><option value="all">All</option></select></div>
-    <div class="fgroup"><span class="flabel">Foreman</span><select id="f-fore"><option value="all">All</option></select></div>
-    <div class="fgroup"><span class="flabel">Status</span><select id="f-status"><option value="all">All</option><option value="0">Okay (&lt;20%)</option><option value="1">Normal (20–50%)</option><option value="2">Problem (&gt;50%)</option></select></div>
+    <div class="fgroup"><span class="flabel">Job type</span>
+      <div class="ms" id="ms-type"><button class="ms-trigger" type="button" aria-haspopup="true" aria-expanded="false"><span class="ms-sum">All</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="ms-pop"><div class="ms-tools"><span class="ttl">Job type</span><button class="ms-clear" type="button">Clear</button></div><div class="ms-list"></div></div></div></div>
+    <div class="fgroup"><span class="flabel">Sales Person</span>
+      <div class="ms" id="ms-sales"><button class="ms-trigger" type="button" aria-haspopup="true" aria-expanded="false"><span class="ms-sum">All</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="ms-pop"><div class="ms-tools"><span class="ttl">Sales Person</span><button class="ms-clear" type="button">Clear</button></div><div class="ms-list"></div></div></div></div>
+    <div class="fgroup"><span class="flabel">Foreman</span>
+      <div class="ms" id="ms-foreman"><button class="ms-trigger" type="button" aria-haspopup="true" aria-expanded="false"><span class="ms-sum">All</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="ms-pop"><div class="ms-tools"><span class="ttl">Foreman</span><button class="ms-clear" type="button">Clear</button></div><div class="ms-list"></div></div></div></div>
+    <div class="fgroup"><span class="flabel">Status</span>
+      <div class="ms" id="ms-status"><button class="ms-trigger" type="button" aria-haspopup="true" aria-expanded="false"><span class="ms-sum">All</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="ms-pop"><div class="ms-tools"><span class="ttl">Status</span><button class="ms-clear" type="button">Clear</button></div><div class="ms-list"></div></div></div></div>
     <span class="spacer"></span>
     <span class="count">Showing <b id="shown">0</b> of <b id="total">0</b><span id="exc-count"></span></span>
     <button class="reset" id="reset">Reset</button>
@@ -367,7 +399,7 @@ const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov',
 const DOW=['Mo','Tu','We','Th','Fr','Sa','Su'];
 const BANDCOL=['var(--ok)','var(--normal)','var(--problem)'], BANDKEY=['ok','normal','problem'], BANDLAB=['Okay','Normal','Problem'];
 
-const state={dim:'inv',from:'',to:'',type:'all',sales:'all',q:'',band:null,foreman:'all',tableView:'active',spView:'mix',fmView:'mix',sortKey:'date',sortDir:-1,page:1,perPage:25};
+const state={dim:'inv',from:'',to:'',type:new Set(),sales:new Set(),q:'',band:new Set(),foreman:new Set(),tableView:'active',spView:'mix',fmView:'mix',sortKey:'date',sortDir:-1,page:1,perPage:25};
 
 /* ---- date helpers (local, TZ-safe) ---- */
 function isoOf(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -452,8 +484,8 @@ function loadExceptionsFromSheet(cb){
 }
 
 function passBase(r,ignoreSales){
-  if(state.type!=='all'&&r[I.type]!==state.type)return false;
-  if(!ignoreSales&&state.sales!=='all'&&r[I.sales]!==state.sales)return false;
+  if(state.type.size&&!state.type.has(r[I.type]))return false;
+  if(!ignoreSales&&state.sales.size&&!state.sales.has(r[I.sales]))return false;
   return true;
 }
 function filtered(ignoreSales){
@@ -475,11 +507,11 @@ function renderScorecard(rows){
   document.getElementById('sc-banded').innerHTML=`<b>${fmtInt(s.n)}</b> of ${fmtInt(rows.length)} jobs can be measured against the ${D.basis}`;
   const p=i=>s.n?s.c[i]/s.n*100:0, lbl=w=>w>13?Math.round(w)+'%':'';
   const tip=i=>`<b>${BANDLAB[i]}</b><br>${fmtInt(s.c[i])} jobs · ${Math.round(p(i))}% of ${fmtInt(s.n)}`;
-  const bsel=i=>state.band===i?' sel':'';
+  const bsel=i=>state.band.has(String(i))?' sel':'';
   document.getElementById('bandbar').innerHTML=
-    `<span class="b-ok${bsel(0)}" style="width:${p(0)}%" data-tip="${tip(0)}">${lbl(p(0))}</span>`+
-    `<span class="b-normal${bsel(1)}" style="width:${p(1)}%" data-tip="${tip(1)}">${lbl(p(1))}</span>`+
-    `<span class="b-problem${bsel(2)}" style="width:${p(2)}%" data-tip="${tip(2)}">${lbl(p(2))}</span>`;
+    `<span class="b-ok bclick${bsel(0)}" data-band="0" style="width:${p(0)}%" data-tip="${tip(0)}">${lbl(p(0))}</span>`+
+    `<span class="b-normal bclick${bsel(1)}" data-band="1" style="width:${p(1)}%" data-tip="${tip(1)}">${lbl(p(1))}</span>`+
+    `<span class="b-problem bclick${bsel(2)}" data-band="2" style="width:${p(2)}%" data-tip="${tip(2)}">${lbl(p(2))}</span>`;
   const dir=s.under>s.over?'under-estimated (reality came in higher)':s.over>s.under?'over-sold (reality came in lower)':'split evenly';
   document.getElementById('sc-caption').innerHTML=`Typical job lands <b>${fmtSigned(s.medGap,D.dp)} ${D.gunit}</b> vs the ${D.basis}. Most misses are <b>${dir}</b>.`;
   const cell=(cls,k,n)=>`<div class="scs ${cls}"><div class="k">${k}</div><div class="v">${fmtInt(n)}<small>${s.n?Math.round(n/s.n*100):0}%</small></div></div>`;
@@ -557,7 +589,7 @@ function renderGroupChart(hostId,arr,view,minN,hlName){
       return `<div class="sp-row"><div class="sp-name${hl(a.name)}" title="${esc(a.name)}">${esc(a.name)}</div><div class="sp-stack">${seg(0)}${seg(1)}${seg(2)}</div><div class="sp-meta"><b>${Math.round(a.pp*100)}%</b> problem<small>${a.n} jobs</small></div></div>`;}).join('');
   }
 }
-function renderSP(){renderGroupChart('sp-chart',groupStats(filtered(true),r=>r[I.sales]),state.spView,5,state.sales!=='all'?state.sales:null);}
+function renderSP(){renderGroupChart('sp-chart',groupStats(filtered(true),r=>r[I.sales]),state.spView,5,state.sales.size===1?[...state.sales][0]:null);}
 
 /* ---------- table ---------- */
 function buildHead(){
@@ -573,7 +605,7 @@ function buildHead(){
     th.onclick=h;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();h();}};});
 }
 function docCell(r){let a='';if(r[I.surl])a+=`<a class="docbtn" href="${esc(r[I.surl])}" target="_blank" rel="noopener">Sheet</a>`;if(r[I.bol])a+=`<a class="docbtn bol" href="${esc(r[I.bol])}" target="_blank" rel="noopener">BoL</a>`;return a||'—';}
-function tableRows(base){let rows=base.filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);if(state.band!=null)rows=rows.filter(r=>jband(r)===state.band);return rows;}
+function tableRows(base){let rows=base.filter(r=>!state.foreman.size||state.foreman.has(r[I.fore]));if(state.band.size)rows=rows.filter(r=>state.band.has(String(jband(r))));return rows;}
 function isDataIssue(r){const D=DIMS[state.dim],e=r[D.sold],a=r[D.real];if(e==null||e<=0)return 'no estimate';if(a==null||a<=0)return 'no actual';return null;}
 function renderTable(baseRows){
   const D=DIMS[state.dim],k=state.sortKey,dir=state.sortDir,view=state.tableView;
@@ -581,9 +613,9 @@ function renderTable(baseRows){
   let rows;
   if(view==='excluded'){const byJob={};DATA.forEach(r=>byJob[r[I.job]]=r);
     rows=Exceptions.list().map(function(e){const r=byJob[e.job];if(r)return r;const o=[];o[I.job]=e.job;o[I.date]='';o[I.type]='';o[I.sales]='';o[I.fore]='';o._orphan=1;return o;});
-    rows=rows.filter(r=>r._orphan||state.foreman==='all'||r[I.fore]===state.foreman);
-    if(state.band!=null)rows=rows.filter(r=>r._orphan||jband(r)===state.band);}
-  else if(view==='issues'){rows=baseRows.filter(r=>isDataIssue(r)).filter(r=>state.foreman==='all'||r[I.fore]===state.foreman);}
+    rows=rows.filter(r=>r._orphan||!state.foreman.size||state.foreman.has(r[I.fore]));
+    if(state.band.size)rows=rows.filter(r=>r._orphan||state.band.has(String(jband(r))));}
+  else if(view==='issues'){rows=baseRows.filter(r=>isDataIssue(r)).filter(r=>!state.foreman.size||state.foreman.has(r[I.fore]));}
   else rows=tableRows(baseRows).filter(r=>!isDataIssue(r));
   const acc=r=>({job:r[I.job],date:r[I.date],sales:r[I.sales],fore:r[I.fore],sold:r[D.sold],real:r[D.real],gap:r[D.gap],pe:(r[D.pe]==null?null:Math.abs(r[D.pe]))}[k]);
   const sorted=[...rows].sort((a,b)=>{let x=acc(a),y=acc(b);const xn=x==null||x==='',yn=y==null||y==='';if(xn&&yn)return 0;if(xn)return 1;if(yn)return -1;return typeof x==='string'?dir*x.localeCompare(y):dir*(x-y);});
@@ -625,7 +657,7 @@ function openIgnore(job){modalJob=job;
 function closeModal(){document.getElementById('modal-bg').classList.remove('show');modalJob=null;}
 
 /* ---------- orchestration ---------- */
-function renderForeman(){renderGroupChart('fm-chart',groupStats(filtered(true),r=>r[I.fore]),state.fmView,3,state.foreman!=='all'?state.foreman:null);}
+function renderForeman(){renderGroupChart('fm-chart',groupStats(filtered(true),r=>r[I.fore]),state.fmView,3,state.foreman.size===1?[...state.foreman][0]:null);}
 function updateFilterChips(){
   const wrap=document.getElementById('fchip-wrap');if(!wrap)return;let h='';
   if(state.band!=null)h+=`<span class="fchip">${BANDLAB[state.band]} only<button data-clear="band" title="clear">×</button></span>`;
@@ -672,9 +704,7 @@ function renderBandKey(){
     el.innerHTML='<span class="bk"><span class="dot" style="background:var(--ok)"></span>'+t[0]+' = okay</span>'
       +'<span class="bk"><span class="dot" style="background:var(--normal)"></span>'+t[1]+' = normal</span>'
       +'<span class="bk"><span class="dot" style="background:var(--problem)"></span>'+t[2]+' = problem</span>';}
-  const fs=document.getElementById('f-status');
-  if(fs){const lab=state.dim==='time'?['Okay (≤1h)','Normal (≤2h)','Problem (>2h)']:['Okay (<20%)','Normal (20–50%)','Problem (>50%)'];
-    if(fs.options[1])fs.options[1].text=lab[0];if(fs.options[2])fs.options[2].text=lab[1];if(fs.options[3])fs.options[3].text=lab[2];}
+  if(MS.status){MS.status.items=statusItems();msRenderList('status');msSyncSummary('status');}
 }
 function renderAll(){
   const rows=filtered();
@@ -684,7 +714,8 @@ function renderAll(){
 }
 
 /* ---------- date picker ---------- */
-let DP={start:new Date(),end:new Date(),view:new Date()},MIN=new Date(),MAX=new Date();
+let DP={start:new Date(),end:new Date(),view:new Date(),pend:false},MIN=new Date(),MAX=new Date();
+function dpHint(){const h=document.getElementById('dp-hint');if(h)h.textContent=DP.pend?'Now pick the end date — or hit Apply for just this day.':'Pick a start date, then an end date.';}
 function dpLabel(){const f=isoOf(DP.start),t=isoOf(DP.end);
   document.getElementById('dp-label').textContent=(f===META.minIso&&t===META.maxIso)?'All dates':`${fmtDate(f)} – ${fmtDate(t)}`;}
 function dpRenderGrid(){
@@ -702,22 +733,23 @@ function dpRenderGrid(){
     cells+=`<button class="${cls}" data-d="${ci}" ${dis?'disabled':''}>${d}</button>`;}
   document.getElementById('dp-grid').innerHTML=cells;
   document.querySelectorAll('#dp-grid .dp-day[data-d]').forEach(b=>b.onclick=()=>dpPick(b.dataset.d));
+  dpHint();
 }
 function dpPick(ci){const d=parseISO(ci);
-  if(!DP.start||(DP.start&&DP.end&&isoOf(DP.start)!==isoOf(DP.end))){DP.start=d;DP.end=d;}
-  else{if(d<DP.start){DP.end=DP.start;DP.start=d;}else DP.end=d;}
+  if(!DP.pend){DP.start=d;DP.end=d;DP.pend=true;}
+  else{if(d<DP.start){DP.end=DP.start;DP.start=d;}else DP.end=d;DP.pend=false;}
   dpRenderGrid();
-  if(isoOf(DP.start)!==isoOf(DP.end)||arguments[1]){dpCommit();dpClose();}
+  if(!DP.pend){dpCommit();dpClose();}
 }
 function dpCommit(){state.from=isoOf(DP.start);state.to=isoOf(DP.end);state.page=1;dpLabel();renderAll();}
 function dpPreset(kind){let f=MIN,t=MAX;
   if(kind==='7'){f=addDays(MAX,-6);} else if(kind==='30'){f=addDays(MAX,-29);}
   else if(kind==='month'){f=new Date(MAX.getFullYear(),MAX.getMonth(),1);}
   else if(kind==='lastmonth'){f=new Date(MAX.getFullYear(),MAX.getMonth()-1,1);t=new Date(MAX.getFullYear(),MAX.getMonth(),0);}
-  if(f<MIN)f=MIN;if(t>MAX)t=MAX;DP.start=f;DP.end=t;DP.view=new Date(t.getFullYear(),t.getMonth(),1);
+  if(f<MIN)f=MIN;if(t>MAX)t=MAX;DP.start=f;DP.end=t;DP.pend=false;DP.view=new Date(t.getFullYear(),t.getMonth(),1);
   dpRenderGrid();dpCommit();dpClose();
 }
-function dpOpen(){DP.start=parseISO(state.from);DP.end=parseISO(state.to);DP.view=new Date(DP.end.getFullYear(),DP.end.getMonth(),1);dpRenderGrid();document.getElementById('dp-pop').classList.add('show');}
+function dpOpen(){DP.start=parseISO(state.from);DP.end=parseISO(state.to);DP.pend=false;DP.view=new Date(DP.end.getFullYear(),DP.end.getMonth(),1);dpRenderGrid();document.getElementById('dp-pop').classList.add('show');}
 function dpClose(){document.getElementById('dp-pop').classList.remove('show');}
 
 /* ---------- tooltips (mouse + touch) ---------- */
@@ -729,21 +761,46 @@ function hideTip(){tip.style.display='none';}
 document.addEventListener('pointermove',e=>{const t=e.target.closest&&e.target.closest('[data-tip]');t?showTip(t,e.clientX,e.clientY):hideTip();});
 document.addEventListener('pointerdown',e=>{const t=e.target.closest&&e.target.closest('[data-tip]');if(t)showTip(t,e.clientX,e.clientY);else hideTip();});
 
+/* ---------- multiselect filters (empty set = All) ---------- */
+const MS={};
+function statusItems(){const t=bandThresh();return [{value:'0',label:'Okay · '+t[0],dot:'ok'},{value:'1',label:'Normal · '+t[1],dot:'normal'},{value:'2',label:'Problem · '+t[2],dot:'problem'}];}
+function msSummary(key){const c=MS[key];if(!c||!c.set.size)return 'All';if(c.set.size===1){const v=[...c.set][0];const it=c.items.find(x=>x.value===v);return it?it.label:v;}return c.set.size+' selected';}
+function msRenderList(key){const c=MS[key];if(!c)return;
+  if(!c.items.length){c.listEl.innerHTML='<div class="ms-empty">Nothing to filter.</div>';return;}
+  c.listEl.innerHTML=c.items.map(it=>{const ck=c.set.has(it.value)?' checked':'';
+    const dot=it.dot?`<span class="bdot" style="background:var(--${it.dot})"></span>`:'';
+    const ct=it.count!=null?`<span class="ct">${it.count}</span>`:'';
+    return `<label class="ms-opt"><input type="checkbox" value="${esc(it.value)}"${ck}><span class="nm">${dot}${esc(it.label)}</span>${ct}</label>`;}).join('');}
+function msSyncSummary(key){const c=MS[key];if(!c)return;c.sumEl.textContent=msSummary(key);c.trig.classList.toggle('active',c.set.size>0);}
+function closeAllMS(){Object.values(MS).forEach(c=>{c.pop.classList.remove('show');c.trig.classList.remove('on');c.trig.setAttribute('aria-expanded','false');});}
+function msSetup(key,items,set){const root=document.getElementById('ms-'+key);if(!root)return;
+  const trig=root.querySelector('.ms-trigger'),pop=root.querySelector('.ms-pop'),listEl=root.querySelector('.ms-list'),sumEl=root.querySelector('.ms-sum');
+  MS[key]={set,items,root,trig,pop,listEl,sumEl};
+  msRenderList(key);msSyncSummary(key);
+  trig.onclick=e=>{e.stopPropagation();const open=pop.classList.contains('show');closeAllMS();if(!open){pop.classList.add('show');trig.classList.add('on');trig.setAttribute('aria-expanded','true');}};
+  pop.onclick=e=>e.stopPropagation();
+  listEl.onchange=e=>{const cb=e.target.closest('input[type=checkbox]');if(!cb)return;if(cb.checked)set.add(cb.value);else set.delete(cb.value);msSyncSummary(key);state.page=1;renderAll();};
+  root.querySelector('.ms-clear').onclick=()=>{set.clear();msRenderList(key);msSyncSummary(key);state.page=1;renderAll();};
+}
+
 /* ---------- wiring ---------- */
 function initControls(){
-  [...new Set(DATA.map(r=>r[I.type]))].forEach(t=>document.getElementById('f-type').add(new Option(t,t)));
-  const counts={};DATA.forEach(r=>counts[r[I.sales]]=(counts[r[I.sales]]||0)+1);
-  Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>document.getElementById('f-sales').add(new Option(`${n} (${c})`,n)));
-  const fcounts={};DATA.forEach(r=>{if(r[I.fore])fcounts[r[I.fore]]=(fcounts[r[I.fore]]||0)+1;});
-  Object.entries(fcounts).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>document.getElementById('f-fore').add(new Option(`${n} (${c})`,n)));
-  document.getElementById('f-type').onchange=e=>{state.type=e.target.value;state.page=1;renderAll();};
-  document.getElementById('f-sales').onchange=e=>{state.sales=e.target.value;state.page=1;renderAll();};
-  document.getElementById('f-fore').onchange=e=>{state.foreman=e.target.value;state.page=1;renderAll();};
-  document.getElementById('f-status').onchange=e=>{state.band=e.target.value==='all'?null:+e.target.value;state.page=1;renderAll();};
-  document.getElementById('reset').onclick=()=>{Object.assign(state,{from:META.minIso,to:META.maxIso,type:'all',sales:'all',q:'',band:null,foreman:'all',tableView:'active',page:1});
-    document.getElementById('f-type').value='all';document.getElementById('f-sales').value='all';
-    var ff=document.getElementById('f-fore');if(ff)ff.value='all';var fs=document.getElementById('f-status');if(fs)fs.value='all';
+  const typeItems=[...new Set(DATA.map(r=>r[I.type]))].filter(Boolean).sort().map(t=>({value:t,label:t}));
+  const sc={};DATA.forEach(r=>{if(r[I.sales])sc[r[I.sales]]=(sc[r[I.sales]]||0)+1;});
+  const salesItems=Object.entries(sc).sort((a,b)=>b[1]-a[1]).map(([n,c])=>({value:n,label:n,count:c}));
+  const fc={};DATA.forEach(r=>{if(r[I.fore])fc[r[I.fore]]=(fc[r[I.fore]]||0)+1;});
+  const foreItems=Object.entries(fc).sort((a,b)=>b[1]-a[1]).map(([n,c])=>({value:n,label:n,count:c}));
+  msSetup('type',typeItems,state.type);
+  msSetup('sales',salesItems,state.sales);
+  msSetup('foreman',foreItems,state.foreman);
+  msSetup('status',statusItems(),state.band);
+  document.getElementById('bandbar').addEventListener('click',e=>{const s=e.target.closest('[data-band]');if(!s)return;const v=s.dataset.band;if(state.band.has(v))state.band.delete(v);else state.band.add(v);msRenderList('status');msSyncSummary('status');state.page=1;renderAll();});
+  document.addEventListener('click',()=>closeAllMS());
+  document.getElementById('reset').onclick=()=>{state.type.clear();state.sales.clear();state.foreman.clear();state.band.clear();
+    Object.assign(state,{from:META.minIso,to:META.maxIso,q:'',tableView:'active',page:1});
+    ['type','sales','foreman','status'].forEach(k=>{msRenderList(k);msSyncSummary(k);});
     document.querySelectorAll('#tswitch button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.tv==='active'));
+    DP.start=parseISO(META.minIso);DP.end=parseISO(META.maxIso);DP.pend=false;
     document.getElementById('tbl-title').textContent='All Jobs';dpLabel();renderAll();};
   document.querySelectorAll('#dimsel button').forEach(b=>b.onclick=()=>{state.dim=b.dataset.v;state.page=1;
     document.querySelectorAll('#dimsel button').forEach(x=>x.setAttribute('aria-pressed',x===b));buildHead();renderAll();});
@@ -752,6 +809,8 @@ function initControls(){
 
   // date picker
   document.getElementById('dp-trigger').onclick=()=>document.getElementById('dp-pop').classList.contains('show')?dpClose():dpOpen();
+  document.getElementById('dp-apply').onclick=()=>{DP.pend=false;dpCommit();dpClose();};
+  document.getElementById('dp-pop').addEventListener('click',e=>e.stopPropagation());
   document.getElementById('dp-prev').onclick=()=>{DP.view=new Date(DP.view.getFullYear(),DP.view.getMonth()-1,1);dpRenderGrid();};
   document.getElementById('dp-next').onclick=()=>{DP.view=new Date(DP.view.getFullYear(),DP.view.getMonth()+1,1);dpRenderGrid();};
   const presets=[['All time',''],['Last 7 days','7'],['Last 30 days','30'],['This month','month'],['Last month','lastmonth']];
