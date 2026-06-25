@@ -3357,19 +3357,26 @@ function sheetSaveFailed(what,e){
     +(GTOKEN?'If this mentions permissions, click 🗓 Connect Calendar once to re-approve with Sheets access.':'Click 🗓 Connect Calendar to grant access, then redo the change.')
     +'</span></div>');
 }
-async function dayOffToSheet(f,on){
-  if(!GTOKEN){toast('Applied on the board. Connect the calendar button to also save day-offs to the team sheet.');return;}
-  try{
-    if(on){await shAppendRow('Crew Day Offs',{'Start Date':mdy(currentDay),'End Date':mdy(currentDay),'Forman Name':f.nick,'Note':SHEET_WRITE_NOTE});sheetSaved(f.nick+' marked off '+mdy(currentDay));}
-    else{
-      const ok=await shUpdateCellByMatch('Crew Day Offs',
-        row=>(row['Forman Name']===f.nick||row['Forman Name']===f.name)&&row['Start Date']===mdy(currentDay)&&row['Note']===SHEET_WRITE_NOTE,
-        'Note','removed by ZipDispatch');
-      if(ok){await shUpdateCellByMatch('Crew Day Offs',row=>row['Forman Name']===f.nick&&row['Note']==='removed by ZipDispatch'&&row['Start Date']===mdy(currentDay),'Forman Name','');sheetSaved(f.nick+' back on '+mdy(currentDay));}
-      else toast('Applied on the board. (No matching ZipDispatch day-off row found in the sheet — if it was added by hand, clear it there.)');
-    }
-  }catch(e){sheetSaveFailed('day-off',e);}
+let _driveTC=null,_driveTok=null,_driveExp=0;
+function ensureDrive(cb){
+  if(_driveTok&&Date.now()<_driveExp-60000)return cb(_driveTok);
+  if(window._gsiFail||!(window.google&&google.accounts&&google.accounts.oauth2)){toast('Photo upload needs Google sign-in on the hosted URL.');return cb('');}
+  _driveTC=_driveTC||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/drive.file',callback:function(){}});
+  _driveTC.callback=function(resp){if(resp&&resp.access_token){_driveTok=resp.access_token;_driveExp=Date.now()+((resp.expires_in||3600)*1000);cb(_driveTok);}else{toast('Photo permission declined - saved without photo.');cb('');}};
+  _driveTC.requestAccessToken({prompt:''});
 }
+function uploadPhotoToDrive(file,cb){
+  try{ensureDrive(function(tok){
+    if(!tok){cb('');return;}
+    var fd=new FormData();
+    fd.append('metadata',new Blob([JSON.stringify({name:'truck-'+Date.now()+'-'+(file.name||'photo.jpg')})],{type:'application/json'}));
+    fd.append('file',file);
+    fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{method:'POST',headers:{'Authorization':'Bearer '+tok},body:fd})
+      .then(function(r){return r.json();}).then(function(j){cb(j.webViewLink||(j.id?'https://drive.google.com/file/d/'+j.id+'/view':''));}).catch(function(){toast('Photo upload failed - saved without it.');cb('');});
+  });}catch(e){cb('');}
+}
+/* Day-off SHEET writing intentionally DISABLED (was corrupting the 'Crew Day Offs' tab and breaking IMPORTRANGE). Day-offs still apply on the board locally (DAYOFF set + recompute); nothing is written to the Google Sheet. */
+async function dayOffToSheet(f,on){ return; }
 async function holderToSheet(truckN,foremanName){
   if(!GTOKEN)return toast('Pairing applied on the board. Connect the calendar button to also save it to the team sheet.');
   try{
@@ -3755,6 +3762,10 @@ function addTruckModal(opts){
     +'<div><label>Rental end <i>(blank = open-ended)</i></label><input id="atend" class="gselect" type="date"></div>'
     +'<div><label>Base</label><select id="atbase" class="gselect">'+Object.keys(DATA.bases).map(b=>'<option'+(b===((opts&&opts.base)||'NJ')?' selected':'')+'>'+b+'</option>').join('')+'</select></div>'
     +'<div><label>Fuel</label><select id="atfuel" class="gselect"><option>Diesel</option><option>Gasoline</option><option value="">\u2014</option></select></div>'
+    +'<div><label>Plate number</label><input id="atplate" class="gselect" placeholder="e.g. T-12345"></div>'
+    +'<div><label>Fuel level</label><select id="atfuellvl" class="gselect"><option value="">none</option><option>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Empty</option></select></div>'
+    +'<div><label>Odometer (mi)</label><input id="atodo" class="gselect" type="number" min="0" step="1" placeholder="reading"></div>'
+    +'<div class="full"><label>Truck photo (optional)</label><input id="atphoto" class="gselect" type="file" accept="image/*"></div>'
     +'<div class="atfees full"><span class="atfl">Fees <i>\u2014 fill either, both, or neither</i></span><div class="atfrow">'
     +'<div><label>Daily fee $</label><input id="atfee" class="gselect" type="number" step="0.01" min="0" placeholder="per day"></div>'
     +'<div><label>One-time fee $</label><input id="atone" class="gselect" type="number" step="0.01" min="0" placeholder="whole rental"></div>'
@@ -3779,15 +3790,20 @@ function addTruckModal(opts){
     let rs=m.querySelector('#atstart').value||currentDay,re_=m.querySelector('#atend').value||null;
     if(re_&&re_<rs)re_=rs;
     const fuel=m.querySelector('#atfuel').value||null;
+    const plate=(m.querySelector('#atplate').value||'').trim();const fuelLvl=m.querySelector('#atfuellvl').value||'';const odo=(m.querySelector('#atodo').value||'').trim();const photoFile=(m.querySelector('#atphoto').files||[])[0]||null;
     const fee=parseFloat(m.querySelector('#atfee').value);
     const one=parseFloat(m.querySelector('#atone').value);
     const pm=parseFloat(m.querySelector('#atpm').value);
     const lbl=uniqueName((lblEl.value||'').trim()||(prov3(prov)+'-'+ftOf(cf)+' ('+nextRentalIdx()+')'));
     const tk={n:lbl,status:'Active',cf,maxCrew:crew,state:base,type:ty,model:'rental \u00b7 '+prov,reg:'rental',rented:true,_appAdded:true,
-      rentStart:rs,rentEnd:re_,fuel,dayFee:isFinite(fee)?fee:null,oneFee:isFinite(one)?one:null,perMile:isFinite(pm)?pm:null,provider:prov};
+      rentStart:rs,rentEnd:re_,fuel,dayFee:isFinite(fee)?fee:null,oneFee:isFinite(one)?one:null,perMile:isFinite(pm)?pm:null,provider:prov,plate:plate,fuelLevel:fuelLvl,odometer:odo};
     DATA.trucks.push(tk);
     saveDayState();
-    if(GTOKEN)shAppendRow('Rented Trucks',{'Status':'Active','Truck N':lbl,'CF':cf,'Max Crew Size':crew,'Base':base,'Type':ty,'Provider':prov,'Rental Start':rs,'Rental End':re_||'','Fuel':fuel||'','Daily Fee $':isFinite(fee)?fee:'','One-Time Fee $':isFinite(one)?one:'','Per Mile $':isFinite(pm)?pm:'','Note':SHEET_WRITE_NOTE}).then(()=>sheetSaved(lbl+' saved to Rented Trucks')).catch(e=>sheetSaveFailed('rental',e));
+    if(GTOKEN){
+      var _pay={'Status':'Active','Truck N':lbl,'CF':cf,'Max Crew Size':crew,'Base':base,'Type':ty,'Provider':prov,'Rental Start':rs,'Rental End':re_||'','Fuel':fuel||'','Plate':plate,'Fuel Level':fuelLvl,'Odometer':odo,'Daily Fee $':isFinite(fee)?fee:'','One-Time Fee $':isFinite(one)?one:'','Per Mile $':isFinite(pm)?pm:'','Note':SHEET_WRITE_NOTE};
+      var _send=function(photoLink){_pay['Photo']=photoLink||'';shAppendRow('Rented Trucks',_pay).then(function(){sheetSaved(lbl+' saved to Rented Trucks');}).catch(function(e){sheetSaveFailed('rental',e);});};
+      if(photoFile){toast('Uploading truck photo...');uploadPhotoToDrive(photoFile,_send);}else _send('');
+    }
     else toast(lbl+' added to the board. Connect the calendar to also save it to the sheet.');
     m.classList.remove('show');
     if(opts){
