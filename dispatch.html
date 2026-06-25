@@ -3239,9 +3239,11 @@ async function shAppendRow(tab,obj){
     try{await shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})});}catch(e){}
     header=Object.keys(obj);
     await shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});
+  } else {
+    const missing=Object.keys(obj).filter(function(k){return !header.includes(k);});
+    if(missing.length){header=header.concat(missing);await shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});}
   }
   const row=header.map(h=>obj[h]!=null?String(obj[h]):'');
-  Object.keys(obj).forEach(k=>{if(!header.includes(k))row.push(String(obj[k]));});
   await shFetch('/values/'+encodeURIComponent("'"+tab+"'")+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});
 }
 async function shUpdateCellByMatch(tab,match,setCol,setVal){
