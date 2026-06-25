@@ -257,8 +257,8 @@ function loadSheet(){
       var fjob=(r[iFJob]||'').trim();if(!fjob)return;
       if((iJC>=0?(r[iJC]||''):'').trim().toLowerCase()!=='zip to zip')return;
       var L=parseLabels(r[iDesc]||'');
-      if((L['allowed photo shooting']||'').trim().toUpperCase()!=='YES')return;
-      var created=parseDate(iCreate>=0?(r[iCreate]||''):'');if(!created||created<PHOTO_SINCE)return;
+      var created=parseDate(iCreate>=0?(r[iCreate]||''):'');
+      if(created>=PHOTO_SINCE&&(L['allowed photo shooting']||'').trim().toUpperCase()!=='YES')return;
       out.push(buildJob({jobCode:fjob,requestNo:(r[iFReq]||'').trim(),date:parseDate(r[iDate]),tmin:parseTimeMin(r[iDate]),
         title:title,emoji:title.indexOf('📸')>=0,
         customer:(L['customer name']||'').trim(),
@@ -310,7 +310,7 @@ function jobCard(r){
 }
 function render(){
   var out=$('#out');
-  if(!JOBS.length){out.innerHTML='<div class="empty"><b>No photoshoots yet</b>No upcoming events are marked <b>Allowed Photo Shooting: YES</b> (created on/after Jun 25). Add that line to an event’s description in the calendar and it will show up here.</div>';return;}
+  if(!JOBS.length){out.innerHTML='<div class="empty"><b>No jobs found</b>The calendar returned no usable upcoming jobs. Events created Jun 25+ need <b>Allowed Photo Shooting: YES</b> in the description to appear; older events show without it.</div>';return;}
   var H=homeCoord(),today=isoLocal(new Date());
   var rows=[];
   JOBS.forEach(function(j){
