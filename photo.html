@@ -103,6 +103,7 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 .jconf.btn:hover{filter:brightness(.97)}
 .jconf.done{color:#1f6f3f;background:#e9f4ec;border:1px solid #bfe0c8;border-radius:9px;padding:5px 11px}
 .jconf.taken{color:var(--faint);font-weight:600}
+.jconf.cancel{cursor:pointer;border:none;background:none;color:#c0392b;text-decoration:underline;text-underline-offset:2px;font-size:11.5px;font-weight:600;margin-left:9px;padding:2px}
 .cfm-bg{position:fixed;inset:0;background:rgba(20,28,40,.45);display:flex;align-items:center;justify-content:center;z-index:80;padding:18px}
 .cfm{background:var(--card);border-radius:16px;max-width:380px;width:100%;padding:20px 22px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
 .cfm h3{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.03em}
@@ -112,6 +113,7 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 .cfm-act{display:flex;gap:10px;justify-content:flex-end}
 .cfm-act button{font:inherit;font-size:13.5px;font-weight:600;border-radius:9px;padding:9px 16px;cursor:pointer;border:1px solid var(--line2);background:var(--card);color:var(--ink)}
 .cfm-ok{background:var(--acc);color:#fff;border-color:var(--acc)}
+.cfm-ok.danger{background:#c0392b;border-color:#c0392b}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 </head>
@@ -119,7 +121,7 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 <div class="bar"><div class="bar-in">
   <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
   <div class="htxt"><h1>Production Calendar</h1><div class="sub">Zip to Zip &middot; local jobs &middot; nearest first &middot; foreman for today &amp; tomorrow</div></div>
-  <button class="connbtn" id="connbtn" onclick="connectGoogle()">Connect Google</button>
+  <!-- Connect Google removed: photographers confirm with no sign-in (the write goes through the Apps Script relay) -->
 </div></div>
 <div class="wrap">
   <div class="filters">
@@ -146,6 +148,7 @@ var GCAL_ID='contact@ziptozipmoving.com';
 var JOBS=[], CREW={}, puSel=new Set(), CONFIRMED={};
 var GCAL_CLIENT_ID='712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com';
 var GSCOPE_VER='cal+sheets-1', CONF_TAB='Photo Confirmations';
+var PHOTO_RELAY_URL='https://script.google.com/macros/s/AKfycbzX3q9VqyZKd3FUbGCPKN9JcQgcp15rz0QXxzNnxTYeXSRCY16Ei8n_9D07c9EQvOxM/exec'; // Apps Script web-app endpoint (writes confirmation + Slacks)
 var GTOKEN=null,GTOKEXP=0,_tc=null;
 try{var _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.scope===GSCOPE_VER&&_g.exp>Date.now()+60000){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
 function $(s){return document.querySelector(s);}
@@ -165,13 +168,13 @@ function shFetch(path,opt){return fetch('https://sheets.googleapis.com/v4/spread
 function shAppendRow(tab,obj){var enc=encodeURIComponent("'"+tab+"'");return shFetch('/values/'+enc+'?valueRenderOption=FORMATTED_VALUE').catch(function(){return {};}).then(function(v){var vals=(v&&v.values)||[];var header=vals[0]||[];var pre=Promise.resolve();if(!header.length){pre=shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})}).catch(function(){}).then(function(){header=Object.keys(obj);return shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});});}return pre.then(function(){var row=header.map(function(h){return obj[h]!=null?String(obj[h]):'';});Object.keys(obj).forEach(function(k){if(header.indexOf(k)<0)row.push(String(obj[k]));});return shFetch('/values/'+enc+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});});});}
 function loadConfirmations(){
   var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(CONF_TAB)+'&_t='+Date.now();
-  return fetch(url).then(function(r){return r.ok?r.text():'';}).then(function(t){try{var rows=pcsv(t);if(rows.length>=2){var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});var jd=H.indexOf('job date'),jc=H.indexOf('job code');rows.slice(1).forEach(function(r){var d=(jd>=0?r[jd]:'').trim(),c=(jc>=0?r[jc]:'').trim();if(d&&c)CONFIRMED[d]=c;});}}catch(e){}}).catch(function(){});
+  return fetch(url).then(function(r){return r.ok?r.text():'';}).then(function(t){try{var rows=pcsv(t);if(rows.length>=2){var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});var jd=H.indexOf('job date'),jc=H.indexOf('job code'),no=H.indexOf('notify');rows.slice(1).forEach(function(r){var d=(jd>=0?r[jd]:'').trim(),c=(jc>=0?r[jc]:'').trim();if(!d||!c)return;var st=(no>=0?String(r[no]||'').trim().toLowerCase():'');if(st==='cancelled'){if(CONFIRMED[d]===c)delete CONFIRMED[d];}else CONFIRMED[d]=c;});}}catch(e){}}).catch(function(){});
 }
 function jobByCode(c){for(var i=0;i<JOBS.length;i++)if(JOBS[i].jobCode===c)return JOBS[i];return null;}
 function confirmBlock(j){
   if(!j.date)return '';
   var mine=CONFIRMED[j.date];
-  if(mine===j.jobCode)return '<div class="jconf done">\u2713 You confirmed this job</div>';
+  if(mine===j.jobCode)return '<div class="jconf done">\u2713 You confirmed this job</div><button class="jconf cancel" data-cancel="'+esc(j.jobCode)+'">Cancel \u2014 I can\u2019t make it</button>';
   if(mine)return '<div class="jconf taken">Another job already confirmed for this day</div>';
   return '<button class="jconf btn" data-confirm="'+esc(j.jobCode)+'">\ud83d\udcf8 Confirm I will shoot this</button>';
 }
@@ -185,11 +188,24 @@ function openConfirm(j){
 }
 function doConfirm(j){
   if(CONFIRMED[j.date]&&CONFIRMED[j.date]!==j.jobCode){toast('You already confirmed a job for that day.');render();return;}
-  ensureToken(function(){
-    shAppendRow(CONF_TAB,{'Job Date':j.date,'Job Code':j.jobCode,'Customer':j.customer||'','Pickup':j.pickup||'','Event Link':calEventLink(j.eventId),'Confirmed At':new Date().toISOString(),'Notify':'pending'})
-      .then(function(){CONFIRMED[j.date]=j.jobCode;toast('\u2713 Confirmed \u2014 support will be notified.');render();})
-      .catch(function(e){toast('Could not save: '+e.message);});
-  });
+  if(!PHOTO_RELAY_URL){toast('Confirm isn\u2019t set up yet \u2014 the relay URL is missing.');return;}
+  CONFIRMED[j.date]=j.jobCode; // optimistic: no sign-in, fire-and-forget to the relay
+  try{fetch(PHOTO_RELAY_URL,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({jobCode:j.jobCode,jobDate:j.date,customer:j.customer||'',pickup:j.pickup||'',eventLink:calEventLink(j.eventId)})});}catch(e){}
+  toast('\u2713 Confirmed \u2014 support will be notified.');render();
+}
+function openCancel(j){
+  var ov=document.createElement('div');ov.className='cfm-bg';
+  ov.innerHTML='<div class="cfm"><h3>Cancel this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dayHeader(j.date).label)+'</div><div class="cfm-row">'+esc(j.jobCode)+'</div></div><p class="cfm-note">Support will be told you can no longer make this shoot, so it can be reassigned.</p><div class="cfm-act"><button class="cfm-cancel">Keep it</button><button class="cfm-ok danger">Yes, cancel</button></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  ov.querySelector('.cfm-cancel').onclick=function(){ov.remove();};
+  ov.querySelector('.cfm-ok').onclick=function(){ov.remove();doCancel(j);};
+}
+function doCancel(j){
+  if(!PHOTO_RELAY_URL){toast('Not set up yet — relay URL missing.');return;}
+  delete CONFIRMED[j.date];
+  try{fetch(PHOTO_RELAY_URL,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'cancel',jobCode:j.jobCode,jobDate:j.date,customer:j.customer||'',pickup:j.pickup||'',eventLink:calEventLink(j.eventId)})});}catch(e){}
+  toast('Cancelled — support has been notified.');render();
 }
 function haversine(a,b,c,d){var R=3958.8,dl=(c-a)*Math.PI/180,dn=(d-b)*Math.PI/180,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dn/2)*Math.sin(dn/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 function zipFromAddr(s){var m=String(s||'').match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b\d{5}\b)/);return m?m[1]:null;}
@@ -331,6 +347,7 @@ var cam=$('#fCam');if(cam)cam.addEventListener('change',render);
 $('#puBtn').addEventListener('click',function(e){e.stopPropagation();$('#puPanel').classList.toggle('open');});
 document.addEventListener('click',function(e){var p=$('#puPanel');if(p&&p.classList.contains('open')&&!$('#puMs').contains(e.target))p.classList.remove('open');});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-confirm]');if(b){var j=jobByCode(b.getAttribute('data-confirm'));if(j)openConfirm(j);}});
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-cancel]');if(b){var j=jobByCode(b.getAttribute('data-cancel'));if(j)openCancel(j);}});
 Promise.all([loadCrew(),loadSheet(),loadConfirmations()]).then(finishLoad);
 </script>
 </body>
