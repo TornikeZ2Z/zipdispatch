@@ -153,6 +153,25 @@ tbody tr.muted td{color:var(--faint)}
 .daterange label{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:700}
 .daterange button{font:inherit;font-size:11px;border:1px solid var(--line2);background:#fff;color:var(--dim);border-radius:7px;padding:5px 9px;cursor:pointer}
 .daterange button:hover{border-color:var(--ink);color:var(--ink)}
+.regday{padding:14px 16px}
+.regdayhdr{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;letter-spacing:.02em;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.regdayhdr .regn{font-family:Inter,sans-serif;font-size:12px;font-weight:600;color:var(--faint)}
+.regjobs{display:flex;flex-direction:column;gap:8px}
+.regjob{border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;transition:border-color .12s,background .12s}
+.regjob:hover{border-color:var(--line2);background:var(--paper)}
+.regjob.low{border-color:#e7b4ad;background:#fbeeec}
+.rj-top{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.rj-code{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink)}
+.rj-for{color:var(--dim);font-size:13px}
+.rj-flag{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.06em;color:#fff;background:var(--bad);border-radius:5px;padding:2px 7px}
+.rj-cmp{display:flex;flex-wrap:wrap;gap:18px}
+.rj-cell{display:flex;flex-direction:column;gap:1px;font-size:13px}
+.rj-cell i{font-style:normal;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:700}
+.rj-cell b{font-weight:700;color:var(--ink)}
+.rj-cell b.bad{color:var(--bad)}
+.rj-cell small{color:var(--faint);font-size:11px}
+.rj-why{margin-top:7px;font-size:12px;color:var(--bad);border-top:1px dashed #e7b4ad;padding-top:6px}
+.rj-answered{margin-top:7px;font-size:12px;color:#1f6f3f;background:#e9f4ec;border:1px solid #bfe0c8;border-radius:7px;padding:6px 9px}
 </style>
 </head>
 <body>
@@ -176,6 +195,7 @@ tbody tr.muted td{color:var(--faint)}
   <div class="view" id="v-check"></div>
   <div class="view" id="v-calendar"></div>
   <div class="view" id="v-inventory"></div>
+<div class="view" id="v-registry"></div>
 </div>
 
 <div class="modal" id="cmodal"><div class="modal-box"><div class="modal-h"><b id="cmodal-t"></b><button class="modal-x" onclick="closeModal()">✕</button></div><div class="chartbox" id="cmodal-c"><canvas id="cmodal-cv"></canvas></div></div></div>
@@ -189,6 +209,8 @@ const CAT_COLOR={box:'#B26B0B',tape:'#2563EB',wrap:'#0E9488',paper:'#9333EA',pro
 /* J = [code,fIdx,date,cf,est,act,charge,tipPct] */
 const Jc=0,Jf=1,Jd=2,Jcf=3,Je=4,Ja=5,Jch=6,Jt=7;
 var DFROM='',DTO='';
+var EXPLAIN={};
+function loadExplanations(){var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent('Packing Explanations')+'&_t='+Date.now();fetch(url).then(function(r){return r.ok?r.text():'';}).then(function(t){try{var rows=pcsv(t);if(rows.length>=2){var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});var jc=H.indexOf('job code'),ex=H.indexOf('explanation'),by=H.indexOf('foreman'),ts=H.indexOf('timestamp');rows.slice(1).forEach(function(r){var c=(jc>=0?r[jc]:'').trim();if(c)EXPLAIN[c]={ex:(ex>=0?r[ex]:''),by:(by>=0?r[by]:''),ts:(ts>=0?r[ts]:'')};});if(typeof renderRegistry==='function')renderRegistry();}}catch(e){}}).catch(function(){});}
 let CHECKED=new Set();
 let S=null;            // computed stats
 let curForeman=0;
@@ -562,7 +584,35 @@ function renderCheck(){
   var cc=$('#checkconn');if(cc)cc.innerHTML=(GTOKEN&&Date.now()<GTOKEXP-60000)?'<span class="conn">● Google connected — “reviewed” saves to the sheet</span>':'<button class="connbtn" onclick="connectGoogle()">Connect Google to save reviews</button>';
 }
 
-function renderAll(){renderProblems();renderForeman();renderOverview();buildTabs();refreshCharts(activeView);updateConnUI();}
+function renderRegistry(){
+  var host=$('#v-registry');if(!host)return;
+  var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function nd(iso){var p=String(iso).split('-');return p.length<3?iso:MO[+p[1]-1]+' '+(+p[2])+', '+p[0];}
+  var fl={};flaggedJobs().forEach(function(x){fl[x.jc]=x.reasons;});
+  var rows=S.recs.slice().sort(function(a,b){var da=JOBS[a.ji][Jd]||'',db=JOBS[b.ji][Jd]||'';return db<da?-1:db>da?1:0;});
+  var html='<h2 class="sec">Job registry</h2><p class="sub">Every job, newest first — requested inventory vs estimated packing vs what the foreman actually sold. <b style="color:var(--bad)">Red</b> = unusually low packing (concern model). Use the date filter at the top to focus a period.</p>';
+  if(!rows.length){host.innerHTML=html+'<div class="card"><div class="muted-s">No jobs in this date range.</div></div>';return;}
+  var cur=null;
+  rows.forEach(function(r){
+    var d=JOBS[r.ji][Jd]||'—';
+    if(d!==cur){if(cur!==null)html+='</div></div>';cur=d;
+      var n=rows.filter(function(x){return (JOBS[x.ji][Jd]||'—')===d;}).length;
+      html+='<div class="card regday"><div class="regdayhdr">'+esc(nd(d))+'<span class="regn">'+n+' job'+(n===1?'':'s')+'</span></div><div class="regjobs">';}
+    var jc=JOBS[r.ji][Jc],low=fl[jc];
+    var inv=[];if(r.ivBoxes!=null)inv.push(r.ivBoxes+' boxes');if(r.ivWrap!=null)inv.push(r.ivWrap+' furniture');
+    var invTxt=inv.length?inv.join(' · '):'inventory n/a';
+    html+='<div class="regjob'+(low?' low':'')+'" onclick="gotoForeman('+r.fi+')" title="Open profile">'
+      +'<div class="rj-top"><span class="rj-code">'+esc(jc)+'</span><span class="rj-for">'+esc(FOREMEN[r.fi])+'</span>'+(low?'<span class="rj-flag">LOW</span>':'')+'</div>'
+      +'<div class="rj-cmp">'
+        +'<span class="rj-cell"><i>Requested inventory</i><b>'+esc(invTxt)+'</b>'+(r.cf?'<small>'+Math.round(r.cf)+' CF</small>':'')+'</span>'
+        +'<span class="rj-cell"><i>Estimated packing</i><b>'+(r.ivEst!=null?money(r.ivEst):'—')+'</b></span>'
+        +'<span class="rj-cell"><i>Actual sold</i><b class="'+(low?'bad':'')+'">'+money(r.act)+'</b></span>'
+      +'</div>'+(low?'<div class="rj-why">'+esc(low.join(' · '))+'</div>':'')+(EXPLAIN[jc]?'<div class="rj-answered">✓ '+esc(EXPLAIN[jc].by||'Foreman')+' answered: '+esc(EXPLAIN[jc].ex)+'</div>':'')+'</div>';
+  });
+  if(cur!==null)html+='</div></div>';
+  host.innerHTML=html;
+}
+function renderAll(){renderProblems();renderRegistry();renderForeman();renderOverview();buildTabs();refreshCharts(activeView);updateConnUI();}
 function gotoForeman(fi){curForeman=fi;renderForeman();showView('foreman');}
 function cfgFulfil(){
   var qrecs=S.recs.filter(function(r){return r.hasQuote&&!r.noPack&&r.calPack&&Object.keys(r.calPack).length;});
@@ -853,13 +903,13 @@ function cfgGap(){var b=S.bench;var d=S.per.filter(function(p){return p.pk100!=n
 /* ============================ INIT / ROUTING ============================ */
 var activeView='problems';
 function showView(name){activeView=name;
-  ['problems','risk','overview','foreman','bench','check','calendar','inventory'].forEach(function(v){var el=$('#v-'+v);if(el)el.classList.toggle('on',v===name);});
+  ['problems','registry','risk','overview','foreman','bench','check','calendar','inventory'].forEach(function(v){var el=$('#v-'+v);if(el)el.classList.toggle('on',v===name);});
   var ts=document.querySelectorAll('.tab');for(var i=0;i<ts.length;i++)ts[i].classList.toggle('on',ts[i].getAttribute('data-v')===name);
   refreshCharts(name);
 }
 function buildTabs(){
   var nf=0;try{nf=computeProblems().per.filter(function(p){return p.score>=12;}).length;}catch(e){}
-  var tabs=[['problems','Problems'],['foreman','Foreman'],['overview','Overview']];
+  var tabs=[['problems','Problems'],['registry','Registry'],['foreman','Foreman'],['overview','Overview']];
   $('#tabs').innerHTML=tabs.map(function(t){return '<div class="tab'+(t[0]===activeView?' on':'')+'" data-v="'+t[0]+'" onclick="showView(\''+t[0]+'\')">'+t[1]+(t[0]==='problems'&&nf?'<span class="tn">'+nf+'</span>':'')+'</div>';}).join('');
 }
 function init(){
@@ -867,7 +917,7 @@ function init(){
   recompute();
   var _P0=computeProblems(); if(_P0.per.length)curForeman=_P0.per[0].fi; else if(S.ranked.length)curForeman=S.ranked[0].fi;
   renderAll();showView('problems');
-  loadChecked();
+  loadChecked();loadExplanations();
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
 (function(){var m=document.getElementById('cmodal');if(m)m.addEventListener('click',function(e){if(e.target===m)closeModal();});})();
