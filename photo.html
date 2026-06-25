@@ -114,6 +114,10 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 .cfm-act button{font:inherit;font-size:13.5px;font-weight:600;border-radius:9px;padding:9px 16px;cursor:pointer;border:1px solid var(--line2);background:var(--card);color:var(--ink)}
 .cfm-ok{background:var(--acc);color:#fff;border-color:var(--acc)}
 .cfm-ok.danger{background:#c0392b;border-color:#c0392b}
+.cfm-field{margin:13px 0 2px;display:flex;flex-direction:column;gap:5px}
+.cfm-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.cfm-field input{font:inherit;font-size:14px;font-weight:600;padding:9px 11px;border:1px solid var(--line2);border-radius:9px;background:var(--card);color:var(--ink);width:100%}
+.cfm-field input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px rgba(178,107,11,.12)}
 /* Photoshoot Confirmation System */
 .logo{height:30px;width:auto;flex:0 0 auto;display:block}
 .htitle{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:22px;letter-spacing:.05em;text-transform:uppercase;margin:0;line-height:1}
@@ -160,6 +164,9 @@ try{var _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.scope==
 function $(s){return document.querySelector(s);}
 function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function toast(m){var t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show');},4200);}
+function photogEmail(){try{return localStorage.getItem('zd_photog_email')||'';}catch(e){return '';}}
+function setPhotog(e){try{localStorage.setItem('zd_photog_email',e);}catch(_){}}
+function validEmail(e){return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e||'').trim());}
 function gReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
 function updateConnUI(){var b=$('#connbtn');if(b)b.textContent=GTOKEN?'Google \u2713':'Connect Google';}
 function ensureToken(cb){
@@ -174,7 +181,21 @@ function shFetch(path,opt){return fetch('https://sheets.googleapis.com/v4/spread
 function shAppendRow(tab,obj){var enc=encodeURIComponent("'"+tab+"'");return shFetch('/values/'+enc+'?valueRenderOption=FORMATTED_VALUE').catch(function(){return {};}).then(function(v){var vals=(v&&v.values)||[];var header=vals[0]||[];var pre=Promise.resolve();if(!header.length){pre=shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})}).catch(function(){}).then(function(){header=Object.keys(obj);return shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});});}return pre.then(function(){var row=header.map(function(h){return obj[h]!=null?String(obj[h]):'';});Object.keys(obj).forEach(function(k){if(header.indexOf(k)<0)row.push(String(obj[k]));});return shFetch('/values/'+enc+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});});});}
 function loadConfirmations(){
   var url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(CONF_TAB)+'&_t='+Date.now();
-  return fetch(url).then(function(r){return r.ok?r.text():'';}).then(function(t){try{var rows=pcsv(t);if(rows.length>=2){var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});var jd=H.indexOf('job date'),jc=H.indexOf('job code'),no=H.indexOf('notify');rows.slice(1).forEach(function(r){var d=(jd>=0?r[jd]:'').trim(),c=(jc>=0?r[jc]:'').trim();if(!d||!c)return;var st=(no>=0?String(r[no]||'').trim().toLowerCase():'');if(st==='cancelled'){if(CONFIRMED[d]===c)delete CONFIRMED[d];}else CONFIRMED[d]=c;});}}catch(e){}}).catch(function(){});
+  return fetch(url).then(function(r){return r.ok?r.text():'';}).then(function(t){
+    CONFIRMED={}; // rebuilt from the append-only event log on every load
+    try{var rows=pcsv(t);if(rows.length<2)return;
+      var H=rows[0].map(function(x){return String(x).trim().toLowerCase();});
+      var jd=H.indexOf('job date'),jc=H.indexOf('job code'),no=H.indexOf('notify'),ac=H.indexOf('action');
+      // rows are appended in time order, so the LAST row per (day,job) wins
+      rows.slice(1).forEach(function(r){
+        var d=(jd>=0?r[jd]:'').trim(),c=(jc>=0?r[jc]:'').trim();if(!d||!c)return;
+        var action=(ac>=0&&String(r[ac]||'').trim())?String(r[ac]).trim().toLowerCase()
+                   :(((no>=0?String(r[no]||'').trim().toLowerCase():'')==='cancelled')?'cancelled':'confirmed');
+        if(action==='cancelled'){if(CONFIRMED[d]===c)delete CONFIRMED[d];}
+        else CONFIRMED[d]=c;
+      });
+    }catch(e){}
+  }).catch(function(){});
 }
 function jobByCode(c){for(var i=0;i<JOBS.length;i++)if(JOBS[i].jobCode===c)return JOBS[i];return null;}
 function confirmBlock(j){
@@ -186,31 +207,33 @@ function confirmBlock(j){
 }
 function openConfirm(j){
   var ov=document.createElement('div');ov.className='cfm-bg';var dh=dayHeader(j.date);var tm=fmt12(j.tmin);
-  ov.innerHTML='<div class="cfm"><h3>Confirm this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dh.label)+(j.tmin!=null?' \u00b7 '+esc(tm.t)+' '+esc(tm.ap):'')+'</div><div class="cfm-row">'+esc(j.jobCode)+' \u00b7 '+esc(j.puState||'?')+'\u2192'+esc(j.delState||'?')+' \u00b7 '+Math.round(j.cf||0).toLocaleString()+' CF</div><div class="cfm-row">'+esc(j.pickup||'')+'</div></div><p class="cfm-note">You can confirm only one job per day. Support will be notified you are going.</p><div class="cfm-act"><button class="cfm-cancel">Cancel</button><button class="cfm-ok">Yes, confirm</button></div></div>';
+  ov.innerHTML='<div class="cfm"><h3>Confirm this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dh.label)+(j.tmin!=null?' \u00b7 '+esc(tm.t)+' '+esc(tm.ap):'')+'</div><div class="cfm-row">'+esc(j.jobCode)+' \u00b7 '+esc(j.puState||'?')+'\u2192'+esc(j.delState||'?')+' \u00b7 '+Math.round(j.cf||0).toLocaleString()+' CF</div><div class="cfm-row">'+esc(j.pickup||'')+'</div></div><p class="cfm-note">You can confirm only one job per day. Support will be notified you are going.</p><div class="cfm-field"><label>Your email</label><input type="email" class="cfm-email" placeholder="you@company.com" value="'+esc(photogEmail())+'" autocomplete="email"></div><div class="cfm-act"><button class="cfm-cancel">Cancel</button><button class="cfm-ok">Yes, confirm</button></div></div>';
   document.body.appendChild(ov);
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   ov.querySelector('.cfm-cancel').onclick=function(){ov.remove();};
-  ov.querySelector('.cfm-ok').onclick=function(){ov.remove();doConfirm(j);};
+  ov.querySelector('.cfm-ok').onclick=function(){var em=(ov.querySelector('.cfm-email').value||'').trim();if(!validEmail(em)){toast('Enter a valid email so we know who is shooting.');return;}setPhotog(em);ov.remove();doConfirm(j,em);};
 }
-function doConfirm(j){
+function doConfirm(j,email){
+  email=(email||photogEmail()||'').trim();
   if(CONFIRMED[j.date]&&CONFIRMED[j.date]!==j.jobCode){toast('You already confirmed a job for that day.');render();return;}
   if(!PHOTO_RELAY_URL){toast('Confirm isn\u2019t set up yet \u2014 the relay URL is missing.');return;}
   CONFIRMED[j.date]=j.jobCode; // optimistic: no sign-in, fire-and-forget to the relay
-  try{fetch(PHOTO_RELAY_URL,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({jobCode:j.jobCode,jobDate:j.date,customer:j.customer||'',pickup:j.pickup||'',eventLink:calEventLink(j.eventId)})});}catch(e){}
+  try{fetch(PHOTO_RELAY_URL,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'confirm',jobCode:j.jobCode,jobDate:j.date,customer:j.customer||'',pickup:j.pickup||'',email:email,eventLink:calEventLink(j.eventId)})});}catch(e){}
   toast('\u2713 Confirmed \u2014 support will be notified.');render();
 }
 function openCancel(j){
   var ov=document.createElement('div');ov.className='cfm-bg';
-  ov.innerHTML='<div class="cfm"><h3>Cancel this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dayHeader(j.date).label)+'</div><div class="cfm-row">'+esc(j.jobCode)+'</div></div><p class="cfm-note">Support will be told you can no longer make this shoot, so it can be reassigned.</p><div class="cfm-act"><button class="cfm-cancel">Keep it</button><button class="cfm-ok danger">Yes, cancel</button></div></div>';
+  ov.innerHTML='<div class="cfm"><h3>Cancel this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dayHeader(j.date).label)+'</div><div class="cfm-row">'+esc(j.jobCode)+'</div></div><p class="cfm-note">Support will be told you can no longer make this shoot, so it can be reassigned.</p><div class="cfm-field"><label>Your email</label><input type="email" class="cfm-email" placeholder="you@company.com" value="'+esc(photogEmail())+'" autocomplete="email"></div><div class="cfm-act"><button class="cfm-cancel">Keep it</button><button class="cfm-ok danger">Yes, cancel</button></div></div>';
   document.body.appendChild(ov);
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   ov.querySelector('.cfm-cancel').onclick=function(){ov.remove();};
-  ov.querySelector('.cfm-ok').onclick=function(){ov.remove();doCancel(j);};
+  ov.querySelector('.cfm-ok').onclick=function(){var em=(ov.querySelector('.cfm-email').value||'').trim();if(!validEmail(em)){toast('Enter a valid email so we know who cancelled.');return;}setPhotog(em);ov.remove();doCancel(j,em);};
 }
-function doCancel(j){
+function doCancel(j,email){
+  email=(email||photogEmail()||'').trim();
   if(!PHOTO_RELAY_URL){toast('Not set up yet — relay URL missing.');return;}
   delete CONFIRMED[j.date];
-  try{fetch(PHOTO_RELAY_URL,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'cancel',jobCode:j.jobCode,jobDate:j.date,customer:j.customer||'',pickup:j.pickup||'',eventLink:calEventLink(j.eventId)})});}catch(e){}
+  try{fetch(PHOTO_RELAY_URL,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'cancel',jobCode:j.jobCode,jobDate:j.date,customer:j.customer||'',pickup:j.pickup||'',email:email,eventLink:calEventLink(j.eventId)})});}catch(e){}
   toast('Cancelled — support has been notified.');render();
 }
 function haversine(a,b,c,d){var R=3958.8,dl=(c-a)*Math.PI/180,dn=(d-b)*Math.PI/180,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dn/2)*Math.sin(dn/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
