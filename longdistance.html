@@ -6,6 +6,8 @@
 <title>Long Distance Planning &mdash; Zip To Zip</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 <style>
 :root{--bg:#F7F6F2;--paper:#F7F6F2;--card:#FFFFFF;--ink:#1F2329;--dim:#646B73;--faint:#969CA3;
@@ -89,6 +91,30 @@ header h1{font-family:'Barlow Condensed';font-weight:600;font-size:29px;letter-s
 .abtn.amber:hover{background:var(--hazard);color:#fff}
 .empty{padding:54px 20px;text-align:center;color:var(--dim);background:var(--card);border:1px solid var(--line);border-radius:14px}
 .empty b{display:block;font-family:'Barlow Condensed';font-size:21px;color:var(--ink);margin-bottom:6px}
+/* route / journey map */
+.layout{display:flex;align-items:flex-start}
+.rail{flex:1 1 auto;min-width:0}
+.layout.mapon .rail{max-width:none;margin:0}
+#mapwrap{flex:0 0 auto;width:0;overflow:hidden;position:sticky;top:65px;height:calc(100vh - 65px);transition:width .4s cubic-bezier(.22,.8,.3,1);border-left:0 solid var(--line)}
+.layout.mapon #mapwrap{width:46vw;border-left-width:1px}
+@media(max-width:900px){.layout{flex-direction:column}#mapwrap{position:relative;top:0;height:0;width:100%!important;border-left:none}.layout.mapon #mapwrap{height:60vh}}
+#map{width:100%;height:100%;background:#E9F0F1}
+.leaflet-container{font-family:'Inter'}.leaflet-tile-pane{filter:saturate(.88)}
+.vizbtn{background:var(--fleet-bg);border:1px solid var(--fleet-bd);color:var(--fleet);font-family:'Inter';font-weight:600;font-size:14.5px;padding:6px 12px;border-radius:8px;cursor:pointer}
+.vizbtn:hover{background:var(--fleet);color:#fff}
+.vizbtn.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.pmark{width:15px;height:15px;border-radius:50%;background:#1F2329;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.dmark{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid var(--rental);font-family:'Barlow Condensed';font-weight:600;font-size:13px;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.dmark.f{border-color:var(--travel)}
+.maplegend{position:absolute;left:14px;bottom:14px;display:flex;gap:16px;font-size:13.5px;color:var(--dim);background:rgba(255,255,255,.94);padding:9px 14px;border:1px solid var(--line);border-radius:10px;z-index:600}
+.maplegend span{display:flex;align-items:center;gap:7px}.maplegend i{width:20px;border-top:3px solid;border-radius:2px}
+.mapcard{position:absolute;left:14px;top:14px;z-index:600;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:12px;padding:14px 18px;max-width:min(440px,62%);box-shadow:0 4px 16px rgba(0,0,0,.09)}
+.mapcard .mt{font-family:'Barlow Condensed';font-weight:600;font-size:21px;letter-spacing:.02em}
+.mapcard .ms{font-size:14.5px;color:var(--dim);margin-top:4px;line-height:1.5}
+.mapcard .step{font-size:14.5px;display:flex;gap:9px;position:relative;padding-left:16px;margin-top:7px;line-height:1.4}
+.mapcard .step .dot{position:absolute;left:0;top:6px;width:9px;height:9px;border-radius:50%;background:var(--ink)}
+.mapcard .step:not(:last-child)::after{content:'';position:absolute;left:4px;top:16px;bottom:-8px;width:1.5px;background:var(--line2)}
+.mapfull{position:absolute;top:12px;right:12px;z-index:700;background:var(--card);border:1.5px solid var(--line2);border-radius:9px;font:600 14px Inter;padding:7px 11px;cursor:pointer;color:var(--ink)}
 /* modal */
 .mbg{position:fixed;inset:0;background:rgba(31,34,38,.45);display:flex;align-items:center;justify-content:center;z-index:3000;padding:18px}
 .mbox{background:var(--card);border-radius:16px;max-width:480px;width:100%;padding:22px 26px;box-shadow:0 24px 60px rgba(0,0,0,.3);position:relative}
@@ -102,6 +128,39 @@ header h1{font-family:'Barlow Condensed';font-weight:600;font-size:29px;letter-s
 .mbtn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:11px;font-size:15px;opacity:0;pointer-events:none;transition:.25s;z-index:4000}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* timeline (gantt) */
+#timelinewrap{padding:18px 26px 90px}
+.tlbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.tlnav{display:flex;align-items:center;gap:8px}
+.tlnav button{font:600 14px Inter;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 11px;cursor:pointer}
+.tlnav button:hover{background:var(--paper)}
+.tlnav .tlrange{font-weight:700;min-width:170px;text-align:center;font-size:15px;border:none;background:none}
+.tlnav .tltodaybtn{font-weight:700}
+.tllegend{display:flex;gap:13px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);margin-left:auto}
+.tllegend span{display:flex;align-items:center;gap:6px}.tllegend i{width:16px;height:10px;border-radius:3px;flex:0 0 auto}
+.tlgrid{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.tlhead{display:flex;height:32px;background:var(--paper);border-bottom:1px solid var(--line)}
+.tlrow{display:flex;min-height:50px;border-bottom:1px solid var(--line)}
+.tlrow:last-child{border-bottom:none}
+.tllab{width:230px;flex:0 0 230px;border-right:1px solid var(--line);padding:7px 12px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.tlhlab{justify-content:center;font-size:11.5px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
+.tll1{display:flex;align-items:baseline;gap:8px}
+.tll1 .code{font-family:'IBM Plex Mono';font-weight:600;font-size:13.5px}
+.tlcf{font-size:12px;color:var(--dim);font-weight:600}
+.tll2{font-size:12.5px;color:var(--dim);display:flex;align-items:center;gap:7px}
+.tltrack{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(100%/42)),repeating-linear-gradient(to right,var(--line2) 0 1.5px,transparent 1.5px calc(100%/6))}
+.tlhtrack{background-image:none}
+.tlwk{position:absolute;top:8px;font-size:11.5px;color:var(--dim);font-weight:600;padding-left:5px}
+.tltoday{position:absolute;top:0;bottom:0;width:2px;background:var(--hazard);z-index:6}
+.tlb{position:absolute;top:50%;transform:translateY(-50%);height:15px;border-radius:4px;cursor:pointer;box-sizing:border-box;z-index:3;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:800}
+.tlb:hover{filter:brightness(1.08);outline:2px solid rgba(31,34,38,.18)}
+.tlb.pick{background:#3A3F46}
+.tlb.pick.noev{opacity:.45;cursor:default}
+.tlb.deliv{background:var(--rental)}
+.tlb.deliv.carrier{background:#3B72B0}
+.tlb.deliv.noevent{background:#fff;border:1.5px dashed var(--hazard);color:var(--hazard);cursor:default}
+.tlbar-stor{position:absolute;top:50%;transform:translateY(-50%);height:19px;border-radius:5px;background:repeating-linear-gradient(45deg,rgba(108,92,224,.22) 0 6px,rgba(108,92,224,.05) 6px 12px);border:1px solid rgba(108,92,224,.4);z-index:1}
+a.abtn{text-decoration:none;display:inline-flex;align-items:center}
 </style>
 </head>
 <body>
@@ -109,15 +168,24 @@ header h1{font-family:'Barlow Condensed';font-weight:600;font-size:29px;letter-s
   <a class="back" href="index.html" title="Back to all tools">&#8249;</a>
   <img id="brandlogo" src="logo.png" alt="Zip To Zip" onerror="this.style.display='none'">
   <div><h1>Long Distance Planning</h1><div class="hsub">Don't miss the deadline &middot; fill every truck</div></div>
-  <div class="views"><button class="vbtn on">&#9776; Board</button></div>
+  <div class="views"><button class="vbtn on" data-view="board">&#9776; Board</button><button class="vbtn" data-view="timeline">&#128197; Timeline</button></div>
   <div class="stats" id="stats"></div>
   <button id="refreshbtn">&#8635; Refresh</button>
   <span id="rfstamp"></span>
 </header>
-<div class="rail">
-  <div class="railhead"><h2>Trips by week &mdash; deadline order</h2></div>
-  <div id="cards"></div>
+<div class="layout">
+  <div class="rail">
+    <div class="railhead"><h2>Trips by week &mdash; deadline order</h2></div>
+    <div id="cards"></div>
+  </div>
+  <div id="mapwrap">
+    <button class="mapfull" id="mapfull">&#9974; Full screen</button>
+    <div id="map"></div>
+    <div class="mapcard" id="mapcard"></div>
+    <div class="maplegend"><span><i style="border-color:var(--rental)"></i>straight (we deliver)</span><span><i style="border-color:#3B72B0"></i>regular (carrier)</span></div>
+  </div>
 </div>
+<div id="timelinewrap" style="display:none"></div>
 <div id="modalhost"></div>
 <div id="toast"></div>
 <script src="zipdb.js?v=1"></script>
@@ -141,6 +209,9 @@ const GCLIENT = "712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleuserco
 const ZIPDB = window.ZIPDB || {};
 let JOBS = [], STORAGE = {}, ROUTED = new Set(), ASSIGN = {}, BACKHAUL = {};
 let GTOKEN = null, GTOKEXP = 0, _tc = null;
+let LMAP = null, LLAYER = null, VIZ = null;
+let VIEW = "board", TLSTART = null; const TLDAYS = 42;
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 try { const g = JSON.parse(localStorage.getItem("zd_ldtok") || "null"); if (g && g.exp > Date.now()+60000){ GTOKEN=g.t; GTOKEXP=g.exp; } } catch(e){}
 
 const $ = s => document.querySelector(s);
@@ -222,8 +293,15 @@ function loadJobs(){
   return fetch(gviz(JOBS_TAB)).then(r=>r.text()).then(t=>{
     const rows=pcsv(t); if(rows.length<2){ JOBS=[]; return; }
     const c=colmap(rows[0]); const g=(r,k)=>{ const i=c[k]; return i==null?"":String(r[i]||"").trim(); };
+    /* every row is a calendar event. a DELIVERY event carries a Pickup Job Code linking back to its pickup; a PICKUP event leaves it blank. */
+    const delByPickup={};
+    rows.slice(1).forEach(r=>{
+      const pjc=g(r,"pickup job code"); if(!pjc) return;
+      delByPickup[pjc]={ id:g(r,"event id"), title:g(r,"event title"), date:parseDate(g(r,"event date")), loc:g(r,"location") };
+    });
     const out=[];
     rows.slice(1).forEach(r=>{
+      if(g(r,"pickup job code")) return;            /* delivery rows are attached to their pickup, not listed on their own */
       const isDel = g(r,"is delivered").toLowerCase()==="delivered" || g(r,"current location").toLowerCase()==="delivered";
       if(isDel) return;
       const code=g(r,"job code"); if(!code) return;
@@ -232,6 +310,7 @@ function loadJobs(){
       const jt=g(r,"job type");
       const fad=parseDate(g(r,"final fad")||g(r,"fad by paper")||g(r,"fad (first available date)"));
       let trip=parseFloat(g(r,"estimated trip days")); trip=(isFinite(trip)&&trip>0)?trip:null;
+      const stor=g(r,"is in storage"); const inStor=/yes|true|^y$|^1$/i.test(stor)||stor.charCodeAt(0)===10003;
       out.push({
         code, customer:g(r,"customer name"),
         type:/straight/i.test(jt)?"straight":"regular",
@@ -242,7 +321,10 @@ function loadJobs(){
         fad, timeframeRaw:g(r,"delivery time frame"), tripDays:trip,
         foreman:g(r,"forman"), carrier:g(r,"carrier"),
         currentLocation:g(r,"current location"),
-        pickupDate:parseDate(g(r,"event date"))
+        inStorage:inStor, storLabel:g(r,"storage location label")||g(r,"storage location type"),
+        pickupDate:parseDate(g(r,"event date")),
+        pickupEv:{ id:g(r,"event id"), title:g(r,"event title"), date:parseDate(g(r,"event date")), loc:g(r,"location") },
+        deliverEv: delByPickup[code]||null
       });
     });
     JOBS=out.filter(j=>!j.fad||midnight(j.fad)>=today0());
@@ -289,18 +371,29 @@ function dataIssues(j){
 function status(j){
   if(ROUTED.has(j.code)) return {lvl:"travel",txt:"Routed",why:"in an accepted route"};
   if(!j.fad) return {lvl:"hazard",txt:"No delivery date",why:"Final FAD is blank - fix the sheet"};
-  const isS=j.type==="straight", dPick=daysFromToday(j.pickupDate);
+  const isS=j.type==="straight";
+  const dPick=daysFromToday(j.pickupDate), picked=dPick!=null&&dPick<0;
+  if(isS && !j.deliverEv && (picked || (dPick!=null && dPick<=ASSIGN_DAYS)))
+    return {lvl:"hazard",txt:"No delivery event",why:"create the delivery event for this straight"};
+  if(/at carrier/i.test(j.currentLocation)) return {lvl:"fleet",txt:"At carrier",why:"carrier has it - they deliver"};
+  if(j.inStorage || STORAGE[j.code]){
+    const lb0=leaveBy(j), dl0=daysFromToday(lb0);
+    if(isS && dl0!=null && dl0<=LEAVE_SOON) return {lvl:"hazard",txt:"Pull from storage",why:"leave by "+fmtMDY(lb0)+" to deliver on time"};
+    return {lvl:"travel",txt:"In storage",why:(j.storLabel||"stored")+(j.fad?" - deliver by "+fmtMDY(j.fad):"")};
+  }
   if(isS){
     if(!foremanOf(j) && dPick!=null && dPick<=ASSIGN_DAYS) return {lvl:"hazard",txt:"Needs foreman",why:"no foreman, pickup "+(dPick<0?"overdue":"in "+dPick+"d")};
     const dFad=daysFromToday(j.fad);
     if(isFar(j) && dFad!=null && dFad<=BACKHAUL_DAYS && spareCF(j)>BACKHAUL_MIN && !BACKHAUL[j.code]) return {lvl:"hazard",txt:"Find backhaul",why:spareCF(j)+" CF free on the empty return"};
     const lb=leaveBy(j), dl=daysFromToday(lb);
-    if(dl!=null && dl<=0) return {lvl:"hazard",txt:"Send now",why:(j.tripDays||1)+"-day trip, deliver by "+fmtMDY(j.fad)};
-    if(dl!=null && dl<=LEAVE_SOON) return {lvl:"rental",txt:"Send soon",why:"leave by "+fmtMDY(lb)};
-    return {lvl:"fleet",txt:"On track",why:"leave by "+fmtMDY(lb)};
+    if(dl!=null && dl<=0) return {lvl:"hazard",txt:"Start moving",why:(j.tripDays||1)+"-day trip, deliver by "+fmtMDY(j.fad)};
+    if(dl!=null && dl<=LEAVE_SOON) return {lvl:"rental",txt:"Move soon",why:"leave by "+fmtMDY(lb)};
+    if(picked) return {lvl:"fleet",txt:"Picked up",why:"in hand - leave by "+fmtMDY(lb)};
+    return {lvl:"fleet",txt:"Scheduled",why:"pickup "+fmtMDY(j.pickupDate)};
   }
   if(!carrierOf(j) && dPick!=null && dPick<=ASSIGN_DAYS) return {lvl:"hazard",txt:"Needs carrier",why:"no carrier, pickup "+(dPick<0?"overdue":"in "+dPick+"d")};
   if(!carrierOf(j)) return {lvl:"rental",txt:"No carrier yet",why:"assign before pickup"};
+  if(picked) return {lvl:"fleet",txt:"Picked up",why:"carrier: "+carrierOf(j)};
   return {lvl:"fleet",txt:"Carrier set",why:carrierOf(j)};
 }
 function sortKey(j){ return [ STORAGE[j.code]?0:1, j.fad?midnight(j.fad).getTime():9e15 ]; }
@@ -340,7 +433,7 @@ function tripCard(j){
   const truckSeg = isS ? '<span class="vbadge"><span class="b">'+esc(t.n.replace("#",""))+'</span>Truck '+esc(t.n)+' &middot; '+t.cf.toLocaleString()+' CF &middot; '+spare+' free</span>' : "";
   const abtn = who ? "" : '<button class="abtn amber" data-assign="'+esc(j.code)+'">Assign '+(isS?"foreman":"carrier")+'</button>';
   return '<div class="card st-'+s.lvl+'" data-code="'+esc(j.code)+'">'+
-    '<div class="cardtop"><span class="rpill">'+esc(j.code)+'</span>'+pathLine(j)+
+    '<div class="cardtop"><span class="rpill">'+esc(j.code)+'</span>'+pathLine(j)+'<button class="vizbtn" data-viz="'+esc(j.code)+'">Journey &#9656;</button>'+
     '<span class="statwrap"><span class="spill '+s.lvl+'">'+esc(s.txt)+'</span><span class="swhy">'+esc(s.why)+'</span></span></div>'+
     '<div class="metaline"><b>'+esc(j.customer||"(no name)")+'</b> &middot; deliver by <b>'+(j.fad?fmtMDY(j.fad):"&mdash;")+'</b> &middot; <b>'+(dl==null?"&mdash;":dl)+'</b> days left &middot; <b>'+Math.round(j.cf||0).toLocaleString()+'</b> CF</div>'+
     '<div class="chips">'+chips+'</div>'+
@@ -363,6 +456,59 @@ function render(){
   host.querySelectorAll("[data-assign]").forEach(el=>el.onclick=()=>openAssign(el.dataset.assign));
   host.querySelectorAll("[data-stor]").forEach(el=>el.onclick=()=>openStorage(el.dataset.stor));
   host.querySelectorAll("[data-di]").forEach(el=>el.onclick=()=>openDataIssue(el.dataset.di));
+  host.querySelectorAll("[data-viz]").forEach(el=>el.onclick=()=>vizJourney(el.dataset.viz));
+  if(VIZ){ const b=document.querySelector('.vizbtn[data-viz="'+VIZ+'"]'); if(b){ b.classList.add("on"); b.innerHTML="Hide &#9656;"; } }
+}
+/* ===== route / journey map ===== */
+function hav(a,b){ if(!a||!b||a.lat==null||b.lat==null) return 0; const R=3959,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180; const h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function roadMi(a,b){ return Math.round(hav(a,b)*1.18); }
+function initMap(){
+  if(LMAP || typeof L==="undefined") return;
+  const el=$("#map"); if(!el) return;
+  try{
+    LMAP=L.map("map",{zoomControl:true});
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(LMAP);
+    LMAP.setView([39.5,-83],5);
+    LLAYER=L.layerGroup().addTo(LMAP);
+  }catch(e){ LMAP=null; }
+}
+function closeViz(){
+  VIZ=null;
+  const lay=$(".layout"); if(lay) lay.classList.remove("mapon");
+  document.querySelectorAll(".vizbtn").forEach(b=>{ b.classList.remove("on"); b.innerHTML="Journey &#9656;"; });
+}
+function vizJourney(code){
+  const j=JOBS.find(x=>x.code===code); if(!j) return;
+  if(VIZ===code){ closeViz(); return; }
+  VIZ=code;
+  const lay=$(".layout"); if(lay) lay.classList.add("mapon");
+  document.querySelectorAll(".vizbtn").forEach(b=>{ b.classList.remove("on"); b.innerHTML="Journey &#9656;"; });
+  const btn=document.querySelector('.vizbtn[data-viz="'+code+'"]'); if(btn){ btn.classList.add("on"); btn.innerHTML="Hide &#9656;"; }
+  initMap(); drawJourney(j);
+  setTimeout(()=>{ try{ LMAP&&LMAP.invalidateSize(); }catch(e){} },220);
+}
+function drawJourney(j){
+  const mi=(j.pickup&&j.delivery)?roadMi(j.pickup,j.delivery):null;
+  const t=suggestTruck(j);
+  $("#mapcard").innerHTML=
+    '<div class="mt">'+esc(j.customer||j.code)+'</div>'+
+    '<div class="ms">'+esc(j.pickupState)+' &#8594; '+esc(j.destState)+(mi?' &middot; ~'+mi.toLocaleString()+' mi':'')+(j.tripDays?' &middot; '+j.tripDays+'-day trip':'')+'</div>'+
+    '<div class="step"><span class="dot"></span><div><b>Pickup</b> &middot; '+esc(j.pickupState)+' '+esc(j.pickupZip)+(j.pickupDate?' &middot; '+fmtMDY(j.pickupDate):'')+'</div></div>'+
+    '<div class="step"><span class="dot" style="background:var(--rental)"></span><div><b>Deliver</b> &middot; '+esc(j.destState)+' '+esc(j.deliveryZip)+' &middot; by '+(j.fad?fmtMDY(j.fad):'?')+'</div></div>'+
+    (j.type==="straight"?'<div class="step"><span class="dot" style="background:var(--travel)"></span><div><b>Return</b> to '+esc(j.pickupState)+(isFar(j)?' &middot; '+spareCF(j)+' CF free, find backhaul':'')+'</div></div>':'')+
+    (t?'<div class="ms" style="margin-top:9px">Truck '+esc(t.n)+' &middot; '+t.cf.toLocaleString()+' CF</div>':'');
+  if(!LMAP||!LLAYER) return;
+  try{
+    LLAYER.clearLayers();
+    if(j.pickup&&j.delivery){
+      const col=j.type==="straight"?"#B26B0B":"#3B72B0";
+      L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:"#fff",weight:7,opacity:.9}).addTo(LLAYER);
+      L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:col,weight:4,opacity:.95,dashArray:"9 7"}).addTo(LLAYER);
+      L.marker([j.pickup.lat,j.pickup.lon],{icon:L.divIcon({className:"",html:'<div class="pmark"></div>',iconSize:[15,15],iconAnchor:[7,7]})}).addTo(LLAYER).bindPopup("Pickup - "+esc(j.pickupState));
+      L.marker([j.delivery.lat,j.delivery.lon],{icon:L.divIcon({className:"",html:'<div class="dmark'+(j.type==="straight"?"":" f")+'">'+esc(j.destState||"")+'</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(LLAYER);
+      LMAP.fitBounds([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{padding:[60,60]});
+    }
+  }catch(e){}
 }
 /* ===== actions ===== */
 function openAssign(code){
@@ -400,15 +546,91 @@ function openDataIssue(code){
     '<div class="mrow" style="color:var(--dim);margin-top:10px">Fill these in the Long Distance Data sheet, then Refresh.</div>',
     '<button class="abtn dark" onclick="closeModal()">Got it</button>');
 }
+/* ===== timeline (gantt) ===== */
+function tlStart(){ return TLSTART || weekStart(today0()); }
+function tlShift(w){ const s=new Date(tlStart()); s.setDate(s.getDate()+w*7); TLSTART=midnight(s); renderTimeline(); }
+function tlToday(){ TLSTART=null; renderTimeline(); }
+function dIndex(d,start){ return d? Math.round((midnight(d).getTime()-start.getTime())/86400000) : null; }
+function tlLegend(){
+  return '<span><i style="background:#3A3F46"></i>pickup</span>'+
+    '<span><i style="background:var(--rental)"></i>delivery (we drive)</span>'+
+    '<span><i style="background:#3B72B0"></i>carrier delivery</span>'+
+    '<span><i style="background:repeating-linear-gradient(45deg,rgba(108,92,224,.5) 0 4px,rgba(108,92,224,.12) 4px 8px)"></i>storage</span>'+
+    '<span><i style="background:#fff;border:1.5px dashed var(--hazard)"></i>no delivery event</span>'+
+    '<span><i style="background:var(--hazard);width:3px"></i>today</span>';
+}
+function renderTimeline(){
+  const host=$("#timelinewrap"); if(!host) return;
+  const start=tlStart(), days=TLDAYS, dp=100/days;
+  const end=new Date(start.getTime()+(days-1)*86400000);
+  const jobs=JOBS.slice().sort((a,b)=>((a.fad?midnight(a.fad).getTime():9e15)-(b.fad?midnight(b.fad).getTime():9e15)));
+  let wk="";
+  for(let w=0; w*7<days; w++){ const ws=new Date(start.getTime()+w*7*86400000); wk+='<span class="tlwk" style="left:'+(w*7*dp)+'%">'+MON[ws.getMonth()]+" "+ws.getDate()+'</span>'; }
+  const tdi=dIndex(today0(),start);
+  const todayLine=(tdi>=0&&tdi<days)?'<i class="tltoday" style="left:'+((tdi+0.5)*dp)+'%"></i>':"";
+  const body=jobs.length? jobs.map(j=>tlRow(j,start,days,dp)).join("") : '<div class="empty" style="margin:34px auto"><b>No long-distance trips</b>Nothing not-delivered with an upcoming deadline.</div>';
+  host.innerHTML=
+    '<div class="tlbar"><div class="tlnav"><button data-tl="prev">&#8249;</button><span class="tlrange">'+MON[start.getMonth()]+" "+start.getDate()+" &ndash; "+MON[end.getMonth()]+" "+end.getDate()+", "+end.getFullYear()+'</span><button data-tl="next">&#8250;</button><button class="tltodaybtn" data-tl="today">Today</button></div><div class="tllegend">'+tlLegend()+'</div></div>'+
+    '<div class="tlgrid"><div class="tlhead"><div class="tllab tlhlab">Job &middot; CF &middot; customer</div><div class="tltrack tlhtrack">'+wk+todayLine+'</div></div><div class="tlbody">'+body+'</div></div>';
+  host.querySelectorAll("[data-tl]").forEach(el=>el.onclick=()=>{ const a=el.dataset.tl; a==="prev"?tlShift(-2):a==="next"?tlShift(2):tlToday(); });
+  host.querySelectorAll("[data-ev]").forEach(el=>el.onclick=()=>openEvent(el.getAttribute("data-ev"), el.getAttribute("data-evk")));
+}
+function tlRow(j,start,days,dp){
+  const s=status(j), isS=j.type==="straight";
+  const pdi=dIndex(j.pickupDate,start);
+  const ddate=(j.deliverEv&&j.deliverEv.date)||j.fad;
+  const ddi=dIndex(ddate,start);
+  const tw=tfWindow(j), wend=tw.end?dIndex(tw.end,start):null;
+  let bars="";
+  if((j.inStorage||STORAGE[j.code]) && pdi!=null && ddi!=null){
+    const a=Math.min(pdi,ddi), b=Math.max(pdi,ddi)+1;
+    bars+='<span class="tlbar-stor" style="left:'+(a*dp)+'%;width:'+((b-a)*dp)+'%" title="In storage"></span>';
+  }
+  if(pdi!=null){
+    const hasEv=!!(j.pickupEv&&j.pickupEv.id);
+    bars+='<span class="tlb pick'+(hasEv?'':' noev')+'"'+(hasEv?' data-ev="'+esc(j.code)+'" data-evk="pickup"':'')+' style="left:'+(pdi*dp)+'%;width:'+dp+'%" title="Pickup '+esc(fmtMDY(j.pickupDate))+'"></span>';
+  }
+  if(isS && !j.deliverEv){
+    if(ddi!=null) bars+='<span class="tlb deliv noevent" style="left:'+(ddi*dp)+'%;width:'+dp+'%" title="No delivery event yet - deliver by '+esc(fmtMDY(j.fad))+'">!</span>';
+  } else if(ddi!=null){
+    const b=(wend!=null&&wend>ddi)?wend:ddi;
+    bars+='<span class="tlb deliv'+(isS?'':' carrier')+'" data-ev="'+esc(j.code)+'" data-evk="delivery" style="left:'+(ddi*dp)+'%;width:'+(((b-ddi)+1)*dp)+'%" title="Deliver '+esc(fmtMDY(ddate))+'"></span>';
+  }
+  return '<div class="tlrow"><div class="tllab"><div class="tll1"><span class="code">'+esc(j.code)+'</span><span class="tlcf">'+Math.round(j.cf||0).toLocaleString()+' CF</span></div><div class="tll2"><span class="spill '+s.lvl+'">'+esc(s.txt)+'</span>'+esc(j.customer||"")+'</div></div><div class="tltrack">'+bars+'</div></div>';
+}
+function fmtFull(d){ return d? (DOW[d.getDay()]+", "+MON[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear()) : "(no date)"; }
+function calLink(ev,j){ return "https://calendar.google.com/calendar/u/0/r/search?q="+encodeURIComponent((ev&&ev.title)||(j&&j.code)||""); }
+function openEvent(code,kind){
+  const j=JOBS.find(x=>x.code===code); if(!j) return;
+  const ev = kind==="delivery"? j.deliverEv : j.pickupEv; if(!ev) return;
+  const who=(j.type==="straight"?foremanOf(j):carrierOf(j))||"- unassigned -";
+  modal((kind==="delivery"?"Delivery event":"Pickup event")+" &middot; "+esc(j.code),
+    '<div class="mrow"><span class="k">Customer</span><br><b>'+esc(j.customer||"(no name)")+'</b></div>'+
+    '<div class="mrow"><span class="k">Event</span><br>'+esc(ev.title||"(untitled event)")+'</div>'+
+    '<div class="mrow"><span class="k">When</span><br>'+esc(fmtFull(ev.date))+'</div>'+
+    '<div class="mrow"><span class="k">Route</span><br>'+esc(j.pickupState)+' '+esc(j.pickupZip)+' &#8594; '+esc(j.destState)+' '+esc(j.deliveryZip)+'</div>'+
+    '<div class="mrow"><span class="k">'+(j.type==="straight"?"Foreman":"Carrier")+'</span><br>'+esc(who)+'</div>',
+    '<a class="abtn" href="'+calLink(ev,j)+'" target="_blank" rel="noopener">Open in Google Calendar</a><button class="abtn dark" onclick="closeModal()">Close</button>');
+}
+function setView(v){
+  VIEW=v;
+  document.querySelectorAll(".vbtn").forEach(b=>b.classList.toggle("on", b.getAttribute("data-view")===v));
+  const lay=$(".layout"); if(lay) lay.style.display=(v==="board")?"":"none";
+  const tw=$("#timelinewrap"); if(tw) tw.style.display=(v==="timeline")?"":"none";
+  renderView();
+}
+function renderView(){ if(VIEW==="timeline") renderTimeline(); else render(); }
 /* ===== boot ===== */
 function pull(){
   $("#rfstamp").textContent="Loading...";
   return Promise.all([loadJobs(),loadStorage(),loadRoutes(),loadAssign(),loadBackhaul()]).then(()=>{
-    render();
+    renderView();
     $("#rfstamp").textContent=JOBS.length+" trips";
   }).catch(e=>{ $("#rfstamp").textContent="load error"; });
 }
 $("#refreshbtn").addEventListener("click",pull);
+document.querySelectorAll(".vbtn").forEach(b=>b.onclick=()=>setView(b.getAttribute("data-view")));
+(function(){ const mf=$("#mapfull"); if(mf) mf.onclick=()=>{ const mw=$("#mapwrap"); if(mw&&mw.requestFullscreen) mw.requestFullscreen().catch(()=>{}); setTimeout(()=>{ try{ LMAP&&LMAP.invalidateSize(); }catch(e){} },300); }; })();
 window.closeModal=closeModal;
 pull();
 </script>
