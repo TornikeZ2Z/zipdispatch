@@ -1,1268 +1,531 @@
-<!doctype html><html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Long Distance Planning · Zip To Zip</title>
-<script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 <style>
 :root{
-  --bg:#F7F6F2;--paper:#F7F6F2;--card:#FFFFFF;--ink:#1F2329;--dim:#646B73;--faint:#969CA3;
+  --paper:#F7F6F2;--card:#FFFFFF;--ink:#1F2329;--dim:#646B73;--faint:#969CA3;--soft:#F1F0EA;
   --line:#E6E4DC;--line2:#D3D0C6;
-  --fleet:#6E9220;--fleet-bg:#F3F8E4;--fleet-bd:#D3E3A6;
-  --rental:#B26B0B;--rental-bg:#FBF0DC;--rental-bd:#EDD6A8;
-  --hazard:#B3362A;--hazard-bg:#FBE9E6;--hazard-bd:#F0C7C0;
-  --travel:#6C5CE0;--travel-bg:#EFECFB;--travel-bd:#D6D0F5;
-  --straight:#FCE9A6;--straight-bd:#EBCF76;
-  --green:#1E7A3D;
+  --acc:#B26B0B;--acc-bg:#FBF1DC;--acc-bd:#E9D08A;--acc-ink:#8A530A;
+  --green:#1E7A3D;--green-bg:#E9F4EC;--green-bd:#BFE0C8;
+  --red:#B3362A;--red-bg:#FBE9E6;--red-bd:#F0C7C0;
+  --amber:#B26B0B;--amber-bg:#FBF0DC;--amber-bd:#EDD6A8;
+  --blue:#1558d6;--blue-bg:#EEF3FE;--blue-bd:#C4D4F5;
+  --purple:#6C5CE0;--purple-bg:#EFECFB;--purple-bd:#D6D0F5;
+  --shadow:0 1px 2px rgba(31,35,41,.04),0 8px 24px rgba(31,35,41,.06);
 }
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 .mono{font-family:'IBM Plex Mono',monospace}
-.wrap{max-width:1560px;margin:0 auto;padding:0 0 100px}
-header{display:flex;align-items:flex-start;gap:16px;padding:20px 28px 16px;flex-wrap:wrap}
-header h1{font-family:'Barlow Condensed';font-weight:600;font-size:31px;letter-spacing:.05em;text-transform:uppercase;line-height:1}
-header .sub{font-size:13.5px;color:var(--dim);margin-top:4px}
-header .hgrow{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.btn{font:inherit;font-weight:600;font-size:13.5px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:9px;padding:8px 14px;cursor:pointer}
+/* header bar */
+.bar{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(31,35,41,.03)}
+.bar-in{max-width:1640px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:11px 24px;flex-wrap:wrap}
+.back{flex:0 0 auto;width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:#fff;color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:22px;text-decoration:none;font-family:'Barlow Condensed'}
+.back:hover{border-color:var(--acc-bd);color:var(--acc);background:var(--acc-bg)}
+.logo{height:30px;width:auto;display:block;flex:0 0 auto}
+.htitle{font-family:'Barlow Condensed';font-weight:600;font-size:22px;letter-spacing:.05em;text-transform:uppercase;margin:0;line-height:1}
+.hsub{font-size:12px;color:var(--dim);margin-top:2px}
+.views{display:flex;gap:6px;margin-left:8px}
+.vbtn{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line2);background:#fff;color:var(--dim);border-radius:9px;padding:7px 13px;cursor:pointer}
+.vbtn:hover{border-color:var(--acc-bd);color:var(--ink)}
+.vbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.hgrow{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;font-size:13px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:9px;padding:7px 13px;cursor:pointer}
 .btn:hover{border-color:#bdb9ac}
-.btn.upd{background:var(--fleet-bg);border-color:var(--fleet-bd);color:var(--fleet)}
-#rfstamp{font-size:12.5px;color:var(--dim)}
-.stats{display:flex;gap:36px;padding:6px 28px 16px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
-.stat .v{font-family:'Barlow Condensed';font-weight:600;font-size:30px;line-height:1}
-.stat .v.amber{color:var(--rental)} .stat .v.green{color:var(--fleet)} .stat .v.haz{color:var(--hazard)}
-.stat .k{font-size:11.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
-.split{display:grid;grid-template-columns:1fr 392px;gap:18px;padding:18px 28px 0}
-@media(max-width:1100px){.split{grid-template-columns:1fr}}
-.card{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden}
-.cardhd{font-family:'Barlow Condensed';font-weight:600;font-size:18px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
-#map{height:494px;width:100%}
-.leaflet-container{font-family:'Inter',sans-serif;font-size:14px}
-.leaflet-tile-pane{filter:saturate(.9)}
-.leaflet-control-zoom a{color:var(--ink)!important;border-color:var(--line2)!important}
-.leaflet-control-attribution{font-size:11px!important;background:rgba(255,255,255,.78)!important}
-.lpop .leaflet-popup-content{margin:11px 14px;line-height:1.5;font-size:14px}
-.omark{width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--dim);box-shadow:0 1px 4px rgba(0,0,0,.2)}
-.dmark{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--fleet);box-shadow:0 2px 6px rgba(0,0,0,.2);font-family:'Barlow Condensed';font-weight:600;font-size:12.5px;color:var(--ink)}
-.dmark.amber{border-color:var(--rental)}
-.consol{padding:13px 14px;max-height:494px;overflow:auto;display:flex;flex-direction:column;gap:11px}
-.consol .none{color:var(--dim);font-size:13.5px;padding:22px 6px;text-align:center;line-height:1.5}
-.cgroup{border:1px solid var(--line2);border-radius:12px;padding:12px 13px;background:var(--paper)}
-.cgroup .ch{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
-.cgroup .dest{font-family:'Barlow Condensed';font-weight:600;font-size:20px;color:var(--rental);letter-spacing:.02em;text-transform:uppercase}
-.cgroup .when{font-size:12.5px;color:var(--dim)}
-.cgroup .cf{margin-left:auto;font-family:'IBM Plex Mono';font-size:12.5px;color:var(--ink)}
-.cgroup .cfbar{height:6px;border-radius:4px;background:var(--line);margin:9px 0 11px;overflow:hidden}
-.cgroup .cfbar i{display:block;height:100%;background:var(--fleet)}
-.cgroup .cfbar i.over{background:var(--hazard)}
-.cgroup .leg{font-size:13.5px;color:var(--ink);display:flex;gap:9px;padding:3px 0;align-items:baseline}
-.cgroup .leg .lt{color:var(--dim);font-family:'IBM Plex Mono';font-size:11px;flex-shrink:0;min-width:54px}
-.cgroup .leg.anchor{font-weight:600}
-.cgroup .actions{margin-top:11px;display:flex;gap:8px}
-.cgroup button{font:inherit;font-weight:600;font-size:12.5px;border:1px solid var(--line2);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--ink)}
-.cgroup button.prim{background:var(--ink);color:#fff;border-color:var(--ink)}
-.cgroup button.prim:hover{background:#33383F}
-.tablewrap{padding:22px 28px 0}
-.tabhd{font-family:'Barlow Condensed';font-weight:600;font-size:23px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 12px;display:flex;align-items:center;gap:14px}
-.tabhd .lg{display:inline-flex;gap:14px;font-family:'Inter';font-size:12px;font-weight:600;color:var(--dim);text-transform:none;letter-spacing:0}
-.tabhd .lg i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:5px}
-.ldtable{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;font-size:14px}
-.ldtable thead th{position:sticky;top:0;background:var(--green);color:#fff;text-align:left;font-family:'Inter';font-weight:600;font-size:12px;letter-spacing:.03em;text-transform:uppercase;padding:11px 13px;white-space:nowrap;z-index:2}
-.ldtable td{padding:10px 13px;border-top:1px solid var(--line);vertical-align:middle}
-.ldtable tbody tr{cursor:pointer}
-.ldtable tbody tr.straight{background:var(--straight)}
-.ldtable tbody tr.straight td{border-top-color:var(--straight-bd)}
-.ldtable tbody tr.regular{background:var(--card)}
-.ldtable tbody tr:hover td{background:rgba(0,0,0,.045)}
-.ldtable tbody tr.sel td{box-shadow:inset 3px 0 0 var(--travel)}
-.ldtable td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:'IBM Plex Mono',monospace}
-.ldtable td.nowrap{white-space:nowrap}
-.ldtable td.assign a{color:#1558d6;text-decoration:none;font-weight:600;border:1px solid #c4d4f5;background:#eef3fe;padding:4px 11px;border-radius:8px}
-.ldtable td.assign a:hover{background:#e0eafe}
-.ldtable .dl{font-family:'IBM Plex Mono';font-weight:600}
-.ldtable .dl.soon{color:var(--hazard)}
-.ldtable .fade{color:var(--faint)}
-.empty{padding:50px 16px;text-align:center;color:var(--dim);background:var(--card);border:1px solid var(--line);border-radius:13px}
-#ldgrid{overflow-x:auto}
-.stcell{min-width:150px}
-.stpill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.02em;padding:2px 9px;border-radius:20px;white-space:nowrap}
-.stwhy{display:block;font-size:10.5px;color:var(--dim);margin-top:3px;line-height:1.3}
-.st-red{background:var(--hazard-bg);color:var(--hazard);border:1px solid var(--hazard-bd)}
-.st-amber{background:var(--rental-bg);color:var(--rental);border:1px solid var(--rental-bd)}
-.st-ok{background:var(--fleet-bg);color:var(--green);border:1px solid var(--fleet-bd)}
-.ldtable tbody tr.st-row-red td:first-child{box-shadow:inset 3px 0 0 var(--hazard)}
-.ldtable tbody tr.st-row-amber td:first-child{box-shadow:inset 3px 0 0 var(--rental)}
-.st-routed{background:var(--travel-bg);color:var(--travel);border:1px solid var(--travel-bd)}
-.ldtable tbody tr.st-row-routed td:first-child{box-shadow:inset 3px 0 0 var(--travel)}
-.consoltop{margin:18px 28px 0}
-.consoltop .consol{flex-direction:row;flex-wrap:wrap;max-height:none;overflow:visible;gap:12px}
-.consoltop .cgroup{flex:1 1 300px;max-width:540px}
-.chint{font-family:'Inter';font-size:12px;font-weight:500;color:var(--faint);text-transform:none;letter-spacing:0;margin-left:8px}
-.mapcard{margin:18px 28px 0}
-.cgroup .actions button.acc{background:var(--green);color:#fff;border-color:var(--green)}
-.cgroup .actions button.acc:hover{filter:brightness(1.07)}
-.cgroup.accepted{border-color:var(--fleet-bd);background:var(--fleet-bg)}
-.cgroup .accbadge{font-family:'Inter';font-size:12.5px;font-weight:700;color:var(--green);padding:6px 4px}
-.gmodal{position:fixed;inset:0;background:rgba(20,25,30,.46);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px}
-.gmodal.show{display:flex}
-.gbox{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:22px 24px;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.25)}
-.gx{position:absolute;top:12px;right:14px;border:0;background:none;font-size:18px;cursor:pointer;color:var(--dim)}
-.gh{font-size:19px;font-weight:700;margin:0 0 10px;font-family:'Barlow Condensed';letter-spacing:.02em;text-transform:uppercase}
-.gbody{font-size:14.5px;line-height:1.55}
-.gsub{font-size:14.5px;line-height:1.55;color:var(--ink)}
-.gfoot{margin-top:16px;display:flex;gap:10px;justify-content:flex-end}
-/* white header bar + photoshoot-style filter tiles */
-.bar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(31,35,41,.03)}
-.bar-in{max-width:1560px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 28px}
-.back{flex:0 0 auto;width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:var(--card);color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:23px;line-height:1;text-decoration:none;font-family:'Barlow Condensed',sans-serif}
-.back:hover{border-color:var(--rental-bd);color:var(--rental);background:var(--rental-bg)}
-.bar .logo{height:30px;width:auto;flex:0 0 auto;display:block}
-.htxt{display:flex;flex-direction:column;gap:2px;min-width:0}
-.htitle{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:22px;letter-spacing:.05em;text-transform:uppercase;margin:0;line-height:1}
-.hsub{font-size:12px;color:var(--dim)}
-.hactions{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.filters{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(31,35,41,.04),0 8px 24px rgba(31,35,41,.05);padding:14px 18px;margin:18px 28px 0}
-.fgroup{display:flex;flex-direction:column;gap:8px}
-.ftlabel{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)}
-.tiles{display:flex;gap:8px;flex-wrap:wrap;min-height:38px;align-items:center}
-.tile{font:inherit;font-size:14px;font-weight:700;letter-spacing:.04em;padding:8px 18px;border-radius:11px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
-.tile:hover{border-color:var(--rental-bd)}
-.tile.active{background:var(--rental);border-color:var(--rental);color:#fff;box-shadow:0 2px 8px rgba(178,107,11,.25)}
-.tilenote{font-size:12.5px;color:var(--faint);padding:6px 2px}
-@media(max-width:700px){.bar-in{padding:10px 16px;gap:11px}.htitle{font-size:19px}.hsub{display:none}.filters{margin:14px 16px 0;gap:18px}}
-</style></head><body>
+#rfstamp{font-size:12px;color:var(--dim)}
+.wrap{max-width:1640px;margin:0 auto;padding:16px 24px 80px}
+/* top strip */
+.toprow{display:grid;grid-template-columns:1fr 1.4fr;gap:16px;margin-bottom:16px}
+@media(max-width:1080px){.toprow{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.panelhd{font-family:'Barlow Condensed';font-weight:600;font-size:17px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:12px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+.panelhd .ct{margin-left:auto;font-family:'Inter';font-size:12px;font-weight:600;color:var(--faint);letter-spacing:0;text-transform:none}
+.panelbody{padding:13px 15px;display:flex;flex-direction:column;gap:10px;max-height:340px;overflow:auto}
+.none{color:var(--dim);font-size:13px;text-align:center;padding:18px 8px;line-height:1.5}
+/* consolidation card */
+.cons{border:1px solid var(--line2);border-radius:12px;padding:11px 13px;background:var(--paper)}
+.cons.accepted{border-color:var(--green-bd);background:var(--green-bg)}
+.cons .ch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.cons .dest{font-family:'Barlow Condensed';font-weight:600;font-size:18px;color:var(--acc);text-transform:uppercase;letter-spacing:.02em}
+.cons .when{font-size:12px;color:var(--dim)}
+.cons .truck{margin-left:auto;font-family:'IBM Plex Mono';font-size:12px;color:var(--ink)}
+.cons .bar2{height:6px;border-radius:4px;background:var(--line);overflow:hidden;margin:7px 0}
+.cons .bar2 i{display:block;height:100%;background:var(--green)}
+.cons .bar2 i.over{background:var(--red)}
+.cons .leg{font-size:12.5px;padding:2px 0;display:flex;gap:8px}
+.cons .leg .star{color:var(--acc)}
+.cons .leg.anchor{font-weight:600}
+.cons .acts{margin-top:9px;display:flex;gap:8px;flex-wrap:wrap}
+.mini{font:inherit;font-size:12px;font-weight:600;border:1px solid var(--line2);background:#fff;border-radius:8px;padding:6px 11px;cursor:pointer;color:var(--ink)}
+.mini.go{background:var(--green);color:#fff;border-color:var(--green)}
+.mini.go:hover{filter:brightness(1.07)}
+.mini.acc{margin-left:auto;color:var(--green);font-weight:700;border:0;background:none;cursor:default}
+/* storage summary */
+.storrow{display:flex;align-items:center;gap:10px;font-size:13px;border:1px solid var(--line2);border-radius:11px;padding:8px 11px;background:var(--paper);cursor:pointer}
+.storrow:hover{border-color:var(--acc-bd)}
+.storrow .box{flex:0 0 auto;width:30px;height:30px;border-radius:8px;background:var(--acc-bg);border:1px solid var(--acc-bd);color:var(--acc);display:flex;align-items:center;justify-content:center;font-size:15px}
+.storrow b{color:var(--ink)} .storrow .loc{margin-left:auto;font-family:'IBM Plex Mono';font-size:11.5px;color:var(--dim);text-align:right}
+/* layout: list + map */
+.layout{display:grid;grid-template-columns:1fr 420px;gap:16px;align-items:start}
+@media(max-width:1160px){.layout{grid-template-columns:1fr}.mapside{position:static!important}}
+.mapside{position:sticky;top:74px}
+#map{height:560px;border-radius:14px;border:1px solid var(--line);overflow:hidden}
+.layout.mapfull{grid-template-columns:1fr}
+.layout.mapfull #map{height:74vh}
+.leaflet-container{font-family:'Inter'}
+#mapinfo{margin-top:9px;font-size:12.5px;color:var(--dim);min-height:18px}
+.omark{width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--dim);box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.dmark{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--acc);font-family:'Barlow Condensed';font-weight:600;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+/* week section */
+.week{margin-bottom:18px}
+.weekhd{display:flex;align-items:center;gap:10px;padding:5px 2px 9px;position:sticky;top:64px;z-index:5;background:linear-gradient(var(--paper) 72%,rgba(247,246,242,0))}
+.weekhd h3{font-family:'Barlow Condensed';font-weight:600;font-size:18px;letter-spacing:.04em;text-transform:uppercase;margin:0}
+.weekhd .wc{margin-left:auto;font-size:12px;color:var(--faint);font-weight:600}
+/* job card */
+.jc{background:var(--card);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);padding:0;margin-bottom:10px;overflow:hidden;display:flex}
+.jc .edge{flex:0 0 5px;background:var(--line2)}
+.jc.s-red .edge{background:var(--red)} .jc.s-amber .edge{background:var(--amber)} .jc.s-ok .edge{background:var(--green)} .jc.s-routed .edge{background:var(--purple)}
+.jc.straight{} .jcin{flex:1 1 auto;padding:12px 15px;min-width:0}
+.jc .top{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.jc .cust{font-weight:700;font-size:16px;color:var(--ink)}
+.jc .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:1px 9px;border-radius:20px;vertical-align:2px;margin-left:7px}
+.tag.straight{background:var(--acc-bg);color:var(--acc-ink);border:1px solid var(--acc-bd)}
+.tag.regular{background:var(--soft);color:var(--dim);border:1px solid var(--line2)}
+.jc .pill{margin-left:auto;display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px}
+.spill{font-size:11.5px;font-weight:700;letter-spacing:.02em;padding:2px 10px;border-radius:20px;white-space:nowrap}
+.spill.red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}
+.spill.amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
+.spill.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}
+.spill.routed{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-bd)}
+.swhy{font-size:11px;color:var(--dim)}
+.jc .route{margin-top:7px;font-weight:700;color:var(--ink);font-size:14.5px;letter-spacing:.01em}
+.jc .route .ar{color:var(--faint);margin:0 5px;font-weight:400}
+.jc .meta{margin-top:6px;display:flex;flex-wrap:wrap;gap:7px 14px;color:var(--dim);font-size:12.5px}
+.jc .meta b{color:var(--ink);font-variant-numeric:tabular-nums}
+.jc .row2{margin-top:9px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:9px;padding:5px 10px;border:1px solid var(--line2);background:#fff;color:var(--ink)}
+.chip.assign{border-style:dashed}
+.chip.warn{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
+.chip.stor{background:var(--acc-bg);border-color:var(--acc-bd);color:var(--acc-ink);cursor:pointer}
+.chip.ok{background:var(--green-bg);border-color:var(--green-bd);color:#1f5b34}
+.chip.act{cursor:pointer}.chip.act:hover{border-color:var(--acc-bd)}
+.chip .ico{font-size:13px}
+.empty{padding:54px 20px;text-align:center;color:var(--dim);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.empty b{display:block;font-family:'Barlow Condensed';font-size:20px;color:var(--ink);margin-bottom:6px}
+/* calendar */
+#calview .cweek{background:var(--card);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+#calview .cwh{font-family:'Barlow Condensed';font-weight:600;font-size:16px;letter-spacing:.04em;text-transform:uppercase;padding:10px 14px;border-bottom:1px solid var(--line);color:var(--dim);display:flex}
+#calview .cwh .n{margin-left:auto;font-family:'Inter';font-size:12px;color:var(--faint)}
+#calview .cgrid{display:grid;grid-template-columns:repeat(7,1fr)}
+#calview .cday{border-right:1px solid var(--line);border-top:1px solid var(--line);min-height:96px;padding:6px 7px}
+#calview .cday:nth-child(7n){border-right:0}
+#calview .cday .dn{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase}
+#calview .cday.today .dn{color:var(--acc)}
+#calview .cev{font-size:11px;font-weight:600;border-radius:6px;padding:2px 5px;margin-top:3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#calview .cev.straight{background:var(--acc-bg);color:var(--acc-ink)}
+#calview .cev.regular{background:var(--soft);color:var(--dim)}
+#calview .cev.red{box-shadow:inset 0 0 0 1.5px var(--red)}
+/* modal */
+.mbg{position:fixed;inset:0;background:rgba(20,25,30,.46);display:flex;align-items:center;justify-content:center;z-index:90;padding:18px}
+.mbox{background:#fff;border-radius:16px;max-width:480px;width:100%;padding:20px 22px;box-shadow:0 20px 50px rgba(0,0,0,.3);position:relative;max-height:88vh;overflow:auto}
+.mbox h3{font-family:'Barlow Condensed';font-weight:600;font-size:21px;text-transform:uppercase;letter-spacing:.03em;margin:0 0 12px}
+.mx{position:absolute;top:12px;right:14px;border:0;background:none;font-size:18px;cursor:pointer;color:var(--dim)}
+.mrow{font-size:13.5px;margin:5px 0;color:var(--ink)}.mrow .k{color:var(--dim)}
+.mfield{margin:11px 0;display:flex;flex-direction:column;gap:5px}
+.mfield label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.mfield input,.mfield select,.mfield textarea{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line2);border-radius:9px;background:#fff;color:var(--ink);width:100%}
+.mwa{background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-size:13px;white-space:pre-wrap;line-height:1.5;font-family:'IBM Plex Mono'}
+.mfoot{margin-top:15px;display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+.mfoot .pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.mfoot .pri.green{background:var(--green);border-color:var(--green)}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#1E2228;color:#fff;padding:11px 18px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:120;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
 <div class="bar"><div class="bar-in">
-  <a class="back" href="index.html" title="Back to all tools" aria-label="Back to all tools">&#8249;</a>
+  <a class="back" href="index.html" title="Back to all tools">&#8249;</a>
   <img class="logo" src="logo.png" alt="Zip To Zip" onerror="this.style.display='none'">
-  <div class="htxt">
-    <h1 class="htitle">Long Distance Planning</h1>
-    <div class="hsub">Pickups only &middot; plan straight runs &amp; consolidations</div>
+  <div><h1 class="htitle">Long Distance Planning</h1><div class="hsub">Don't miss a delivery · fill every truck</div></div>
+  <div class="views">
+    <button class="vbtn on" data-view="list">&#9776; List</button>
+    <button class="vbtn" data-view="cal">&#128197; Calendar</button>
+    <button class="vbtn" data-view="map">&#128506; Map</button>
   </div>
-  <div class="hactions">
-    <button id="calbtn" class="btn">↻ Refresh</button>
-    <span id="rfstamp"></span>
-  </div>
+  <div class="hgrow"><span id="rfstamp"></span><button id="refresh" class="btn">&#8635; Refresh</button></div>
 </div></div>
+
 <div class="wrap">
-  <div class="filters">
-    <div class="fgroup"><span class="ftlabel">Destination</span><div class="tiles" id="ldDestTiles"></div></div>
+  <div class="toprow">
+    <section class="panel"><div class="panelhd">&#128230; In storage <span class="ct" id="storct"></span></div><div class="panelbody" id="storsum"><div class="none">Loading…</div></div></section>
+    <section class="panel"><div class="panelhd">&#129513; Consolidation suggestions <span class="ct">accept to build a route</span></div><div class="panelbody" id="consol"><div class="none">Loading…</div></div></section>
   </div>
-  <div class="stats">
-    <div class="stat"><div class="v" id="stPick">0</div><div class="k">Jobs</div></div>
-    <div class="stat"><div class="v amber" id="stStr">0</div><div class="k">Straight</div></div>
-    <div class="stat"><div class="v" id="stReg">0</div><div class="k">Regular</div></div>
-    <div class="stat"><div class="v green" id="stCon">0</div><div class="k">Consolidations</div></div>
+
+  <div class="layout">
+    <div id="leftcol">
+      <div id="listview"></div>
+      <div id="calview" class="hidden"></div>
+    </div>
+    <aside class="mapside" id="mapside">
+      <div id="map"></div>
+      <div id="mapinfo">Click a job to draw its journey.</div>
+    </aside>
   </div>
-  <section class="card consoltop"><div class="cardhd">Consolidation suggestions <span class="chint">accept a group to lock it in as a route</span></div><div id="consol" class="consol"><div class="none">Loading...</div></div></section>
-  <div class="tablewrap">
-    <div class="tabhd">Long Distance Jobs <span class="lg"><span><i style="background:var(--straight);border:1px solid var(--straight-bd)"></i>Straight</span><span><i style="background:#fff;border:1px solid var(--line2)"></i>Regular</span></span></div>
-    <div id="ldgrid"><div class="empty">Loading...</div></div>
-  </div>
-  <section class="card mapcard"><div class="cardhd">Route map</div><div id="map"></div></section>
 </div>
-<div id="gmodalhost"></div>
+
+<div id="modalhost"></div>
+<div id="toast"></div>
 <script src="zipdb.js?v=1"></script>
 <script>
-const DATA = {"days": {}, "trucks": [{"n": "#2", "status": "Potential", "cf": 985.0, "maxCrew": 3.0, "state": "NY", "type": "Truck", "model": "H:11,4 W:8 L:23", "reg": "ZipTrans"}, {"n": "#4", "status": "Sold", "cf": 0, "maxCrew": 0, "state": "NJ", "type": "Truck", "model": "nan", "reg": "Zip To Zip"}, {"n": "#7", "status": "Active", "cf": 1622.0, "maxCrew": 5.0, "state": "NJ", "type": "Truck", "model": "H:12,6 W:8 L:34", "reg": "Garden"}, {"n": "#9", "status": "Active", "cf": 1741.0, "maxCrew": 6.0, "state": "PA", "type": "Truck", "model": "H:12,6 W:8 L:38", "reg": "Zip To Zip"}, {"n": "#15", "status": "Active", "cf": 1741.0, "maxCrew": 6.0, "state": "NJ", "type": "Truck", "model": "H:13 W:8 L:38", "reg": "Zip To Zip"}, {"n": "#20", "status": "Active", "cf": 557.0, "maxCrew": 2.0, "state": "NJ", "type": "Van", "model": "H:8,6 W:6,4 L:23", "reg": "Zip To Zip"}, {"n": "#33", "status": "Active", "cf": 1741.0, "maxCrew": 6.0, "state": "CT", "type": "Truck", "model": "H:13 W:8 L:38", "reg": "Zip To Zip"}, {"n": "#77", "status": "Active", "cf": 1809.0, "maxCrew": 3.0, "state": "NJ", "type": "Truck", "model": "H:13 W:8.5 L:36", "reg": "Zip To Zip"}, {"n": "#13", "status": "Damaged", "cf": 17500.0, "maxCrew": 4.0, "state": "NJ", "type": "Trailer", "model": "nan", "reg": "Zip To Zip"}, {"n": "#8", "status": "Damaged", "cf": 1114.0, "maxCrew": 3.0, "state": "NJ", "type": "Truck", "model": "H:11,4 W:8 L:27,5", "reg": "ZipTrans"}, {"n": "#10", "status": "Active", "cf": 1741.0, "maxCrew": 6.0, "state": "PA", "type": "Truck", "model": "H:12,6 W:8 L:38", "reg": "ZipTrans"}, {"n": "#11", "status": "Active", "cf": 1848.0, "maxCrew": 3.0, "state": "PA", "type": "Truck", "model": "H:12,6 W:8 L:36", "reg": "Zip To Zip"}, {"n": "#17", "status": "Damaged", "cf": 1472.0, "maxCrew": 3.0, "state": "PA", "type": "Truck", "model": "H:11,4 W:8 L:31", "reg": "Zip To Zip"}, {"n": "#22", "status": "Sold", "cf": 1120.0, "maxCrew": 3.0, "state": "NJ", "type": "Truck", "model": "H:11,6 W:8 L:27", "reg": "ZipTrans"}, {"n": "#64", "status": "Sold", "cf": 1472.0, "maxCrew": 5.0, "state": "PA", "type": "Truck", "model": "H:11,4 W:8 L:31", "reg": "ZipTrans"}, {"n": "#3", "status": "Damaged", "cf": 1114.0, "maxCrew": 3.0, "state": "PA", "type": "Truck", "model": "H:11,4 W:8 L:27,5", "reg": "ZipTrans"}, {"n": "#27", "status": "Active", "cf": 1741.0, "maxCrew": 6.0, "state": "NJ", "type": "Truck", "model": "H:12,6 W:8 L:38", "reg": "Zip To Zip"}, {"n": "#30", "status": "Damaged", "cf": 1472.0, "maxCrew": 3.0, "state": "NY", "type": "Truck", "model": "H:11,4 W:8 L: 31", "reg": "Liga NY"}, {"n": "#32", "status": "Potential", "cf": 1472.0, "maxCrew": 5.0, "state": "DE", "type": "Truck", "model": "H:11,4 W:8 L:31", "reg": "Liga NY"}], "foremen": [{"name": "Gurami Sabiashvili", "nick": "Gurami", "status": "Potential", "base": "CT", "states": ["CT"], "bigJob": 4, "ldPickup": 4, "packSell": 3, "stacking": 4, "multiTruck": 4, "piano": true, "driver": false, "canLD": true, "email": "gurami2024@gmail.com", "hourly": 19.0, "daily": 220.0}, {"name": "Ilia Tabatadze", "nick": "Tony", "status": "Potential", "base": "PA", "states": ["PA"], "bigJob": 4, "ldPickup": 4, "packSell": 4, "stacking": 4, "multiTruck": 0, "piano": true, "driver": true, "canLD": true, "email": "tony.tabatadze.1@gmail.com", "hourly": 20.0, "daily": 260.0}, {"name": "Giorgi Kolbaia", "nick": "Kolba", "status": "Active", "base": "CT", "states": ["NJ", "CT", "NY", "MA"], "bigJob": 5, "ldPickup": 5, "packSell": 5, "stacking": 5, "multiTruck": 5, "piano": true, "driver": true, "canLD": true, "email": "giokolbaia@gmail.com", "hourly": 20.0, "daily": 260.0}, {"name": "Zaza Zvanbaia", "nick": "Zvanba", "status": "Active", "base": "CT", "states": ["NJ", "NY", "CT", "MA"], "bigJob": 5, "ldPickup": 5, "packSell": 0, "stacking": 5, "multiTruck": 5, "piano": true, "driver": true, "canLD": true, "email": "zvanba.z@gmail.com", "hourly": 19.0, "daily": 260.0}, {"name": "Vaska Buadze", "nick": "Vaska", "status": "Active", "base": "PA", "states": ["NJ", "PA"], "bigJob": 3, "ldPickup": 4, "packSell": 5, "stacking": 5, "multiTruck": 2, "piano": true, "driver": true, "canLD": true, "email": "vasilibuadze@gmail.com", "hourly": 20.0, "daily": 260.0}, {"name": "Giorgi Abazadze", "nick": "Abaza", "status": "Active", "base": "NJ", "states": ["NJ"], "bigJob": 4, "ldPickup": 4, "packSell": 3, "stacking": 5, "multiTruck": 0, "piano": true, "driver": true, "canLD": true, "email": "giorgiabazadze999@gmail.com", "hourly": 20.0, "daily": 260.0}, {"name": "Shota Zivzivadze", "nick": "Shota", "status": "Potential", "base": "NJ", "states": ["NJ"], "bigJob": 5, "ldPickup": 5, "packSell": 5, "stacking": 5, "multiTruck": 4, "piano": true, "driver": true, "canLD": true, "email": "szivzivadze250@gmail.com", "hourly": 20.0, "daily": 260.0}, {"name": "Oto Chapurishvili", "nick": "Otari", "status": "Active", "base": "NJ", "states": ["NJ", "PA", "NY"], "bigJob": 3, "ldPickup": 2, "packSell": 3, "stacking": 4, "multiTruck": 0, "piano": true, "driver": true, "canLD": true, "email": "otochapurishvili888@gmail.com", "hourly": 20.0, "daily": 220.0}, {"name": "Shalva Khundzakishvili", "nick": "Shalva", "status": "Active", "base": "PA", "states": ["PA"], "bigJob": 4, "ldPickup": 4, "packSell": 3, "stacking": 5, "multiTruck": 0, "piano": true, "driver": true, "canLD": true, "email": "shalvakhundzakishvili@gmail.com", "hourly": 21.0, "daily": 220.0}, {"name": "Bachi Bolkvadze", "nick": "Bachi", "status": "Active", "base": "NJ", "states": ["NJ"], "bigJob": 5, "ldPickup": 5, "packSell": 5, "stacking": 5, "multiTruck": 5, "piano": true, "driver": true, "canLD": true, "email": "bachibolkvadze76@gmail.com", "hourly": 21.0, "daily": 260.0}, {"name": "Mostafa Walid", "nick": "Willy", "status": "Active", "base": "NJ", "states": ["NJ"], "bigJob": 5, "ldPickup": 5, "packSell": 5, "stacking": 5, "multiTruck": 5, "piano": true, "driver": true, "canLD": true, "email": "Walidmoving201@gmail.com", "hourly": 21.0, "daily": 260.0}, {"name": "Sergejs Sasins", "nick": "Sergei", "status": "Active", "base": "NJ", "states": ["NJ"], "bigJob": 0, "ldPickup": 0, "packSell": 0, "stacking": 4, "multiTruck": 0, "piano": true, "driver": true, "canLD": false, "email": "sergsas27@gmail.com", "hourly": 20.0, "daily": 0.0}, {"name": "Bacho Kiknavelidze", "nick": "Baki", "status": "Active", "base": "PA", "states": ["PA"], "bigJob": 5, "ldPickup": 5, "packSell": 5, "stacking": 5, "multiTruck": 5, "piano": true, "driver": true, "canLD": true, "email": "bachokztoz@gmail.com", "hourly": 20.0, "daily": 260.0}, {"name": "Irakli Kazaishvili", "nick": "Ika", "status": "Active", "base": "PA", "states": ["PA"], "bigJob": 5, "ldPickup": 0, "packSell": 0, "stacking": 5, "multiTruck": 0, "piano": true, "driver": true, "canLD": false, "email": "Iraklokhazaishvili@gmail.com", "hourly": 19.0, "daily": 0.0}, {"name": "Misho Bokeria", "nick": "Misho", "status": "Active", "base": "PA", "states": ["PA"], "bigJob": 4, "ldPickup": 0, "packSell": 5, "stacking": 4, "multiTruck": 0, "piano": true, "driver": true, "canLD": false, "email": "Misho.bokeria@gmail.com", "hourly": 20.0, "daily": 0.0}, {"name": "Guga Natelashvili", "nick": "Guga", "status": "Potential", "base": "PA", "states": ["PA"], "bigJob": 3, "ldPickup": 4, "packSell": 3, "stacking": 4, "multiTruck": 0, "piano": true, "driver": true, "canLD": true, "email": "natelashviliguga089@gmail.com", "hourly": 19.0, "daily": 220.0}, {"name": "Kaki Kakhetelidze", "nick": "Kaki", "status": "Potential", "base": "NJ", "states": ["NJ"], "bigJob": 5, "ldPickup": 5, "packSell": 5, "stacking": 5, "multiTruck": 5, "piano": true, "driver": true, "canLD": true, "email": "kakhetelidzeakaki5@gmail.com", "hourly": 21.0, "daily": 260.0}, {"name": "Rezy Todidze", "nick": "Rezo", "status": "Active", "base": "PA", "states": ["PA"], "bigJob": 5, "ldPickup": 5, "packSell": 5, "stacking": 5, "multiTruck": 5, "piano": true, "driver": true, "canLD": false, "email": "rezotodidze5@gmail.com", "hourly": 20.0, "daily": 0.0}, {"name": "Arsen Gvishiani", "nick": "Arsen", "status": "Active", "base": "PA", "states": ["PA"], "bigJob": 4, "ldPickup": 4, "packSell": 4, "stacking": 4, "multiTruck": 4, "piano": true, "driver": true, "canLD": true, "email": "Arsen.ziptozip26@gmail.com", "hourly": 20.0, "daily": 220.0}, {"name": "Giorgi Bulia", "nick": "Bulia", "status": "Active", "base": "NJ", "states": ["NJ", "NY", "CT"], "bigJob": 0, "ldPickup": 0, "packSell": 0, "stacking": 4, "multiTruck": 0, "piano": false, "driver": true, "canLD": false, "email": "buliazip@gmail.com", "hourly": 20.0, "daily": 0.0}, {"name": "Giorgi Onikauri", "nick": "Onika", "status": "Active", "base": "NJ", "states": ["NY", "NJ"], "bigJob": 0, "ldPickup": 0, "packSell": 4, "stacking": 4, "multiTruck": 0, "piano": false, "driver": true, "canLD": false, "email": "Onikauri1994@gmail.com", "hourly": 20.0, "daily": 0.0}, {"name": "Kakhaber Hagemann", "nick": "berucha", "status": "Active", "base": "NJ", "states": ["NJ", "NY", "CT", "MA"], "bigJob": 0, "ldPickup": 0, "packSell": 5, "stacking": 4, "multiTruck": 0, "piano": false, "driver": true, "canLD": true, "email": "hageman113@gmail.com", "hourly": 20.0, "daily": 260.0}], "bases": {"NJ": {"zip": "07728", "lat": 40.2302, "lon": -74.2954, "city": "Freehold", "state": "NJ"}, "PA": {"zip": "19341", "lat": 40.0394, "lon": -75.6381, "city": "Exton", "state": "PA"}, "NY": {"zip": "11214", "lat": 40.5977, "lon": -74.001, "city": "Brooklyn", "state": "NY"}, "DE": {"zip": "19808", "lat": 39.7345, "lon": -75.6651, "city": "Wilmington", "state": "DE"}, "CT": {"zip": "06610", "lat": 41.2065, "lon": -73.1715, "city": "Bridgeport", "state": "CT"}, "MA": {"zip": "01742", "lat": 42.4606, "lon": -71.3642, "city": "Concord", "state": "MA"}}, "rentalRates": [], "dayoffs": [["Otari","2026-01-25","2026-01-27","Sick"],["Rezo","2026-01-30","2026-01-30","Off"],["Baki","2026-01-28","2026-01-28",""],["Misho","2026-02-01","2026-02-01",""],["Vaska","2026-02-09","2026-02-10","appointment"],["Vaska","2026-02-20","2026-02-20","appointment"],["Rezo","2026-02-18","2026-02-18","appointment"],["Kolba","2026-02-25","2026-02-26","appointment"],["Baki","2026-02-25","2026-02-26","moving"],["Bachi","2026-02-25","2026-02-25",""],["Kolba","2026-03-16","2026-03-16","appointment"],["Kolba","2026-03-30","2026-03-30","appointment"],["Rezo","2026-03-18","2026-03-18","appointment"],["Willy","2026-03-06","2026-03-06",""],["Willy","2026-03-20","2026-03-20",""],["Baki","2026-04-01","2026-04-01","appointment"],["Rezo","2026-03-31","2026-03-31",""],["Otari","2026-04-08","2026-04-08",""],["Otari","2026-04-12","2026-04-14",""],["Rezo","2026-04-09","2026-04-09",""],["Rezo","2026-04-20","2026-04-20",""],["Rezo","2026-04-28","2026-04-28",""],["Baki","2026-05-06","2026-05-12",""],["Bulia","2026-06-10","2026-06-12",""],["Arsen","2026-06-30","2026-06-30",""],["Vaska","2026-06-12","2026-06-12",""]], "scores": {}, "scoreMonth": null, "pulledISO": "2026-06-11T06:09:12.408769Z", "defaultDay": "2026-06-10", "source": "Google Sheet: Data Management for Foreman & Truck Assignment", "pulled": "2026-06-11 06:09"};
-const hereCache={};
-const RENTAL26_CF=1700, RENTAL20_CF=1100;
-let TRIPAWAY_T={};
-const ZIPDB = window.ZIPDB||{};
-
-/* STATES */
-const STATES = null;
-
-/* EXCL */
-let EXCL=new Set(),FORCE=new Set();
-
-/* manualChains */
-let manualChains=[];
-
-/* AUTOCHAINS */
-let AUTOCHAINS=[];
-
-/* TRIPAWAY */
-let TRIPAWAY={};
-
-/* AUTOOFFLIST */
-const AUTOOFFLIST=new Set();
-
-/* CHAIN_RULES */
-const CHAIN_RULES={maxDriveMin:45,maxCF:700,lateMin:30,maxJobs:3};
-
-/* ACT_LOAD_SHARE */
-const ACT_LOAD_SHARE=0.6;
-
-/* DAYOFF */
-const DAYOFF=new Set();
-
-/* OFFSHEET */
-const OFFSHEET=[["Vaska","2026-02-09","2026-02-10","appointment"],["Vaska","2026-02-20","2026-02-20","appointment"],["Rezo","2026-02-18","2026-02-18","appointment"],["Kolba","2026-02-25","2026-02-26","appointment"],["Baki","2026-02-25","2026-02-26","moving"],["Bachi","2026-02-25","2026-02-25",""],["Kolba","2026-03-16","2026-03-16","appointment"],["Kolba","2026-03-30","2026-03-30","appointment"],["Rezo","2026-03-18","2026-03-18","appointment"],["Willy","2026-03-06","2026-03-06",""],["Willy","2026-03-20","2026-03-20",""],["Baki","2026-04-01","2026-04-01","appointment"],["Rezo","2026-03-31","2026-03-31",""],["Otari","2026-04-08","2026-04-08",""],["Otari","2026-04-12","2026-04-14",""],["Rezo","2026-04-09","2026-04-09",""],["Rezo","2026-04-20","2026-04-20",""],["Rezo","2026-04-28","2026-04-28",""],["Baki","2026-05-06","2026-05-12",""],["Bulia","2026-06-10","2026-06-12",""],["Arsen","2026-06-30","2026-06-30",""],["Vaska","2026-06-12","2026-06-12",""]];
-
-/* AUTO_OFF */
-let AUTO_OFF=new Set(), AUTO_NOTE={};
-
-/* FORMAN_SCORES */
-const FORMAN_SCORES={'Abazadze':83,'Sasins':80,'Bulia':72,'Onikiani':69,'Chapurishvili':66,'Walid':66,'Gvishiani':64,'Buadze':64,'Hagemann':62,'Kolbaia':61,'Kiknavelidze':56,'Zvanbaia':56,'Kazaishvili':55,'Khundzakishvili':49,'Todidze':41};
-
-/* STREAKS */
-let STREAKS={};
-
-/* BENCH */
-const BENCH={foremen:[],trucks:[]};
-
-/* WEIGHTS */
-const WEIGHTS={cf:35,pack:20,ld:20,multi:15,piano:10};
-
-/* TODAY_ISO */
-const TODAY_ISO=(function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
-
-/* _RC */
-const _RC={};
-
-/* INREGION */
-const INREGION=p=>p.lat>36&&p.lat<45.5&&p.lon>-81&&p.lon<-68;
-
-/* _tn */
-const _tn=x=>String(x||'').replace(/[#\s]/g,'').toUpperCase();
-
-/* jobKey */
-const jobKey=j=>j.eventId||('code:'+j.code);
-
-/* isRentalTruck */
-function isRentalTruck(t){
-  if(t.rented)return true;
-  return /^(ENT|R\d|RENT)/i.test(String(t.n).replace('#',''))||/rental|enterprise|penske|ryder|budget/i.test(String(t.model||'')+' '+String(t.reg||''));
+"use strict";
+/* ============ reference data ============ */
+const DATA={
+ bases:{NJ:{zip:"07728",lat:40.2302,lon:-74.2954,city:"Freehold"},PA:{zip:"19341",lat:40.0394,lon:-75.6381,city:"Exton"},NY:{zip:"11214",lat:40.5977,lon:-74.001,city:"Brooklyn"},DE:{zip:"19808",lat:39.7345,lon:-75.6651,city:"Wilmington"},CT:{zip:"06610",lat:41.2065,lon:-73.1715,city:"Bridgeport"},MA:{zip:"01742",lat:42.4606,lon:-71.3642,city:"Concord"}},
+ trucks:[{n:"#7",cf:1622},{n:"#9",cf:1741},{n:"#15",cf:1741},{n:"#33",cf:1741},{n:"#77",cf:1809},{n:"#10",cf:1741},{n:"#11",cf:1848},{n:"#27",cf:1741}],
+ foremen:["Giorgi Kolbaia","Zaza Zvanbaia","Vaska Buadze","Giorgi Abazadze","Shota Zivzivadze","Oto Chapurishvili","Shalva Khundzakishvili","Bachi Bolkvadze","Mostafa Walid","Bacho Kiknavelidze","Guga Natelashvili","Kaki Kakhetelidze","Arsen Gvishiani","Kakhaber Hagemann","Gurami Sabiashvili","Ilia Tabatadze"]
+};
+const OUR_STATES=["NJ","PA","NY","DE","CT","MA"];
+const BACKHAUL_MIN_CF=300, LEAVE_SOON=2, ASSIGN_DAYS=7, BACKHAUL_DAYS=2, WEEKS_AHEAD=8;
+/* ============ config ============ */
+const SHEET_ID="1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs";
+const JOBS_TAB="Long Distance Data", STORAGE_TAB="Storage Management", ROUTES_TAB="Routes", BACKHAUL_TAB="LD Backhaul", ASSIGN_TAB="LD Assignments";
+const GCLIENT="712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com";
+const ZIPDB=window.ZIPDB||{};
+/* ============ state ============ */
+let JOBS=[], STORAGE={}, ROUTES=[], ROUTED=new Set(), BACKHAUL={}, ASSIGN={}, VIEW="list";
+let LMAP=null, LLAYER=null;
+let GTOKEN=null, GTOKEXP=0, _tc=null;
+try{const g=JSON.parse(localStorage.getItem("zd_ldtok")||"null");if(g&&g.exp>Date.now()+60000){GTOKEN=g.t;GTOKEXP=g.exp;}}catch(e){}
+/* ============ tiny helpers ============ */
+const $=s=>document.querySelector(s);
+function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),4200);}
+function num(s){if(s==null)return 0;const n=parseFloat(String(s).replace(/[$,]/g,""));return isFinite(n)?n:0;}
+function pcsv(t){const rows=[];let r=[],c="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++;}else q=false;}else c+=ch;}else{if(ch==='"')q=true;else if(ch===","){r.push(c);c="";}else if(ch==="\n"){r.push(c);rows.push(r);r=[];c="";}else if(ch!=="\r")c+=ch;}}if(c!==""||r.length){r.push(c);rows.push(r);}return rows;}
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function midnight(d){const x=new Date(d);x.setHours(0,0,0,0);return x;}
+function today0(){return midnight(new Date());}
+function parseDate(s){s=String(s||"").trim();if(!s)return null;let m=s.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return new Date(y,+m[1]-1,+m[2]);}return null;}
+function fmtMDY(d){if(!d)return "";return ("0"+(d.getMonth()+1)).slice(-2)+"/"+("0"+d.getDate()).slice(-2)+"/"+String(d.getFullYear()).slice(-2);}
+function fmtNice(d){if(!d)return "—";return DOW[d.getDay()]+", "+MON[d.getMonth()]+" "+d.getDate();}
+function daysFromToday(d){if(!d)return null;return Math.round((midnight(d)-today0())/86400000);}
+function weekStart(d){const x=midnight(d);x.setDate(x.getDate()-x.getDay());return x;}
+function geo(zip){zip=String(zip||"").replace(/\D/g,"").slice(0,5).padStart(5,"0");const z=ZIPDB[zip];return z?{lat:z[0],lon:z[1],city:z[2],state:z[3]}:null;}
+function stateZip(s){s=String(s||"").trim();const st=(s.match(/[A-Za-z]{2}/)||[""])[0].toUpperCase();const z=(s.match(/\d{5}/)||[""])[0];return {state:st,zip:z};}
+function hav(a,b){if(!a||!b||a.lat==null||b.lat==null)return 9999;const R=3959,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180;const h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+function gviz(tab){return "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&headers=1&sheet="+encodeURIComponent(tab)+"&_t="+Date.now();}
+function colmap(H){const m={};H.forEach((h,i)=>m[String(h).trim().toLowerCase()]=i);return m;}
+/* ============ modal ============ */
+function modal(title,bodyHTML,footHTML){
+  const host=$("#modalhost");
+  host.innerHTML='<div class="mbg"><div class="mbox"><button class="mx">✕</button><h3>'+esc(title)+'</h3><div class="mbody">'+bodyHTML+'</div>'+(footHTML?'<div class="mfoot">'+footHTML+'</div>':'')+'</div></div>';
+  const bg=host.querySelector(".mbg");
+  bg.addEventListener("click",e=>{if(e.target===bg)host.innerHTML="";});
+  host.querySelector(".mx").onclick=()=>host.innerHTML="";
+  return host.querySelector(".mbox");
 }
-
-/* currentDay */
-let currentDay=(function(){
-  const ds=Object.keys(DATA.days||{}).sort();
-  const tom=new Date(Date.now()+86400000);
-  const iso=tom.getFullYear()+'-'+String(tom.getMonth()+1).padStart(2,'0')+'-'+String(tom.getDate()).padStart(2,'0');
-  return DATA.days&&DATA.days[iso]?iso:(ds.find(d=>d>=iso)||ds[ds.length-1]);
-})();
-
-/* collapsedBases */
-const collapsedBases=new Set();
-
-/* truckActiveOn */
-function truckActiveOn(t,day){if(!t||!t.rented||!t.rentStart)return true;return day>=t.rentStart&&(!t.rentEnd||day<=t.rentEnd);}
-
-/* hav */
-function hav(a,b){
-  const R=3959, dLa=(b.lat-a.lat)*Math.PI/180, dLo=(b.lon-a.lon)*Math.PI/180;
-  const la1=a.lat*Math.PI/180, la2=b.lat*Math.PI/180;
-  const h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2;
-  return 2*R*Math.asin(Math.sqrt(h));
-}
-
-/* schedH */
-function schedH(l){
-  const a=Date.parse(l.start||0),b=Date.parse(l.end||l.start||0);
-  return Math.max((b-a)/3600000,1);
-}
-
-/* cachedRoadMi */
-function cachedRoadMi(a,b){
-  const e=hereCache[[a.lat,a.lon].join()+'|'+[b.lat,b.lon].join()];
-  return (e&&typeof e==='object'&&!(e instanceof Promise)&&e.mi!=null)?e.mi:null;
-}
-
-/* zgeoJS */
-function zgeoJS(z){
-  if(z==null||z==='')return null;
-  z=String(z).replace(/\D/g,'').slice(0,5).padStart(5,'0');
-  const e=ZIPDB[z];
-  return e?{zip:z,lat:e[0],lon:e[1],city:e[2],state:e[3]}:null;
-}
-
-/* buildRoutes */
-function buildRoutes(){
-  const jobs=DATA.jobs.filter(j=>!EXCL.has(jobKey(j))), used=new Set(), routes=[];
-  const cmap={}; manualChains.concat(AUTOCHAINS).forEach(c=>cmap[c.tail]=c.after);
-  const aft=j=>cmap[j.code]||j.after;
-  for(const h of jobs.filter(j=>j.first&&!aft(j))){
-    if(used.has(h.code))continue;
-    const legs=[h]; used.add(h.code);
-    let cur=h;
-    while(true){
-      const next=jobs.find(j=>aft(j)===cur.code&&!used.has(j.code));
-      if(!next)break;
-      legs.push(next); used.add(next.code); cur=next;
-    }
-    routes.push(makeRoute(legs,routes.length));
-  }
-  for(const j of jobs){ if(!used.has(j.code)){routes.push(makeRoute([j],routes.length,true)); used.add(j.code);} }
-  return routes;
-}
-
-/* makeRoute */
-function makeRoute(legs,idx,orphan=false){
-  legs=legs.slice().sort((a,b)=>(Date.parse(a.start||0)||0)-(Date.parse(b.start||0)||0)); // legs[0] = the crew's first job of the day (base, leave-time, ETAs all key off this)
-  const totalCF=legs.reduce((s,l)=>s+l.cf,0);
-  const maxCF=Math.max(...legs.map(l=>l.cf));
-  const crew=Math.max(...legs.map(l=>l.crew||0),2);
-  const trucksNeeded=Math.max(...legs.map(l=>l.trucksQ||0));
-  const vansNeeded=Math.max(...legs.map(l=>l.vansQ||0));
-  const ordIdx=Math.min(...legs.map(l=>(l.idx!==undefined&&l.idx!==null)?l.idx:1e9));
-  const isLD=legs.some(l=>/long\s*distance/i.test(l.movingType||''));
-  legs.forEach(l=>{
-    l._far=!!(l.delivery&&!INREGION(l.delivery));
-    l._carrier=!l.straight&&!!l.delivery&&(l._far||/long/i.test(String(l.movingType||''))); // Regular LD = carrier ALWAYS (type-based) — crew loads at pickup, carrier hauls, crew returns to base
-  });
-  legs.forEach(l=>{
-    const st=Date.parse(l.start||0);
-    const act=(l.actH!=null&&l.actH>0)?l.actH:schedH(l);
-    const dh=(l.pickup&&l.delivery&&!l._carrier)?hav(l.pickup,l.delivery)/35*1.15:0;
-    l._endMs=st+(act+dh)*3600000; // approximate real end: travel to delivery + work
-  });
-  const ldDeparture=legs.some(l=>l._far&&l.straight);
-  const hasCarrier=legs.some(l=>l._carrier);
-  const laborOnly=legs.length>0&&legs.every(l=>/labor/i.test(l.jobType||''));
-  const estimateVisit=legs.length>0&&legs.every(l=>/estimate/i.test(l.jobType||''));
-  const flatRate=legs.some(l=>/flat/i.test(l.jobType||''));
-  const packing=legs.reduce((s,l)=>s+(l.packing||0),0);
-  const piano=legs.some(l=>l.piano);
-  const pickupState=legs[0].pickup?legs[0].pickup.state:legs[0].stateFrom;
-  let base=null,bd=1e9;
-  if(legs[0].pickup){for(const [k,b] of Object.entries(DATA.bases)){const d=hav(legs[0].pickup,b); if(d<bd){bd=d;base=k;}}}
-  else base=legs[0].base;
-  return {id:'R'+(idx+1),legs,totalCF,maxCF,crew,trucksNeeded,vansNeeded,ordIdx,isLD,ldDeparture,hasCarrier,laborOnly,estimateVisit,flatRate,packing,piano,
-          pickupState,nearestBase:base,baseDist:Math.round(bd),sheetBase:legs[0].base,base:null,orphan,
-          stale:legs.some(l=>l.rescheduled)&&legs.length>1};
-}
-
-/* scoreRoute */
-function scoreRoute(r,w){
-  const cf=Math.min(r.totalCF/2500,1)*w.cf;
-  const pk=Math.min(r.packing/1500,1)*w.pack;
-  const ld=(r.isLD?1:0)*w.ld;
-  const mt=Math.min(Math.max(r.trucksNeeded-1,0)+(r.vansNeeded&&r.trucksNeeded?0.5:0),1.5)/1.5*w.multi;
-  const pi=(r.piano?1:0)*w.piano;
-  const max=w.cf+w.pack+w.ld+w.multi+w.piano||1;
-  return Math.round((cf+pk+ld+mt+pi)/max*100);
-}
-
-/* evalForeman */
-function evalForeman(f,r,ctx){
-  let s=50; const pros=[],cons=[];
-  if(f.status!=='Active'){s-=25;cons.push('backup pool (potential)');}
-  if(!f.states.includes(r.pickupState)){s-=12;cons.push('not listed for '+r.pickupState);}
-  if(f.base===r.base){s+=40;pros.push(r.base+' home base');}
-  else{
-    const scarce=ctx.pendingAt(f.base)>=ctx.homeAvail(f.base);
-    if(scarce){s-=28;cons.push(f.base+' is short-staffed today');}
-    else{s-=8;cons.push('travels from '+f.base);}
-    const fb=DATA.bases[f.base],rb=DATA.bases[r.base];
-    if(fb&&rb)s-=Math.min(hav(fb,rb)/12,12);
-  }
-  s+=f.bigJob*(Math.min(r.totalCF,2500)/2500)*8; if(f.bigJob>=4&&r.totalCF>900)pros.push('big jobs ★'+f.bigJob);
-  s+=f.packSell*(Math.min(r.packing,1500)/1500)*6; if(f.packSell>=4&&r.packing>300)pros.push('sells packing ★'+f.packSell);
-  if(r.isLD||r.hasCarrier){s+=f.ldPickup*5; if(f.ldPickup>=4)pros.push('LD pickup ★'+f.ldPickup);}
-  if(r.ldDeparture&&!f.canLD){s-=40;cons.push('no long distance');}
-  if(r.trucksNeeded>=2){if(f.multiTruck>=3){s+=f.multiTruck*4;pros.push('runs 2-truck jobs ★'+f.multiTruck);}else{s-=60;cons.push('no 2-truck experience');}}
-  if(r.piano){if(f.piano){s+=12;pros.push('piano');}else{s-=60;cons.push('no piano');}}
-  if(f.driver)s+=6; else{s-=10;cons.push('not a truck driver');}
-  s+=f.stacking*1.5; if(f.stacking===5)pros.push('stacking ★5');
-  s-=f.hourly*0.15;
-
-  // Forman-of-the-Month: bounded ±12 bonus centered at 60
-  const fsc=formanScore(f);
-  if(fsc!==null){
-    const bonus=Math.max(-12,Math.min(12,(fsc-60)*0.5));
-    s+=bonus;
-    if(bonus>=4)pros.push('Foreman score '+fsc);
-    else if(bonus<=-4)cons.push('Foreman score '+fsc);
-  }
-  // premium jobs (big packing / hard routes) prefer top tier — soft gate, not a hard block
-  const premium=r.packing>=800||r.score>=60;
-  if(premium&&fsc!==null&&fsc<65){s-=15;cons.push('premium job — below top tier ('+fsc+')');}
-  if(premium&&fsc!==null&&fsc>=65)pros.push('top-tier for premium job');
-  // rest rotation: long consecutive streak = let them breathe
-  const streak=ctx.streak?ctx.streak(f.name):0;
-  if(streak>=6){s-=10;cons.push('worked '+streak+' days straight — rest due');}
-
-  return {f,score:Math.round(s),pros,cons};
-}
-
-/* assignAll */
-function assignAll(routes,w,baseMode){
-  routes.forEach(r=>{
-    r.base=r.baseOverride||((baseMode==='sheet'&&r.sheetBase&&DATA.bases[r.sheetBase])?r.sheetBase:r.nearestBase);
-    r.score=scoreRoute(r,w);
-    r.t0=Math.min(...r.legs.map(l=>Date.parse(l.start||0)));
-    r.t1=Math.max(...r.legs.map(l=>l._endMs||Date.parse(l.end||l.start||0)));
-    r.foreman=null;r.vehicles=[];
-  });
-  const order=[...routes].sort((a,b)=>b.score-a.score);
-  const BUF=30*60000, busyF={}, busyT={};
-  routes.forEach(r=>{
-    const sl=[...r.legs].sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0));
-    r._startLoc=sl[0].pickup||null;
-    const last=sl[sl.length-1];
-    if(last._carrier){
-      const b=DATA.bases[r.base];
-      r._endLoc=b?{lat:b.lat,lon:b.lon}:null;
-      if(b&&last.pickup)r.t1+=hav(last.pickup,b)/35*3600000*1.15; // drive back to base with the goods
-    } else {
-      r._endLoc=(last.delivery&&INREGION(last.delivery))?last.delivery:null;
-    }
-  });
-  const driveMs=(a,b)=>(a&&b)?hav(a,b)/35*3600000*1.15:0;
-  const free=(map,key,r)=>!(map[key]||[]).some(iv=>{
-    if(iv.rid===r.id)return false;
-    if(iv.t1<=r.t0){            // existing booking ends before this route starts
-      if(!iv.endLoc)return true;          // went long-distance — not back today
-      return (r.t0-iv.t1)<(driveMs(iv.endLoc,r._startLoc)+BUF);
-    }
-    if(r.t1<=iv.t0){            // this route ends before existing booking starts
-      if(!r._endLoc)return true;
-      return (iv.t0-r.t1)<(driveMs(r._endLoc,iv.startLoc)+BUF);
-    }
-    return true;                // overlap
-  });
-  const book=(map,key,r)=>{(map[key]=map[key]||[]).push({t0:r.t0,t1:r.t1,rid:r.id,startLoc:r._startLoc,endLoc:r._endLoc});};
-  // business rule: one foreman = one route per day. Multi-job days only via chains (one merged route).
-  const freeF=(key,r)=>!(busyF[key]||[]).some(iv=>iv.rid!==r.id);
-  const fbest={};
-  for(const r of order){
-    r._pinBusy=false;r._pinOff=false;
-    if(r.pinForeman&&isOff(r.pinForeman)){r.pinForeman=null;r._pinOff=true;}
-    if(r.pinForeman){
-      const f=DATA.foremen.find(x=>x.name===r.pinForeman);
-      if(f&&freeF(f.name,r))book(busyF,f.name,r);
-      else r._pinBusy=true;
-    }
-    r._pinIssues=[];
-    r.pinTrucks=r.pinTrucks||[];
-    for(const pn of r.pinTrucks){
-      if(!pn||pn==='R26'||pn==='R20')continue;
-      const pt=DATA.trucks.find(k=>k.n===pn&&k.status==='Active');
-      if(pt&&free(busyT,pt.n,r)){
-        book(busyT,pt.n,r);
-        if(pt.state&&pt.state!==r.base)r._pinIssues.push(pt.n+' is '+pt.state+' fleet — this route departs '+r.base+' base, truck must be repositioned first');
-      }
-      else r._pinIssues.push(pn+' unavailable in this window — auto-assigned instead');
-    }
-  }
-  computeStreaks();
-  const ctx={pendingAt:b=>order.filter(x=>!x.foreman&&x.base===b).length,
-             homeAvail:b=>DATA.foremen.filter(f=>f.base===b&&f.status==='Active').length,
-             streak:n=>STREAKS[n]||0};
-  for(const r of order){
-    const evals=[];
-    for(const f of DATA.foremen){
-      if(f.status==='Cancelled')continue;
-      if(isOff(f.name))continue;
-      const busy=!freeF(f.name,r);
-      const e=evalForeman(f,r,ctx); e.busy=busy;
-      evals.push(e);
-    }
-    evals.sort((a,b)=>(a.busy-b.busy)||(b.score-a.score));
-    r.candidates=evals.filter(e=>!e.busy).slice(0,4);
-    let best=r.candidates[0]||null;
-    if(r.pinForeman&&!r._pinBusy){
-      const pe=evals.find(e=>e.f.name===r.pinForeman);
-      if(pe){best=pe;}
-    } else if(best){book(busyF,best.f.name,r);}
-    evals.forEach(e=>{
-      if(e.busy||!best||e.f.name===best.f.name)return;
-      const cur=fbest[e.f.name];
-      if(!cur||e.score>cur.score)fbest[e.f.name]={score:e.score,route:r.id,winner:best.f.name,winScore:best.score};
-    });
-    r.foreman=best?best.f:null;
-    r.foremanEval=best;
-    r.foremanTravel=best&&best.f.base!==r.base;
-    const need=[];r.rentals=0;r._crewGap=false;
-    const atBase=ty=>DATA.trucks.filter(t=>t.status==='Active'&&t.state===r.base&&t.type===ty&&truckActiveOn(t,currentDay)&&!TRIPAWAY_T[_tn(t.n)]&&free(busyT,t.n,r));
-    const take=t=>{book(busyT,t.n,r);need.push({kind:'fleet',t});};
-    const _tnEff=(r.trucksOverride!=null?r.trucksOverride:r.trucksNeeded);
-    const truckSlots=Math.max(_tnEff,(!_tnEff&&!r.vansNeeded)?1:0);
-    const slotsSpec=[];
-    for(let i=0;i<truckSlots;i++)slotsSpec.push('Truck');
-    for(let i=0;i<r.vansNeeded;i++)slotsSpec.push('Van');
-    r._slotsSpec=slotsSpec;
-    slotsSpec.forEach((ty,s)=>{
-      const primary=s===0&&ty==='Truck';
-      const pin=r.pinTrucks[s]||null;
-      if(primary){
-        r._truckTrace=DATA.trucks.filter(k=>k.status==='Active'&&k.type===ty).map(k=>{
-          let why,ok=false;
-          const _H=DATA.holders||{};
-          if(_H[k.n]&&(!r.foreman||_H[k.n]!==r.foreman.name)){const hf=DATA.foremen.find(x=>x.name===_H[k.n]);why='with '+(hf?hf.nick:_H[k.n])+' — locked pairing';}
-          else if(!truckActiveOn(k,currentDay))why='rental active '+(k.rentStart||'?')+' → '+(k.rentEnd||'open-ended')+' — outside this day';
-          else if(TRIPAWAY_T[_tn(k.n)])why='on a straight LD trip ('+TRIPAWAY_T[_tn(k.n)].code+') — back '+TRIPAWAY_T[_tn(k.n)].back;
-          else if(k.state!==r.base)why=k.state+' fleet — wrong base';
-          else if(!free(busyT,k.n,r))why='busy in this time window';
-          else if(k.cf<r.maxCF)why=k.cf.toLocaleString()+' CF — smaller than the '+r.maxCF.toLocaleString()+' CF load';
-          else if(k.maxCrew<r.crew)why='cab seats '+k.maxCrew+' — crew is '+r.crew;
-          else{ok=true;why=k.cf.toLocaleString()+' CF · cab '+k.maxCrew+(isRentalTruck(k)?' · monthly rental':' · owned');}
-          return {n:k.n,ok,why,cf:k.cf,rentedm:isRentalTruck(k)};
-        }).sort((a,b)=>(b.ok-a.ok)||(a.cf-b.cf)).slice(0,8);
-      }
-      if(pin){
-        const pt=DATA.trucks.find(k=>k.n===pin&&k.status==='Active');
-        if(pt&&busyT[pt.n]&&busyT[pt.n].some(iv=>iv.rid===r.id)){
-          take(pt);
-          if(primary)r._truckChosen=pt.n;
-          if(primary&&pt.cf<r.maxCF)r._pinIssues.push(pt.n+' is smaller than the biggest leg ('+r.maxCF.toLocaleString()+' CF)');
-          if(primary&&pt.maxCrew<r.crew)r._pinIssues.push(pt.n+' cab fits '+pt.maxCrew+' — crew is '+r.crew);
-          return;
-        }
-      }
-      const H=DATA.holders||{};
-      if(primary&&r.foreman){
-        const hn=Object.keys(H).find(tn=>H[tn]===r.foreman.name);
-        if(hn){
-          const ht=DATA.trucks.find(k=>k.n===hn&&k.status==='Active'&&k.type===ty);
-          if(ht&&free(busyT,ht.n,r)){
-            take(ht);r._truckChosen=ht.n;
-            if(ht.state&&ht.state!==r.base)r._pinIssues.push(ht.n+' is '+ht.state+' fleet — locked pairing with '+r.foreman.name+' kept, truck must reposition');
-            if(ht.cf<r.maxCF)r._pinIssues.push(ht.n+' (paired with '+r.foreman.name+') is smaller than the '+r.maxCF.toLocaleString()+' CF load');
-            return;
-          }
-        }
-      }
-      const cand=atBase(ty)
-        .filter(t=>!need.some(x=>x.kind==='fleet'&&x.t.n===t.n))
-        .filter(t=>!(H[t.n]&&(!r.foreman||H[t.n]!==r.foreman.name)))
-        .filter(t=>primary?(t.cf>=r.maxCF&&t.maxCrew>=r.crew):true)
-        .sort((a,b)=>(a.cf-b.cf));
-      const pick=cand[0];
-      if(pick){take(pick);if(primary)r._truckChosen=pick.n;}
-      else{
-        const sz=ty==='Van'?'20 ft van':(r.maxCF>RENTAL20_CF?'26 ft':'20 ft');
-        if(currentDay<TODAY_ISO){
-          // history: the day ran, so a rental truck WAS there — record it, don't alarm
-          need.push({kind:'rental',sz});
-          if(primary)r._truckChosen='Rental '+sz;
-        } else {
-          need.push({kind:'short',ty,sz});
-          if(primary)r._truckChosen='— no truck free';
-        }
-      }
-    });
-    r.vehicles=need;
-    r.short=need.filter(v=>v.kind==='short').length;
-    r.rentals=need.filter(v=>v.kind==='rental'||(v.kind==='fleet'&&isRentalTruck(v.t))).length;
-    r.status=r.short>0?'short':(r.rentals>0?'rental':'fleet');
-    // crew transport: how many cab seats do the assigned vehicles actually have?
-    // fleet trucks carry their real cab; rentals/short slots assume a 3-seat cab (standard box-truck)
-    {const _cab=need.reduce((s,v)=>s+(v.kind==='fleet'?(v.t.maxCrew||3):3),0);
-     r._cabSeats=_cab;
-     r._carNeed=(need.length>0&&r.crew>_cab)?(r.crew-_cab):0;
-     r._crewGap=r._carNeed>0;}
-  }  const assignedF=new Set(routes.map(r=>r.foreman&&r.foreman.name).filter(Boolean));
-  const pickStates=new Set(routes.map(r=>r.pickupState).filter(Boolean));
-  BENCH.foremen=DATA.foremen.filter(f=>f.status==='Active'&&!assignedF.has(f.name)&&!isOff(f.name)).map(f=>{
-    let reason;
-    if(![...pickStates].some(s=>f.states.includes(s)))reason='listed states ('+f.states.join(', ')+') do not match today\'s pickups';
-    else if(fbest[f.name]){const b=fbest[f.name];reason='closest: '+b.route+' — scored '+b.score+', '+b.winner+' won with '+b.winScore;}
-    else if(!f.driver)reason='not a truck driver — penalized on every route';
-    else reason='outscored on every route today';
-    return {f,reason};
-  });
-  const usedT=new Set(routes.flatMap(r=>r.vehicles.filter(v=>v.kind==='fleet').map(v=>v.t.n)));
-  const routesAt={};routes.forEach(r=>routesAt[r.base]=(routesAt[r.base]||0)+1);
-  const rentalAt={};routes.forEach(r=>{if(r.rentals)rentalAt[r.base]=true;});
-  BENCH.trucks=DATA.trucks.filter(k=>k.status==='Active'&&!usedT.has(k.n)).map(k=>{
-    let reason;
-    if(!routesAt[k.state])reason='no routes from '+k.state+' base today';
-    else reason='spare';
-    return {t:k,reason};
-  });
-}
-
-/* getW */
-function getW(){return WEIGHTS;}
-
-/* tripAwayMap */
-function tripAwayMap(dayIso){
-  const out={};const outT={};
-  const d0=Date.parse(dayIso+'T12:00');
-  for(let k=1;k<=10;k++){
-    const dd=new Date(d0-k*86400000);
-    const dIso=dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0')+'-'+String(dd.getDate()).padStart(2,'0');
-    for(const j of (DATA.days[dIso]||[])){
-      if(!j.straight||!j.tripDays||j.tripDays<=1||(!j.mf&&!j.mt))continue;
-      if(k<j.tripDays){
-        const back=new Date(Date.parse(dIso+'T12:00')+j.tripDays*86400000);
-        const backLbl=back.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-        const f=j.mf?matchForeman(j.mf):null;
-        if(f&&f.status==='Active')out[f.name]={code:j.code,back:backLbl};
-        if(j.mt)String(j.mt).split(/[+,]/).forEach(tn=>{const kk=_tn(tn);if(kk&&DATA.trucks.some(x=>_tn(x.n)===kk))outT[kk]={code:j.code,back:backLbl};});
-      }
-    }
-  }
-  return {f:out,t:outT};
-}
-
-/* detectAutoChains */
-function detectAutoChains(rts){
-  // Universal fit-based chaining (owner spec):
-  //  - any job can chain, morning included
-  //  - every job in a chain <= 700 CF
-  //  - drive between jobs <= 45 min
-  //  - arrive at the next customer no later than booked start + 30 min (early = wait, work starts at booked time)
-  //  - smallest link distance wins
-  //  - up to 3 jobs per chain (3rd added on the next pass)
-  //  - the whole chain finishes the same day
-  const out=[];
-  const tailsTaken=new Set();
-  const singles=rts.filter(r=>r.legs.length===1&&!r.legs[0].after
-      &&(r.legs[0].cf||0)<=CHAIN_RULES.maxCF
-      &&!AUTOOFFLIST.has(r.legs[0].code))
-    .sort((a,b)=>Date.parse(a.legs[0].start)-Date.parse(b.legs[0].start));
-  for(const B of singles){
-    if(B.ldDeparture)continue;          // straight LD departures are not chainable; carrier pickups are
-    const lb=B.legs[0];
-    if(!lb.pickup||!lb.delivery||!INREGION(lb.delivery))continue;
-    const bt0=Date.parse(lb.start);
-    let best=null;
-    for(const A of rts){
-      if(A===B||A.ldDeparture)continue;
-      if(A.legs.length>=CHAIN_RULES.maxJobs)continue;            // chain is full
-      if(A.legs.some(x=>(x.cf||0)>CHAIN_RULES.maxCF))continue;   // every job in the chain must be small
-      if(tailsTaken.has(A.id))continue;                          // one new tail per head per pass
-      const la=[...A.legs].sort((x,y)=>Date.parse(x.start||0)-Date.parse(y.start||0)).slice(-1)[0];
-      if(!la.delivery||!INREGION(la.delivery))continue;
-      const at1=Math.max(...A.legs.map(l=>l._endMs||Date.parse(l.end||l.start||0)));
-      const rm=cachedRoadMi(la.delivery,lb.pickup);
-      const linkMi=(rm!=null?rm:hav(la.delivery,lb.pickup)*1.15);
-      const driveMs=linkMi/35*3600000;
-      if(driveMs>CHAIN_RULES.maxDriveMin*60000)continue;         // link drive cap
-      const eta=at1+driveMs;
-      if(eta>bt0+CHAIN_RULES.lateMin*60000)continue;             // on time, +30 min grace
-      // same-day rule: the chained crew must be DONE before midnight
-      {const _ws=Math.max(eta,bt0);
-       const _p2d=(lb.pickup&&lb.delivery)?hav(lb.pickup,lb.delivery)/35*3600000*1.15:0;
-       const _done=_ws+((lb.actH||schedH(lb))*3600000)+_p2d;
-       if(_done>Date.parse(String(lb.start).slice(0,10)+'T23:59'))continue;}
-      if(Math.max(A.crew,B.crew)>6)continue;                     // one cab carries the crew
-      if(!best||linkMi<best.linkMi)best={A,linkMi,la};
-    }
-    if(best){
-      tailsTaken.add(best.A.id);
-      out.push({tail:lb.code,after:best.la.code,auto:true,linkMi:Math.round(best.linkMi)});
-    }
-  }
-  return out;
-}
-
-/* matchForeman */
-function matchForeman(nk){
-  const q=String(nk).trim().toLowerCase();
-  return DATA.foremen.find(x=>x.nick.toLowerCase()===q)
-    ||DATA.foremen.find(x=>x.name.toLowerCase()===q)
-    ||DATA.foremen.find(x=>{const p=x.name.toLowerCase().split(/\s+/);return p[0]===q||(q.split(/\s+/).length===2&&p[0]===q.split(/\s+/)[0]&&p[1]&&p[1][0]===q.split(/\s+/)[1][0]);});
-}
-
-/* computeAutoOff */
-function computeAutoOff(){
-  AUTO_OFF=new Set();AUTO_NOTE={};
-  const src=(DATA.dayoffs&&DATA.dayoffs.length)?DATA.dayoffs:OFFSHEET.map(o=>[o[0],o[1],o[2],o[3]]);
-  for(const [nk,a,b,note] of src){
-    if(currentDay>=a&&currentDay<=b){
-      const f=matchForeman(nk);
-      if(f){AUTO_OFF.add(f.name);AUTO_NOTE[f.name]=note||'day off';}
-    }
-  }
-}
-
-/* isOff */
-function isOff(n){return DAYOFF.has(n)||AUTO_OFF.has(n)||!!TRIPAWAY[n];}
-
-/* rentalQuote */
-function rentalQuote(sz,base){
-  const list=DATA.rentalRates||[];
-  if(!list.length)return null;
-  const want=/van/i.test(sz)?'van':(/26/.test(sz)?'26':'20');
-  const fits=o=>{const s=String(o.size||'').toLowerCase();return want==='van'?/van/.test(s):s.includes(want)&&!/van/.test(s);};
-  const local=list.filter(o=>fits(o)&&o.base===base).sort((a,b)=>a.rate-b.rate);
-  const any=list.filter(o=>fits(o)&&!o.base).sort((a,b)=>a.rate-b.rate);
-  return local[0]||any[0]||null;
-}
-
-/* formanScore */
-function formanScore(f){
-  if(DATA.scores&&Object.keys(DATA.scores).length){
-    if(DATA.scores[f.nick]!==undefined)return DATA.scores[f.nick];
-    const hit=Object.keys(DATA.scores).find(k=>matchForeman(k)&&matchForeman(k).name===f.name);
-    return hit!==undefined&&hit!==null?DATA.scores[hit]:null;
-  }
-  const last=f.name.trim().split(/\s+/).slice(-1)[0];
-  return FORMAN_SCORES[last]!==undefined?FORMAN_SCORES[last]:null;
-}
-
-/* computeStreaks */
-function computeStreaks(){
-  STREAKS={};
-  const dates=Object.keys(DATA.days||{}).sort();
-  const prior=dates.filter(d=>d<currentDay).slice(-8);
-  for(const f of DATA.foremen){
-    if(f.status==='Cancelled')continue;
-    let s=0;
-    for(let i=prior.length-1;i>=0;i--){
-      const worked=(DATA.days[prior[i]]||[]).some(j=>j.mf&&(j.mf.toLowerCase()===f.nick.toLowerCase()||f.name.toLowerCase().startsWith(j.mf.toLowerCase())));
-      if(worked)s++;else break;
-    }
-    STREAKS[f.name]=s;
-  }
-}
-
-/* foremenAvailOn */
-function foremenAvailOn(dayIso){
-  const act=DATA.foremen.filter(f=>f.status==='Active');
-  const off=new Set();
-  const src=(DATA.dayoffs&&DATA.dayoffs.length)?DATA.dayoffs:[];
-  for(const [nk,a,b] of src){
-    if(dayIso>=a&&dayIso<=b){const f=matchForeman(nk);if(f&&f.status==='Active')off.add(f.name);}
-  }
-  if(dayIso===currentDay)DAYOFF.forEach(n=>off.add(n));
-  const ta=tripAwayMap(dayIso).f;Object.keys(ta).forEach(n=>{const f=DATA.foremen.find(x=>x.name===n);if(f&&f.status==='Active')off.add(n);});
-  return {avail:act.length-off.size,off:off.size,total:act.length};
-}
-
-/* rcInvalidate */
-function rcInvalidate(day){if(day)delete _RC[day];else for(const k of Object.keys(_RC))delete _RC[k];}
-
-/* dayPlanOn */
-function dayPlanOn(dayIso){
-  if(_RC[dayIso])return _RC[dayIso];
-  // run the real engine for that day — chains, exclusions, assignment with double-run reuse
-  const keepJobs=DATA.jobs,keepAC=AUTOCHAINS,keepDay=currentDay;
-  try{
-    DATA.jobs=DATA.days[dayIso]||[];
-    currentDay=dayIso;
-    AUTOCHAINS=[];
-    let rts=buildRoutes();
-    for(let _g=0;_g<2;_g++){
-      const det=detectAutoChains(rts);
-      if(!det.length)break;
-      AUTOCHAINS=AUTOCHAINS.concat(det);
-      rts=buildRoutes();
-    }
-    assignAll(rts,getW(),'nearest');
-    const byF={};rts.forEach(r=>{if(r.foreman)(byF[r.foreman.name]=byF[r.foreman.name]||[]).push(r.id);});
-    const dd=Object.entries(byF).filter(([,ids])=>ids.length>1);
-    _RC[dayIso]={routes:rts.length,unassigned:rts.filter(r=>!r.foreman).length,
-      doubles:dd.length,
-      dblTxt:dd.map(([n,ids])=>{const f=DATA.foremen.find(x=>x.name===n);return (f?f.name:n)+': '+ids.join('+');}).join(' · ')};
-  }catch(e){ const n=(DATA.days[dayIso]||[]).filter(j=>!j.after&&!EXCL.has(jobKey(j))).length;_RC[dayIso]={routes:n,unassigned:0,doubles:0}; }
-  finally{ DATA.jobs=keepJobs;AUTOCHAINS=keepAC;currentDay=keepDay; }
-  return _RC[dayIso];
-}
-
-/* estRoutesOn */
-function estRoutesOn(dayIso){
-  return dayPlanOn(dayIso).routes;
-}
-
-/* exports for node */
-
-</script>
-<script>
-const $=id=>document.getElementById(id);
-function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function fmtDay(iso){const d=new Date(Date.parse(iso+'T12:00'));return {dow:DOW[d.getDay()],dn:d.getDate(),mon:MON[d.getMonth()]};}
-function gModal(title,html,footer){
-  let host=$('gmodalhost');
-  host.innerHTML='<div class="gmodal show" id="gm"><div class="gbox"><button class="gx" id="gmx">✕</button><div class="gh">'+esc(title)+'</div><div class="gbody">'+html+'</div>'+(footer?'<div class="gfoot">'+footer+'</div>':'')+'</div></div>';
-  const m=host.querySelector('.gmodal');
-  host.querySelector('#gmx').onclick=()=>host.innerHTML='';
-  m.addEventListener('click',e=>{if(e.target===m)host.innerHTML='';});
-  return host.querySelector('.gbox');
-}
-const GCAL_ID='contact@ziptozipmoving.com';
-const GCAL_CLIENT_ID='712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com';
-let GTOKEN=null,GTOKEXP=0,_tokenClient=null;
-const GSCOPE_VER='cal+sheets-1';
-var _shWarned=false;
-function sheetWarnOnce(e){if(_shWarned)return;_shWarned=true;const raw=String((e&&(e.body||e.message))||e||'');const off=/has not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(raw);const perm=/PERMISSION_DENIED|insufficient|invalid_scope|ACCESS_TOKEN_SCOPE/i.test(raw);let h;if(off){h='<div class="gsub">The <b>Google Sheets API</b> is turned off for this app\u2019s Google Cloud project, so nothing can be read from or written to the sheet. Open the link in the message below, click <b>Enable</b>, wait about a minute, then reconnect.</div>';}else if(perm){h='<div class="gsub">Connected to Calendar, but the Google <b>Sheets</b> permission was not granted. Click <b>Update Calendar</b> and approve Google Sheets access.</div>';}else{h='<div class="gsub">Reading or writing the Google Sheet failed.</div>';}h+='<div class="mono" style="margin-top:8px;white-space:pre-wrap;font-size:11px;opacity:.85">'+esc(raw).slice(0,600)+'</div>';try{gModal('Sheet access problem',h);}catch(_){}}
-try{const _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.exp>Date.now()+60000&&_g.scope===GSCOPE_VER){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
-function gcalReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
-function ensureGToken(cb){
+function closeModal(){$("#modalhost").innerHTML="";}
+/* ============ google token (writes only) ============ */
+function ensureToken(cb){
   if(GTOKEN&&Date.now()<GTOKEXP-60000)return cb();
-  if(window._gsiFail||!gcalReady())return gModal('Google sign-in unavailable here','The Google sign-in library could not load (previews block it). Open this on its hosted GitHub Pages URL and it will work.');
-  _tokenClient=_tokenClient||google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets',callback:()=>{}});
-  _tokenClient.callback=resp=>{
-    if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);
-      try{localStorage.setItem('zd_gtok',JSON.stringify({t:GTOKEN,exp:GTOKEXP,scope:GSCOPE_VER}));localStorage.setItem('zd_gconn',GSCOPE_VER);}catch(e){}
-      updateCalBtns();cb();}
-    else gModal('Sign-in failed',esc((resp&&resp.error)||'no token returned'));
-  };
-  _tokenClient.requestAccessToken({prompt:(GTOKEN||localStorage.getItem('zd_gconn')===GSCOPE_VER)?'':'consent'});
+  if(window._gsiFail||!(window.google&&google.accounts&&google.accounts.oauth2))return modal("Sign-in unavailable","<div class=\"mrow\">Open this on the hosted GitHub Pages URL to sign in (previews block Google sign-in). Reading works without it; only saving needs a quick sign-in.</div>");
+  _tc=_tc||google.accounts.oauth2.initTokenClient({client_id:GCLIENT,scope:"https://www.googleapis.com/auth/spreadsheets",callback:()=>{}});
+  _tc.callback=resp=>{if(resp&&resp.access_token){GTOKEN=resp.access_token;GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);try{localStorage.setItem("zd_ldtok",JSON.stringify({t:GTOKEN,exp:GTOKEXP}));}catch(e){}cb();}else toast("Sign-in failed.");};
+  _tc.requestAccessToken({prompt:GTOKEN?"":"consent"});
 }
-async function gapiFetch(path,opts){
-  const r=await fetch('https://www.googleapis.com/calendar/v3/'+path,Object.assign({},opts,{headers:Object.assign({Authorization:'Bearer '+GTOKEN,'Content-Type':'application/json'},(opts&&opts.headers)||{})}));
-  if(!r.ok)throw new Error('Calendar API '+r.status+' — '+(await r.text()).slice(0,160));
-  return r.status===204?null:r.json();
-}
-const evPath=id=>'calendars/'+encodeURIComponent(GCAL_ID)+'/events/'+encodeURIComponent(String(id).split('@')[0]);
-function durH(s){
-  if(s==null||s==='')return null;
-  const p=String(s).trim().split(':');
-  if(p.length>=2)return Math.round((+p[0]+(+p[1])/60)*100)/100;
-  const n=parseFloat(s);return isNaN(n)?null:(n<1?n*24:n);
-}
-function numV(s){if(s==null)return 0;const n=parseFloat(String(s).replace(/[$,]/g,''));return isNaN(n)?0:n;}
-function r5js(d){const m=Math.round((d.getHours()*60+d.getMinutes())/5)*5;const o=new Date(d);o.setHours(0,0,0,0);o.setMinutes(m);return o;}
-function isoD(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function isoDT(d){return isoD(d)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
-function calDescText(s){
-  s=String(s||'');
-  if(/<[a-z!\/]/i.test(s)){
-    s=s.replace(/<br\s*\/?>/gi,'\n')
-       .replace(/<\/(div|p|li|tr|h[1-6])>/gi,'\n')
-       .replace(/<li[^>]*>/gi,'\n')
-       .replace(/<[^>]+>/g,'');
-  }
-  return s.replace(/&nbsp;/gi,' ').replace(/\u00A0/g,' ')
-          .replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
-          .replace(/&#39;|&apos;/gi,"'").replace(/&quot;/gi,'"');
-}
-function parseLabels(desc){
-  const o={};
-  calDescText(desc).split(/\r?\n/).forEach(line=>{
-    const m=line.match(/^\s*([A-Za-z][A-Za-z0-9 \/#%()-]{1,40})\s*:\s*(.*)$/);
-    if(m){const k=m[1].trim().toLowerCase();if(o[k]===undefined)o[k]=m[2].trim();}
-  });
-  return o;
-}
-function wallClock(dt){ // '2026-06-20T09:00:00-04:00' → local Date at 09:00 regardless of machine TZ
-  const m=String(dt||'').match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
-  if(!m)return null;
-  return new Date(+m[1],+m[2]-1,+m[3],+(m[4]||8),+(m[5]||0));
-}
-function zipFromAddr(s){const m=String(s||'').match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b\d{5}\b)/);return m?m[1]:null;}
-function parseCalEvent(ev){
-  parseCalEvent.why='';
-  if(!ev||!ev.start||!(ev.start.dateTime||ev.start.date)){parseCalEvent.why='no start date/time on the event';return null;}
-  if(/\bON\s*HOLD\b/i.test(String(ev.summary||''))&&!(ev.id&&FORCE.has(ev.id))){parseCalEvent.why='marked ON HOLD in the title';return null;}
-  const L=parseLabels(ev.description);
-  const G=k=>L[k.toLowerCase()]!==undefined?L[k.toLowerCase()]:'';
-  const code=G('Job Code').trim();
-  if(!code){parseCalEvent.why='no "Job Code:" line in the event description'+(ev.description?'':' (description is empty)');return null;}
-  const pickupAddr=G('Moving From')||ev.location||'';
-  const _zip=zipFromAddr(pickupAddr);
-  const pz=zgeoJS(_zip);
-  if(!pz){parseCalEvent.why=_zip?('pickup zip '+_zip+' is not in the zip database'):'no zip code found in "Moving From" or the event location';return null;}
-  const dz=zgeoJS(zipFromAddr(G('Moving To')));
-  let start=wallClock(ev.start.dateTime||ev.start.date);
-  let end=ev.end?wallClock(ev.end.dateTime||ev.end.date):null;
-  if(!end)end=new Date(start.getTime()+4*36e5);
-  start=r5js(start);end=r5js(end);
-  let actH=durH(G('ACT Time'));
-  const tripDays=(function(){const raw=String(G('Estimated Trip Days')||G('Trip Days')||'');if(/same\s*day/i.test(raw))return 1;const v=parseFloat(raw.replace(/[^0-9.]/g,''));return isFinite(v)&&v>0?v:null;})();
-  if(actH==null)actH=Math.max((end-start)/36e5,2);
-  // window semantics: start==end → crew must be there sharp; span that differs from ACT → arrival window [start..end]
-  const _rawSpanH=(end-start)/36e5;
-  const _strict=_rawSpanH===0;
-  const _win=(!_strict&&_rawSpanH>0&&isoD(end)===isoD(start)&&Math.abs(_rawSpanH-(actH||0))>0.49)?new Date(end):null;
-  if(isoD(end)!==isoD(start))end=new Date(start.getTime()+actH*36e5);
-  if(end<=start)end=new Date(start.getTime()+Math.max(actH,2)*36e5);
-  if((_strict||_win)&&actH)end=new Date(start.getTime()+Math.max(actH,2)*36e5);
-  const toks=String(ev.summary||'').split('#');
-  const jt=G('Job Type').trim();
-  return {
-    eventId:ev.id,code,
-    isPickup:String(ev.summary||'').includes('🛫'),isDelivery:String(ev.summary||'').includes('🛬'),
-    fadRaw:(G('FAD (First Available Date)')||G('FAD')||'').trim(),deliveryTimeFrame:(G('Delivery Time Frame')||G('Delivery Timeframe')||'').trim(),salesRep:(G('Sales Rep 1')||G('Sales Rep')||'').trim(),
-    pickupZip:_zip,deliveryZip:zipFromAddr(G('Moving To')),organizerEmail:String((ev.organizer&&ev.organizer.email)||'').trim(),
-    after:G('After Job Code').trim()||null,
-    first:true,base:null,pickup:pz,delivery:dz,
-    pickupAddr,deliveryAddr:G('Moving To'),
-    cityFrom:pz.city,cityTo:dz?dz.city:((G('Moving To')||'?').split(',').slice(-3,-2)[0]||'?').trim(),
-    stateFrom:pz.state,stateTo:dz?dz.state:'',
-    cf:numV(G('Total CF')),
-    crew:Math.max(numV(G('Crew Size')),numV(G('Crew Size at Pickup')),numV(G('Crew Size for Chain Moving')),2),
-    trucksQ:numV(G('Truck Quantity')),vansQ:numV(G('Van Quantity')),
-    movingType:G('Moving Type').trim(),jobType:jt||null,
-    straight:/straight/i.test(jt)?true:(/regular/i.test(jt)?false:/straight/i.test(String(ev.description||''))),
-    packing:numV(G('Packing Estimate')),
-    customer:G('Customer Name').trim(),
-    start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,tripDays,
-    piano:String(ev.summary||'').includes('🎹'),
-    rescheduled:String(ev.summary||'').toUpperCase().includes('RESCHEDULED'),
-    actH,mf:toks.length>=3?(toks[1].trim()||null):null,mt:toks.length>=4?(toks[2].trim()||null):null
-  };
-}
-
-/* ===== Long Distance Planning ===== */
-let LDJOBS=[];
-const CAL_PAST_DAYS=2, CAL_FUTURE_DAYS=120;
-const OUR_STATES=['NJ','PA','NY','DE','CT','MA'];
-/* ===== Sheet-backed data: read the "Long Distance Data" tab via public gviz (no sign-in) ===== */
-const LD_SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
-const LD_SHEET_TAB='Long Distance Data';
-function pcsv(t){var rows=[],r=[],c='',q=false;for(var i=0;i<t.length;i++){var ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++;}else q=false;}else c+=ch;}else{if(ch==='"')q=true;else if(ch===','){r.push(c);c='';}else if(ch==='\n'){r.push(c);rows.push(r);r=[];c='';}else if(ch!=='\r')c+=ch;}}if(c!==''||r.length){r.push(c);rows.push(r);}return rows;}
-function ldStateZip(s){s=String(s||'').trim();var st=(s.match(/[A-Za-z]{2}/)||[''])[0].toUpperCase();var z=(s.match(/\d{5}/)||[''])[0];return {state:st,zip:z};}
-function parseSheetDT(s){s=String(s||'').trim();var m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[ T](\d{1,2}):(\d{2}))?/);if(m){var y=+m[3];if(y<100)y+=2000;return y+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2)+(m[4]?(' '+('0'+m[4]).slice(-2)+':'+m[5]):'');}m=s.match(/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/);if(m)return m[1]+'-'+m[2]+'-'+m[3]+(m[4]?(' '+('0'+m[4]).slice(-2)+':'+m[5]):'');return '';}
-async function loadLDSheet(){
-  const url='https://docs.google.com/spreadsheets/d/'+LD_SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(LD_SHEET_TAB)+'&_t='+Date.now();
-  const t=await fetch(url).then(r=>r.text());
-  const rows=pcsv(t); if(rows.length<2){LDJOBS=[];return {jobs:0};}
-  const H=rows[0].map(x=>String(x).trim().toLowerCase()); const ci=n=>H.indexOf(n);
-  const I={loc:ci('location'),date:ci('event date'),eid:ci('event id'),req:ci('request #'),code:ci('job code'),
-    mtype:ci('moving type'),moveto:ci('moving to'),pzip:ci('pickup zip code'),dzip:ci('delivery zip code'),
-    jtype:ci('job type'),cust:ci('customer name'),cemail:ci('customer email'),cmob:ci('customer mobile'),
-    tf:ci('delivery time frame'),trip:ci('estimated trip days'),sr1:ci('sales rep 1'),forman:ci('forman'),
-    curloc:ci('current location'),isdel:ci('is delivered'),finfad:ci('final fad'),fadpaper:ci('fad by paper'),fad:ci('fad (first available date)'),
-    fincf:ci('final cf'),estcf:ci('estimated cf'),daysb:ci('days before fda'),sticker:ci('sticker'),blanket:ci('blanket'),
-    carrier:ci('carrier'),carphone:ci('carrier phone'),rate:ci('rate'),carpay:ci('carrier payment status'),
-    cartot:ci('total to carrier'),carbal:ci('balance carrier')};
-  const g=(r,k)=>I[k]>=0?String(r[I[k]]||'').trim():'';
-  const today=midnight(new Date()), out=[];
+function shFetch(path,opt){return fetch("https://sheets.googleapis.com/v4/spreadsheets/"+SHEET_ID+path,Object.assign({headers:{Authorization:"Bearer "+GTOKEN,"Content-Type":"application/json"}},opt||{})).then(r=>{if(!r.ok)return r.text().then(b=>{throw new Error("Sheets "+r.status+" "+String(b).slice(0,120));});return r.status===204?null:r.json();});}
+function shAppend(tab,obj){const enc=encodeURIComponent("'"+tab+"'");return shFetch("/values/"+enc+"?valueRenderOption=FORMATTED_VALUE").catch(()=>({})).then(v=>{let header=(v&&v.values&&v.values[0])||[];let pre=Promise.resolve();if(!header.length){pre=shFetch(":batchUpdate",{method:"POST",body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})}).catch(()=>{}).then(()=>{header=Object.keys(obj);return shFetch("/values/"+encodeURIComponent("'"+tab+"'!A1")+"?valueInputOption=USER_ENTERED",{method:"PUT",body:JSON.stringify({values:[header]})});});}return pre.then(()=>{const row=header.map(h=>obj[h]!=null?String(obj[h]):"");Object.keys(obj).forEach(k=>{if(header.indexOf(k)<0)row.push(String(obj[k]));});return shFetch("/values/"+enc+":append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",{method:"POST",body:JSON.stringify({values:[row]})});});});}
+/* ============ data loading ============ */
+function loadJobs(){return fetch(gviz(JOBS_TAB)).then(r=>r.text()).then(t=>{
+  const rows=pcsv(t);if(rows.length<2){JOBS=[];return;}
+  const c=colmap(rows[0]);const g=(r,k)=>{const i=c[k];return i==null?"":String(r[i]||"").trim();};
+  const out=[];
   rows.slice(1).forEach(r=>{
-    if(g(r,'isdel').toLowerCase()==='delivered'||g(r,'curloc').toLowerCase()==='delivered')return;   // keep only NOT-delivered jobs
-    const code=g(r,'code'); if(!code)return;
-    const pz=ldStateZip(g(r,'pzip')), dz=ldStateZip(g(r,'dzip'));
-    const pg=zgeoJS(pz.zip), dg=zgeoJS(dz.zip);
-    const jt=g(r,'jtype');
-    const fadDate=parseLooseDate(g(r,'finfad')||g(r,'fadpaper')||g(r,'fad'));
-    const dRaw=g(r,'daysb').replace(/[^0-9-]/g,''); const dParsed=dRaw?parseInt(dRaw,10):NaN;
-    const daysLeft=isFinite(dParsed)?dParsed:(fadDate?Math.round((midnight(fadDate)-today)/86400000):null);
+    const isDel=g(r,"is delivered").toLowerCase()==="delivered"||g(r,"current location").toLowerCase()==="delivered";
+    if(isDel)return;                                  // keep only NOT-delivered
+    const code=g(r,"job code");if(!code)return;
+    const pz=stateZip(g(r,"pickup zip code")),dz=stateZip(g(r,"delivery zip code"));
+    const pg=geo(pz.zip),dg=geo(dz.zip);
+    const jt=g(r,"job type");
+    const fad=parseDate(g(r,"final fad")||g(r,"fad by paper")||g(r,"fad (first available date)"));
+    const dRaw=g(r,"days before fda").replace(/[^0-9-]/g,"");
     out.push({
-      code, eventId:g(r,'eid'), requestNo:g(r,'req'),
-      customer:g(r,'cust'), customerEmail:g(r,'cemail'), customerMobile:g(r,'cmob'),
-      pickupAddr:g(r,'loc'), deliveryAddr:g(r,'moveto'), pickupZip:pz.zip, deliveryZip:dz.zip,
-      pickup: pg?{lat:pg.lat,lon:pg.lon,city:pg.city,state:pg.state}:{state:pz.state},
-      delivery: dg?{lat:dg.lat,lon:dg.lon,city:dg.city,state:dg.state}:{state:dz.state},
-      stateFrom: pg?pg.state:pz.state, stateTo: dg?dg.state:dz.state,
-      cf: numV(g(r,'fincf'))||numV(g(r,'estcf')),
-      deliveryTimeFrame: g(r,'tf'),
-      tripDays: (function(){const v=parseFloat(g(r,'trip'));return isFinite(v)&&v>0?v:null;})(),
-      salesRep: g(r,'sr1'), foreman: g(r,'forman'),
-      straight: /straight/i.test(jt)?true:(/regular/i.test(jt)?false:false),
-      movingType: g(r,'mtype'), start: parseSheetDT(g(r,'date')), fadDate, daysLeft,
-      sticker:g(r,'sticker'), blanket:g(r,'blanket'),
-      carrier:g(r,'carrier'), carrierPhone:g(r,'carphone'), rate:g(r,'rate'),
-      carrierPay:g(r,'carpay'), carrierTotal:g(r,'cartot'), carrierBalance:g(r,'carbal'),
-      isPickup:true, isDelivery:false, first:true
+      code, customer:g(r,"customer name"), phone:g(r,"customer mobile"),
+      type:/straight/i.test(jt)?"straight":"regular",
+      pickupAddr:g(r,"location"), deliveryAddr:g(r,"moving to"),
+      pickupState:pg?pg.state:pz.state, destState:dg?dg.state:dz.state,
+      pickup:pg?{lat:pg.lat,lon:pg.lon}:null, delivery:dg?{lat:dg.lat,lon:dg.lon}:null,
+      pickupZip:pz.zip, deliveryZip:dz.zip,
+      cf:num(g(r,"final cf"))||num(g(r,"estimated cf")),
+      fad, timeframe:g(r,"delivery time frame"),
+      tripDays:(()=>{const v=parseFloat(g(r,"estimated trip days"));return isFinite(v)&&v>0?v:null;})(),
+      daysBefore:dRaw?parseInt(dRaw,10):null,
+      foreman:g(r,"forman"), carrier:g(r,"carrier"), carrierPhone:g(r,"carrier phone"),
+      sticker:g(r,"sticker"), blanket:g(r,"blanket"), salesRep:g(r,"sales rep 1"),
+      currentLocation:g(r,"current location"), eventId:g(r,"event id"),
+      pickupDate:parseDate(g(r,"event date"))
     });
   });
-  out.sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
-  LDJOBS=out; return {jobs:LDJOBS.length};
-}
-/* ---- routes: accepted consolidations, persisted to a "Routes" tab ---- */
-const ROUTES_TAB='Routes'; let ROUTED=new Set();
-function loadRoutes(){
-  const url='https://docs.google.com/spreadsheets/d/'+LD_SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(ROUTES_TAB)+'&_t='+Date.now();
-  return fetch(url).then(r=>r.ok?r.text():'').then(t=>{ROUTED=new Set();try{const rows=pcsv(t);if(rows.length<2)return;const H=rows[0].map(x=>String(x).trim().toLowerCase());const jc=H.indexOf('job codes');rows.slice(1).forEach(r=>{String((jc>=0?r[jc]:'')||'').split(/[,;]+/).forEach(c=>{c=c.trim();if(c)ROUTED.add(c);});});}catch(e){}}).catch(()=>{});
-}
-function shFetch(path,opt){return fetch('https://sheets.googleapis.com/v4/spreadsheets/'+LD_SHEET_ID+path,Object.assign({headers:{'Authorization':'Bearer '+GTOKEN,'Content-Type':'application/json'}},opt||{})).then(function(r){if(!r.ok)return r.text().then(function(b){throw new Error('Sheets '+r.status+' '+String(b).slice(0,120));});return r.status===204?null:r.json();});}
-function shAppendRow(tab,obj){var enc=encodeURIComponent("'"+tab+"'");return shFetch('/values/'+enc+'?valueRenderOption=FORMATTED_VALUE').catch(function(){return {};}).then(function(v){var vals=(v&&v.values)||[];var header=vals[0]||[];var pre=Promise.resolve();if(!header.length){pre=shFetch(':batchUpdate',{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]})}).catch(function(){}).then(function(){header=Object.keys(obj);return shFetch('/values/'+encodeURIComponent("'"+tab+"'!A1")+'?valueInputOption=USER_ENTERED',{method:'PUT',body:JSON.stringify({values:[header]})});});}return pre.then(function(){var row=header.map(function(h){return obj[h]!=null?String(obj[h]):'';});Object.keys(obj).forEach(function(k){if(header.indexOf(k)<0)row.push(String(obj[k]));});return shFetch('/values/'+enc+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values:[row]})});});});}
-function acceptRoute(ci){
-  const c=CONSOL[ci]; if(!c)return;
-  const jobs=[c.S].concat(c.grp.map(g=>g.R)); const codes=jobs.map(j=>j.code).filter(Boolean);
-  const dest=(c.S.delivery&&c.S.delivery.state)||c.S.stateTo||'';
-  const fad=c.S.fadDate; const ymd=fad?(''+fad.getFullYear()+('0'+(fad.getMonth()+1)).slice(-2)+('0'+fad.getDate()).slice(-2)):'';
-  const rid='RT-'+(dest||'XX')+'-'+(ymd||Date.now().toString(36))+'-'+Math.random().toString(36).slice(2,5).toUpperCase();
-  const obj={'Route ID':rid,'Date':fad?fmtMDY(fad):'','Destination':dest,'Truck':c.truck?c.truck.n:'','Job Codes':codes.join(', '),'CF':Math.round(c.cf),'Created At':new Date().toISOString()};
-  ensureGToken(function(){
-    shAppendRow(ROUTES_TAB,obj).then(function(){
-      codes.forEach(x=>ROUTED.add(x)); renderConsol(); renderFutureJobs();
-      gModal('Route created','<div class="gsub">Route <b>'+esc(rid)+'</b> saved with '+codes.length+' jobs to the <b>Routes</b> tab.</div>');
-    }).catch(function(e){ gModal('Could not save route','<div class="gsub">'+esc((e&&e.message)||'error')+'</div>'); });
-  });
-}
-function updateCalBtns(){ const b=$('calbtn'); if(b){ b.className='btn'; b.textContent='\u21bb Refresh'; } }
-function parseLooseDate(s){
-  s=String(s||'').trim(); if(!s)return null;
-  let m=s.match(/(\d{4})-(\d{2})-(\d{2})/); if(m)return new Date(+m[1],+m[2]-1,+m[3]);
-  m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if(m){let y=+m[3]; if(y<100)y+=2000; return new Date(y,+m[1]-1,+m[2]);}
-  return null;
-}
-function ldDeliveryDate(j){
-  if(j.straight){
-    const m=String(j.deliveryTimeFrame||'').match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})\s*[-\u2013\u2014]\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/);
-    if(m){const d=parseLooseDate(m[2]); if(d)return d;}
+  // delivery date = FAD (target). drop ones already in the past.
+  JOBS=out.filter(j=>!j.fad||midnight(j.fad)>=today0());
+}).catch(e=>{JOBS=[];});}
+function loadStorage(){return fetch(gviz(STORAGE_TAB)).then(r=>r.ok?r.text():"").then(t=>{
+  STORAGE={};try{const rows=pcsv(t);if(rows.length<2)return;const c=colmap(rows[0]);const g=(r,k)=>{const i=c[k];return i==null?"":String(r[i]||"").trim();};
+  rows.slice(1).forEach(r=>{const code=g(r,"job code");if(!code)return;const st=g(r,"inventory status");if(st.toLowerCase()!=="active")return;
+    STORAGE[code]={type:g(r,"location type"),label:g(r,"location label")||g(r,"location"),unit:g(r,"unit"),cf:g(r,"chargeable cf")||g(r,"real cf"),since:g(r,"storage entry date")};});
+  }catch(e){}}).catch(()=>{STORAGE={};});}
+function loadRoutes(){return fetch(gviz(ROUTES_TAB)).then(r=>r.ok?r.text():"").then(t=>{
+  ROUTES=[];ROUTED=new Set();try{const rows=pcsv(t);if(rows.length<2)return;const c=colmap(rows[0]);const g=(r,k)=>{const i=c[k];return i==null?"":String(r[i]||"").trim();};
+  rows.slice(1).forEach(r=>{const codes=g(r,"job codes");if(!codes&&!g(r,"route id"))return;const list=codes.split(/[,;]+/).map(x=>x.trim()).filter(Boolean);list.forEach(x=>ROUTED.add(x));ROUTES.push({id:g(r,"route id"),date:g(r,"date"),dest:g(r,"destination"),truck:g(r,"truck"),codes:list});});
+  }catch(e){}}).catch(()=>{ROUTES=[];ROUTED=new Set();});}
+function loadKV(tab,store,keyField,valField){return fetch(gviz(tab)).then(r=>r.ok?r.text():"").then(t=>{
+  store={};try{const rows=pcsv(t);if(rows.length<2)return store;const c=colmap(rows[0]);const ki=c[keyField];rows.slice(1).forEach(r=>{const k=String((ki!=null?r[ki]:"")||"").trim();if(k)store[k]=valField?String(r[c[valField]]||"").trim():r;});}catch(e){}return store;}).catch(()=>store);}
+function loadBackhaul(){return fetch(gviz(BACKHAUL_TAB)).then(r=>r.ok?r.text():"").then(t=>{BACKHAUL={};try{const rows=pcsv(t);if(rows.length<2)return;const c=colmap(rows[0]);const g=(r,k)=>{const i=c[k];return i==null?"":String(r[i]||"").trim();};rows.slice(1).forEach(r=>{const code=g(r,"job code");if(code)BACKHAUL[code]={cargo:g(r,"cargo"),from:g(r,"from"),to:g(r,"to")};});}catch(e){}}).catch(()=>{BACKHAUL={};});}
+function loadAssign(){return fetch(gviz(ASSIGN_TAB)).then(r=>r.ok?r.text():"").then(t=>{ASSIGN={};try{const rows=pcsv(t);if(rows.length<2)return;const c=colmap(rows[0]);const g=(r,k)=>{const i=c[k];return i==null?"":String(r[i]||"").trim();};rows.slice(1).forEach(r=>{const code=g(r,"job code");if(code)ASSIGN[code]={foreman:g(r,"foreman"),carrier:g(r,"carrier")};});}catch(e){}}).catch(()=>{ASSIGN={};});}
+/* ============ derived per-job ============ */
+function foremanOf(j){return (ASSIGN[j.code]&&ASSIGN[j.code].foreman)||j.foreman||"";}
+function carrierOf(j){return (ASSIGN[j.code]&&ASSIGN[j.code].carrier)||j.carrier||"";}
+function isFar(j){return j.destState&&OUR_STATES.indexOf(j.destState)<0;}
+function deliveryDate(j){return j.fad;}                 // FAD = target delivery date
+function leaveBy(j){const d=deliveryDate(j);if(!d)return null;return new Date(midnight(d).getTime()-(j.tripDays||1)*86400000);}
+function status(j){
+  if(ROUTED.has(j.code))return {lvl:"routed",txt:"Routed",why:"in an accepted route"};
+  const dPick=daysFromToday(j.pickupDate);
+  if(!j.fad)return {lvl:"amber",txt:"No delivery date",why:"FAD is blank — needs a date"};
+  if(j.type==="straight"){
+    if(!foremanOf(j)&&dPick!=null&&dPick<=ASSIGN_DAYS)return {lvl:"red",txt:"Needs foreman",why:"no foreman · pickup "+(dPick<0?"overdue":"in "+dPick+"d")};
+    const lb=leaveBy(j),dl=daysFromToday(lb);
+    // backhaul red: far move, near FAD, empty return, no backhaul found, big enough truck
+    const dFad=daysFromToday(j.fad);
+    if(isFar(j)&&dFad!=null&&dFad<=BACKHAUL_DAYS&&!BACKHAUL[j.code]&&j.cf>=0)
+      return {lvl:"red",txt:"Find backhaul",why:"empty return from "+j.destState+" · no cargo found"};
+    if(dl!=null&&dl<=0)return {lvl:"red",txt:"Send now",why:(j.tripDays||1)+"-day trip · deliver by "+fmtMDY(j.fad)};
+    if(dl!=null&&dl<=LEAVE_SOON)return {lvl:"amber",txt:"Send soon",why:"leave by "+fmtMDY(lb)};
+    return {lvl:"ok",txt:"On track",why:"leave by "+fmtMDY(lb)};
   }
-  return parseLooseDate(j.fadRaw);
+  if(!carrierOf(j)&&dPick!=null&&dPick<=ASSIGN_DAYS)return {lvl:"red",txt:"Needs carrier",why:"no carrier · pickup "+(dPick<0?"overdue":"in "+dPick+"d")};
+  if(!carrierOf(j))return {lvl:"amber",txt:"No carrier yet",why:"assign before pickup"};
+  return {lvl:"ok",txt:"Carrier set",why:carrierOf(j)};
 }
-function midnight(d){const x=new Date(d); x.setHours(0,0,0,0); return x;}
-function ldDaysLeft(j){const d=j.fadDate; if(!d)return null; return Math.round((midnight(d)-midnight(new Date()))/86400000);}
-function fmtMDY(d){if(!d)return ''; return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+String(d.getFullYear()).slice(-2);}
-function stateZip(p,zip){return (((p&&p.state)||'')+(zip?(' '+zip):'')).trim();}
-function resolveForeman(j){
-  const fm=(typeof DATA!=='undefined'&&DATA.foremen)||[]; const n=s=>String(s||'').trim().toLowerCase();
-  if(j.mf){ const t=n(j.mf);
-    const f=fm.find(x=>n(x.nick)===t)||fm.find(x=>n(x.name).split(/\s+/)[0]===t);
-    return f?f.name:j.mf;
-  }
-  const e=n(j.organizerEmail);
-  if(e){ const f=fm.find(x=>n(x.email)===e); if(f)return f.name; }
-  return '';
-}
-let LD_RAW_ITEMS=[];
-const _DEBUG=/[?&]debug=1/i.test((location&&location.search)||'');
-function _isoOf(d){return d?(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')):'';}
-function ldDebugText(){
-  const items=LD_RAW_ITEMS||[];
-  const keyCount={}, reasons={}; const lines=[];
-  let jobN=0,nonJob=0,rej=0,acc=0,pick=0,del=0,strt=0,reg=0,fadOk=0,fadNo=0,dropDate=0;
-  const delByCode={},delByCust={};
-  const DEL='\u{1F6EC}';
-  const today=midnight(new Date());
-  items.forEach(ev=>{
-    const L=parseLabels(ev.description); Object.keys(L).forEach(k=>keyCount[k]=(keyCount[k]||0)+1);
-    const code=(L['job code']||'').trim();
-    if(code&&String(ev.summary||'').includes(DEL)){const d=wallClock(ev.start&&(ev.start.dateTime||ev.start.date)); if(d){const iso=_isoOf(d); delByCode[code]=iso; const c=(L['customer name']||'').trim().toLowerCase(); if(c)delByCust[c]=iso;}}
-  });
-  const samples=[];
-  items.forEach(ev=>{
-    const L=parseLabels(ev.description);
-    const code=(L['job code']||'').trim();
-    if(!code){nonJob++;return;}
-    jobN++;
-    const job=parseCalEvent(ev);
-    if(!job){rej++; const w=(parseCalEvent.why||'?'); reasons[w]=(reasons[w]||0)+1;
-      if(lines.length<40)lines.push('x  '+code.padEnd(12)+' REJECT: '+w);
-      return;}
-    acc++;
-    const isDel=job.isDelivery, isStr=job.straight;
-    if(isDel){del++;} else {pick++; if(isStr)strt++; else reg++;}
-    const fad=ldDeliveryDate(job);
-    const cust=(job.customer||'').trim();
-    const mDel=delByCode[code]||delByCust[cust.toLowerCase()]||'';
-    let drop='';
-    if(!isDel){ if(fad){fadOk++; if(midnight(fad)<today){dropDate++; drop=' (past->dropped)';}} else fadNo++; }
-    if(lines.length<40){
-      lines.push((isDel?'D':'P')+' '+(isStr?'S':'R')+' '+code.padEnd(12)+(cust.slice(0,16)).padEnd(16)
-        +' CF='+(job.cf||'?')
-        +' FADraw='+(job.fadRaw?("'"+job.fadRaw+"'"):'-')
-        +' TF='+(job.deliveryTimeFrame?("'"+job.deliveryTimeFrame.slice(0,20)+"'"):'-')
-        +' =>FAD='+(fad?_isoOf(fad):'\u274C')+drop
-        +' delEv='+(mDel||'-'));
-    }
-    if(samples.length<3&&!isDel)samples.push('--- ['+(isStr?'STRAIGHT':'REGULAR')+'] '+cust+' / '+code+' ---\n'+calDescText(ev.description).slice(0,1300));
-  });
-  const keys=Object.keys(keyCount).sort((a,b)=>keyCount[b]-keyCount[a]);
-  const rk=Object.keys(reasons).sort((a,b)=>reasons[b]-reasons[a]);
-  let o='ZIPDISPATCH LD DIAGNOSTIC - '+items.length+' calendar events in window\n';
-  o+='job events (Job Code present): '+jobN+'   | non-job events (no code): '+nonJob+'\n';
-  o+='  parsed OK: '+acc+'   rejected: '+rej+'\n';
-  if(rk.length)o+='  reject reasons: '+rk.map(r=>r+' x'+reasons[r]).join(' ; ')+'\n';
-  o+='  of parsed: pickups(kept)='+pick+'  deliveries(excluded)='+del+'\n';
-  o+='  pickups: straight='+strt+' regular='+reg+'  | FAD resolved='+fadOk+'  FAD BLANK='+fadNo+'  dropped-as-past='+dropDate+'\n\n';
-  o+='ALL LABEL KEYS (key x #events) - every field present in your descriptions:\n  '+keys.map(k=>k+' x'+keyCount[k]).join('\n  ')+'\n\n';
-  o+='PER-EVENT (first 40)  P=pickup D=delivery S=straight R=regular  delEv=date of a matching delivery event (by code/customer):\n'+lines.join('\n')+'\n\n';
-  o+='RAW DESCRIPTION SAMPLES (redact phone/email if you like):\n\n'+samples.join('\n\n');
-  return o;
-}
-function ldRenderDebug(){
-  const host=$('ldgrid'); if(!host)return;
-  const pre=document.createElement('pre');
-  pre.style.cssText='white-space:pre-wrap;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;background:#0d1117;color:#d6dee7;padding:14px;border-radius:10px;overflow:auto;max-height:78vh;margin-top:14px;border:1px solid #2a3a4a';
-  pre.textContent=ldDebugText();
-  host.appendChild(pre);
-}
-async function calImport(){
-  if(!GTOKEN)return {jobs:0,events:0};
-  const t0=new Date(Date.now()-CAL_PAST_DAYS*86400000),t1=new Date(Date.now()+CAL_FUTURE_DAYS*86400000);
-  let pageToken=null,items=[];
-  do{
-    const j=await gapiFetch('calendars/'+encodeURIComponent(GCAL_ID)+'/events?timeMin='+encodeURIComponent(t0.toISOString())+'&timeMax='+encodeURIComponent(t1.toISOString())+'&maxResults=2500&singleEvents=true&orderBy=startTime'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):''));
-    items=items.concat(j.items||[]); pageToken=j.nextPageToken;
-  }while(pageToken&&items.length<10000);
-  LD_RAW_ITEMS=items;
-  const jobs=[];
-  for(const ev of items){
-    if(ev.status==='cancelled')continue;
-    const job=parseCalEvent(ev); if(!job)continue;
-    if(job.isDelivery)continue;                 // pickups only — ignore the delivery leg
-    job.fadDate=ldDeliveryDate(job);
-    job.daysLeft=ldDaysLeft(job);
-    job.foreman=resolveForeman(job);
-    jobs.push(job);
-  }
-  const today=midnight(new Date());
-  LDJOBS=jobs.filter(j=>!j.fadDate||midnight(j.fadDate)>=today)
-             .sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
-  return {jobs:LDJOBS.length,events:items.length};
-}
-/* ---- LD planning UI: map + consolidation ---- */
-let CONSOL=[];
-let LMAP=null,LROUTE_LAYER=null,LD_ROUTE_REFS={};
-function initMap(){
-  if(LMAP||typeof L==='undefined')return;
-  const el=$('map'); if(!el)return;
-  try{
-    LMAP=L.map('map',{zoomControl:true,attributionControl:true});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'\u00a9 OpenStreetMap \u00a9 CARTO'}).addTo(LMAP);
-    LMAP.setView([39.5,-83],5);
-    LROUTE_LAYER=L.layerGroup().addTo(LMAP);
-  }catch(e){LMAP=null;}
-}
-function drawRoutes(){
-  if(typeof L==='undefined')return; initMap(); if(!LMAP||!LROUTE_LAYER)return;
-  try{LROUTE_LAYER.clearLayers();}catch(e){} LD_ROUTE_REFS={}; const pts=[];
-  LDJOBS.forEach((j,idx)=>{
-    const a=j.pickup,b=j.delivery; if(!a||!b||a.lat==null||b.lat==null)return;
-    if(!jobVisible(j))return;
-    const col=j.straight?'#B26B0B':'#3B72B0'; const cpts=[[a.lat,a.lon],[b.lat,b.lon]];
-    try{
-      L.polyline(cpts,{color:'#fff',weight:6,opacity:.9,lineCap:'round',interactive:false}).addTo(LROUTE_LAYER);
-      const line=L.polyline(cpts,{color:col,weight:3,opacity:.92,dashArray:'8 7',lineCap:'round'}).addTo(LROUTE_LAYER);
-      line.on('click',()=>selectJob(idx,true));
-      L.marker([a.lat,a.lon],{interactive:false,icon:L.divIcon({className:'',html:'<div class="omark"></div>',iconSize:[13,13],iconAnchor:[7,7]})}).addTo(LROUTE_LAYER);
-      const dm=L.marker([b.lat,b.lon],{zIndexOffset:500,icon:L.divIcon({className:'',html:'<div class="dmark'+(j.straight?' amber':'')+'">'+esc(b.state||'')+'</div>',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(LROUTE_LAYER);
-      dm.bindPopup('<b>'+esc(j.customer||'')+'</b><br>'+esc(stateZip(a,j.pickupZip))+' \u2192 '+esc(stateZip(b,j.deliveryZip))+'<br>'+(j.cf||'?')+' CF \u00b7 '+(j.straight?'Straight':'Regular')+(j.fadDate?'<br>FAD '+fmtMDY(j.fadDate):''),{className:'lpop'});
-      dm.on('click',()=>selectJob(idx,false));
-      LD_ROUTE_REFS[idx]={line:line,dm:dm,b:[b.lat,b.lon]};
-    }catch(e){}
-    pts.push([a.lat,a.lon],[b.lat,b.lon]);
-  });
-  if(pts.length){try{LMAP.fitBounds(pts,{padding:[30,30]});}catch(e){}}
-  setTimeout(()=>{try{if(LMAP)LMAP.invalidateSize();}catch(e){}},220);
-}
-function selectJob(idx,fromMap){
-  document.querySelectorAll('.ldtable tbody tr.sel').forEach(tr=>tr.classList.remove('sel'));
-  const tr=document.querySelector('.ldtable tbody tr[data-idx="'+idx+'"]');
-  if(tr){tr.classList.add('sel'); if(fromMap&&tr.scrollIntoView)tr.scrollIntoView({block:'center',behavior:'smooth'});}
-  const ref=LD_ROUTE_REFS[idx]; if(!ref)return;
-  Object.keys(LD_ROUTE_REFS).forEach(k=>{try{LD_ROUTE_REFS[k].line.setStyle({weight:3,opacity:.92});}catch(e){}});
-  try{ref.line.setStyle({weight:5,opacity:1});}catch(e){}
-  if(!fromMap&&LMAP){try{ref.dm.openPopup();LMAP.panTo(ref.b);}catch(e){}}
-}
-/* ---- filters: Run type + Destination (photoshoot-style tiles) ---- */
-const LDFILT={destOff:new Set()};
-function destStateOf(j){return (j.delivery&&j.delivery.state)||j.stateTo||'';}
-function jobVisible(j){
-  if(LDFILT.destOff.has(destStateOf(j)))return false;
-  return true;
-}
-function applyLDFilters(){renderFutureJobs();drawRoutes();updateStats();}
-function buildLDFilters(){
-  const dHost=$('ldDestTiles'); if(!dHost)return;
-  const states=Array.from(new Set(LDJOBS.map(destStateOf).filter(Boolean))).sort();
-  if(!states.length){dHost.innerHTML='<span class="tilenote">Connect the calendar to see destinations</span>';return;}
-  dHost.innerHTML=states.map(s=>'<button type="button" class="tile'+(LDFILT.destOff.has(s)?'':' active')+'" data-ds="'+esc(s)+'">'+esc(s)+'</button>').join('');
-  dHost.querySelectorAll('.tile').forEach(b=>b.onclick=()=>{const s=b.getAttribute('data-ds');if(LDFILT.destOff.has(s)){LDFILT.destOff.delete(s);b.classList.add('active');}else{LDFILT.destOff.add(s);b.classList.remove('active');}applyLDFilters();});
-}
-/* ---- per-job planning status (red / amber / ok) ---- */
-const LD_LEAVE_SOON=2, LD_ASSIGN_DAYS=7;
-function ldPickupDate(j){return parseLooseDate(String(j.start||'').slice(0,10));}
-function ldStatus(j){
-  if(ROUTED.has(j.code)) return {lvl:'routed',txt:'Routed',why:'in an accepted route'};
-  const today=midnight(new Date());
-  const pick=ldPickupDate(j); const dPick=pick?Math.round((midnight(pick)-today)/86400000):null;
-  if(!j.fadDate) return {lvl:'amber',txt:'No delivery date',why:'FAD / Final FAD is blank'};
-  if(j.straight){
-    const trip=j.tripDays||1;
-    const leaveBy=new Date(midnight(j.fadDate).getTime()-trip*86400000);
-    const dLeave=Math.round((midnight(leaveBy)-today)/86400000);
-    if(!j.foreman && dPick!=null && dPick<=LD_ASSIGN_DAYS) return {lvl:'red',txt:'Needs foreman',why:'no foreman · pickup '+(dPick<0?'overdue':'in '+dPick+'d')};
-    if(dLeave<=0) return {lvl:'red',txt:'Send now',why:trip+'-day trip · deliver by '+fmtMDY(j.fadDate)};
-    if(dLeave<=LD_LEAVE_SOON) return {lvl:'amber',txt:'Send soon',why:'leave by '+fmtMDY(leaveBy)+' · '+trip+'-day trip'};
-    return {lvl:'ok',txt:'On track',why:'leave by '+fmtMDY(leaveBy)};
-  }
-  if(!j.carrier && dPick!=null && dPick<=LD_ASSIGN_DAYS) return {lvl:'red',txt:'Needs carrier',why:'no carrier · pickup '+(dPick<0?'overdue':'in '+dPick+'d')};
-  if(!j.carrier) return {lvl:'amber',txt:'No carrier yet',why:'assign a carrier before pickup'};
-  return {lvl:'ok',txt:'Carrier set',why:j.carrier};
-}
-function renderFutureJobs(){
-  const host=$('ldgrid'); if(!host)return;
-  if(!LDJOBS.length){host.innerHTML='<div class="empty">No long-distance jobs found in the sheet.</div>';return;}
-  const row=(j,idx)=>{const s=ldStatus(j);return '<tr class="'+(j.straight?'straight':'regular')+' st-row-'+s.lvl+'" data-idx="'+idx+'">'
-    +'<td class="stcell"><span class="stpill st-'+s.lvl+'">'+esc(s.txt)+'</span><span class="stwhy">'+esc(s.why)+'</span></td>'
-    +'<td class="assign"><a href="#" data-code="'+esc(j.code||'')+'">Assign</a></td>'
-    +'<td class="nowrap mono">'+esc(fmtMDY(parseLooseDate(String(j.start||'').slice(0,10))))+'</td>'
-    +'<td class="num">'+(j.cf||'')+'</td>'
-    +'<td class="nowrap">'+esc(stateZip(j.delivery,j.deliveryZip))+'</td>'
-    +'<td class="nowrap">'+esc(stateZip(j.pickup,j.pickupZip))+'</td>'
-    +'<td class="nowrap mono">'+(j.fadDate?esc(fmtMDY(j.fadDate)):'<span class="fade">\u2014</span>')+'</td>'
-    +'<td>'+esc(j.deliveryTimeFrame||'')+'</td>'
-    +'<td>'+esc(j.customer||'')+'</td>'
-    +'<td>'+esc(j.salesRep||'')+'</td>'
-    +'<td>'+(j.foreman?esc(j.foreman):'<span class="fade">\u2014</span>')+'</td>'
-    +'<td class="num"><span class="dl'+(j.daysLeft!=null&&j.daysLeft<=2?' soon':'')+'">'+(j.daysLeft==null?'':j.daysLeft)+'</span></td>'
-    +'<td>'+esc(j.sticker||'')+'</td>'
-    +'<td>'+esc(j.blanket||'')+'</td>'
-    +'<td>'+esc(j.carrier||'')+'</td>'
-    +'<td class="nowrap">'+esc(j.carrierPhone||'')+'</td>'
-    +'<td class="num">'+esc(j.rate||'')+'</td>'
-    +'<td>'+esc(j.carrierPay||'')+'</td>'
-    +'<td class="num">'+esc(j.carrierTotal||'')+'</td>'
-    +'<td class="num">'+esc(j.carrierBalance||'')+'</td></tr>';}
-  const body=LDJOBS.map((j,idx)=>jobVisible(j)?row(j,idx):'').join('');
-  if(!body){host.innerHTML='<div class="empty">No jobs match the current filters.</div>';return;}
-  host.innerHTML='<table class="ldtable"><thead><tr><th>Status</th><th>Person</th><th>Date</th><th>CF</th><th>Delivery</th><th>Pickup</th><th>FAD</th><th>Timeframe</th><th>Customer</th><th>Sales Rep</th><th>Forman</th><th>Days Left</th><th>Sticker</th><th>Blanket</th><th>Carrier</th><th>Carrier Ph</th><th>Rate</th><th>Carrier Pay</th><th>To Carrier</th><th>Carrier Bal</th></tr></thead><tbody>'+body+'</tbody></table>';
-  host.querySelectorAll('tbody tr').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('a'))return;selectJob(+tr.getAttribute('data-idx'),false);}));
-}
-function usableTrucks(){var L=(typeof DATA!=='undefined'&&DATA.trucks)||[];return L.filter(function(t){return t&&t.cf>0&&t.type==='Truck'&&/^active$/i.test(String(t.status||''));}).sort(function(a,b){return a.cf-b.cf;});}
-function biggestActiveCF(){var ts=usableTrucks();return ts.length?ts[ts.length-1].cf:0;}
-function assignTruck(loadCF){var ts=usableTrucks();for(var i=0;i<ts.length;i++){if(ts[i].cf>=loadCF)return ts[i];}return null;}
-function tfWindowDays(j){const s=String(j.deliveryTimeFrame||'');const m=s.match(/(\d+)\s*(business\s*)?day/i);if(m)return Math.round(+m[1]*(m[2]?1.4:1));if(/-\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/.test(s))return 60;const n=s.match(/^\s*(\d{1,3})\s*$/);if(n)return +n[1];return 14;}
-function nearDest(anchor,r){const ad=anchor.delivery,rd=r.delivery;if(!ad||!rd||ad.lat==null||rd.lat==null)return false;if(rd.state&&ad.state&&rd.state===ad.state)return {why:'same state '+ad.state,mi:Math.round(hav(rd,ad))};const d=hav(rd,ad);if(d<=220)return {why:Math.round(d)+' mi from dest',mi:Math.round(d)};return false;}
-function computeConsol(){
-  CONSOL=[]; const today=midnight(new Date());
-  const bigCF=biggestActiveCF()||1848;
-  const straights=LDJOBS.filter(j=>j.straight&&j.delivery&&j.fadDate);
-  const regulars=LDJOBS.filter(j=>!j.straight&&j.delivery);
+function sortKey(j){return [STORAGE[j.code]?0:1, j.fad?midnight(j.fad).getTime():9e15, j.pickupDate?midnight(j.pickupDate).getTime():9e15];}
+function sortedJobs(){return JOBS.slice().sort((a,b)=>{const ka=sortKey(a),kb=sortKey(b);for(let i=0;i<ka.length;i++){if(ka[i]!==kb[i])return ka[i]-kb[i];}return 0;});}
+/* ============ consolidation ============ */
+function tfDays(j){const s=String(j.timeframe||"");const m=s.match(/(\d+)\s*(business\s*)?day/i);if(m)return Math.round(+m[1]*(m[2]?1.4:1));if(/-\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/.test(s))return 60;const n=s.match(/^\s*(\d{1,3})\s*$/);if(n)return +n[1];return 14;}
+function bigTruck(){return DATA.trucks.reduce((m,t)=>Math.max(m,t.cf),1848);}
+function assignTruck(cf){const ts=DATA.trucks.slice().sort((a,b)=>a.cf-b.cf);for(const t of ts)if(t.cf>=cf)return t;return null;}
+function consolidations(){
+  const out=[];const big=bigTruck();
+  const straights=JOBS.filter(j=>j.type==="straight"&&j.delivery&&j.fad);
+  const regs=JOBS.filter(j=>j.type==="regular"&&j.delivery);
   straights.forEach(S=>{
-    const Ds=midnight(S.fadDate); const cands=[];
-    regulars.forEach(R=>{
-      const fit=nearDest(S,R); if(!fit)return;
-      const rp=parseLooseDate(String(R.start||'').slice(0,10))||today;
-      const winEnd=new Date(midnight(rp).getTime()+tfWindowDays(R)*86400000);
-      if(Ds<midnight(rp)||Ds>winEnd)return;             /* run date must fall inside the regular's delivery timeframe */
-      cands.push({R:R,fit:fit});
+    const Ds=midnight(S.fad),cands=[];
+    regs.forEach(R=>{
+      let fit=null;
+      if(R.destState&&S.destState&&R.destState===S.destState)fit={mi:Math.round(hav(R.delivery,S.delivery)),why:"same state"};
+      else{const d=hav(R.delivery,S.delivery);if(d<=220)fit={mi:Math.round(d),why:Math.round(d)+" mi"};}
+      if(!fit)return;
+      const rp=R.pickupDate?midnight(R.pickupDate):today0();
+      const winEnd=new Date(rp.getTime()+tfDays(R)*86400000);
+      if(Ds<rp||Ds>winEnd)return;
+      cands.push({R,fit});
     });
     if(!cands.length)return;
     cands.sort((a,b)=>a.fit.mi-b.fit.mi);
-    const grp=[]; let cf=S.cf||0;
-    cands.forEach(c=>{if(cf+(c.R.cf||0)<=bigCF){grp.push(c);cf+=(c.R.cf||0);}});  /* never exceed the largest active truck */
+    const grp=[];let cf=S.cf||0;
+    cands.forEach(c=>{if(cf+(c.R.cf||0)<=big){grp.push(c);cf+=(c.R.cf||0);}});
     if(!grp.length)return;
-    const truck=assignTruck(cf);                        /* smallest active truck that holds the combined load */
-    CONSOL.push({S:S,grp:grp,cf:cf,truck:truck,cap:truck?truck.cf:bigCF});
+    out.push({S,grp,cf,truck:assignTruck(cf)});
   });
-  CONSOL.sort((a,b)=>midnight(a.S.fadDate)-midnight(b.S.fadDate));
+  out.sort((a,b)=>midnight(a.S.fad)-midnight(b.S.fad));
+  return out;
+}
+let CONS=[];
+/* ============ render: top panels ============ */
+function renderStorage(){
+  const host=$("#storsum");const items=JOBS.filter(j=>STORAGE[j.code]);
+  $("#storct").textContent=items.length?items.length+" jobs":"";
+  if(!items.length){host.innerHTML='<div class="none">No not-delivered jobs currently in storage.</div>';return;}
+  host.innerHTML=items.sort((a,b)=>(a.fad?a.fad-0:9e15)-(b.fad?b.fad-0:9e15)).map(j=>{const s=STORAGE[j.code];
+    return '<div class="storrow" data-focus="'+esc(j.code)+'"><span class="box">&#128230;</span><div><b>'+esc(j.customer||j.code)+'</b> · '+esc(j.destState||"?")+'<div style="font-size:11.5px;color:var(--dim)">deliver by '+(j.fad?fmtMDY(j.fad):"—")+'</div></div><div class="loc">'+esc(s.type||"storage")+(s.label?"<br>"+esc(s.label):"")+'</div></div>';
+  }).join("");
+  host.querySelectorAll("[data-focus]").forEach(el=>el.onclick=()=>focusJob(el.dataset.focus));
 }
 function renderConsol(){
-  const host=$('consol'); if(!host)return;
-  if(!CONSOL.length){host.innerHTML='<div class="none">No consolidation opportunities yet \u2014 no regular moves share a straight run\u2019s destination and fit its delivery timeframe.</div>';return;}
-  host.innerHTML=CONSOL.map((c,ci)=>{
-    const capCF=c.truck?c.truck.cf:c.cap;
-    const pct=Math.min(100,Math.round(c.cf/capCF*100)),over=!c.truck||c.cf>capCF;
-    const accepted=ROUTED.has(c.S.code);
-    const truckLbl=c.truck?('Truck '+c.truck.n+' \u00b7 '+Math.round(c.cf)+' / '+Math.round(c.truck.cf)+' CF'):(Math.round(c.cf)+' CF \u2014 over largest truck, split/rent');
-    const anchor='<div class="leg anchor"><span class="lt">'+esc(fmtMDY(c.S.fadDate))+'</span><span>\u2605 '+esc(c.S.customer||'')+' \u2014 '+esc(stateZip(c.S.pickup,c.S.pickupZip))+' \u2192 '+esc(stateZip(c.S.delivery,c.S.deliveryZip))+' \u00b7 '+(c.S.cf||0)+' CF</span></div>';
-    const legs=c.grp.map(g=>'<div class="leg"><span class="lt">'+(g.fit.mi||0)+' mi</span><span>'+esc(g.R.customer||'')+' \u2014 '+esc(stateZip(g.R.pickup,g.R.pickupZip))+' \u2192 '+esc(stateZip(g.R.delivery,g.R.deliveryZip))+' \u00b7 '+(g.R.cf||0)+' CF</span></div>').join('');
-    return '<div class="cgroup'+(accepted?' accepted':'')+'"><div class="ch"><span class="dest">'+esc((c.S.delivery&&c.S.delivery.state)||'')+' run</span><span class="when">'+esc(fmtMDY(c.S.fadDate))+' \u00b7 '+(c.grp.length+1)+' jobs</span><span class="cf">'+esc(truckLbl)+'</span></div><div class="cfbar"><i class="'+(over?'over':'')+'" style="width:'+pct+'%"></i></div>'+anchor+legs+'<div class="actions">'+(accepted?'<span class="accbadge">✓ Accepted</span>':'<button class="acc" data-acc="'+ci+'">Accept → Route</button>')+'<button class="prim" data-consol="'+ci+'">Show on map</button></div></div>';
-  }).join('');
-  host.querySelectorAll('button[data-consol]').forEach(b=>b.addEventListener('click',()=>showConsolRoute(+b.getAttribute('data-consol'))));
-  host.querySelectorAll('button[data-acc]').forEach(b=>b.addEventListener('click',()=>acceptRoute(+b.getAttribute('data-acc'))));
+  CONS=consolidations();const host=$("#consol");
+  if(!CONS.length){host.innerHTML='<div class="none">No consolidation opportunities right now — no regulars share a straight run’s destination within its delivery window.</div>';return;}
+  host.innerHTML=CONS.map((c,ci)=>{
+    const accepted=ROUTED.has(c.S.code);const cap=c.truck?c.truck.cf:bigTruck();
+    const pct=Math.min(100,Math.round(c.cf/cap*100)),over=!c.truck;
+    const legs='<div class="leg anchor"><span class="star">&#9733;</span><span>'+esc(c.S.customer||"")+' · '+(c.S.cf||0)+' CF · by '+fmtMDY(c.S.fad)+'</span></div>'+
+      c.grp.map(g=>'<div class="leg"><span style="color:var(--faint);min-width:46px">'+g.fit.mi+' mi</span><span>'+esc(g.R.customer||"")+' · '+(g.R.cf||0)+' CF</span></div>').join("");
+    return '<div class="cons'+(accepted?' accepted':'')+'"><div class="ch"><span class="dest">'+esc(c.S.destState||"?")+' run</span><span class="when">'+fmtMDY(c.S.fad)+' · '+(c.grp.length+1)+' jobs</span><span class="truck">'+(c.truck?'Truck '+c.truck.n+' · '+Math.round(c.cf)+'/'+c.truck.cf+' CF':Math.round(c.cf)+' CF · over truck')+'</span></div><div class="bar2"><i class="'+(over?'over':'')+'" style="width:'+pct+'%"></i></div>'+legs+'<div class="acts">'+(accepted?'<span class="mini acc">&#10003; Accepted</span>':'<button class="mini go" data-acc="'+ci+'">Accept &#8594; Route</button>')+'<button class="mini" data-cmap="'+ci+'">Show on map</button></div></div>';
+  }).join("");
+  host.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>acceptRoute(+b.dataset.acc));
+  host.querySelectorAll("[data-cmap]").forEach(b=>b.onclick=()=>showConsolMap(+b.dataset.cmap));
 }
-function showConsolRoute(ci){
-  const c=CONSOL[ci]; if(!c)return; drawRoutes(); if(typeof L==='undefined'||!LMAP||!LROUTE_LAYER)return;
-  const jobs=[c.S].concat(c.grp.map(g=>g.R)),dest=c.S.delivery,pts=[];
-  jobs.forEach(j=>{if(j.pickup&&dest){try{L.polyline([[j.pickup.lat,j.pickup.lon],[dest.lat,dest.lon]],{color:'#6C5CE0',weight:4,opacity:.95,lineCap:'round'}).addTo(LROUTE_LAYER);}catch(e){} pts.push([j.pickup.lat,j.pickup.lon]);}});
-  if(dest)pts.push([dest.lat,dest.lon]);
-  if(pts.length){try{LMAP.fitBounds(pts,{padding:[40,40]});}catch(e){}}
+/* ============ render: job list (cards by week) ============ */
+function jobCard(j){
+  const s=status(j),dl=j.daysBefore!=null?j.daysBefore:daysFromToday(j.fad);
+  const stor=STORAGE[j.code];
+  const assignedName=j.type==="straight"?foremanOf(j):carrierOf(j);
+  const assignLabel=j.type==="straight"?"Foreman":"Carrier";
+  const assignChip=assignedName
+    ? '<span class="chip ok"><span class="ico">&#128100;</span>'+esc(assignLabel)+': '+esc(assignedName.split("@")[0])+'</span>'
+    : '<span class="chip assign act warn" data-assign="'+esc(j.code)+'"><span class="ico">&#9888;</span>Assign '+esc(assignLabel.toLowerCase())+'</span>';
+  const storChip=stor?'<span class="chip stor act" data-stor="'+esc(j.code)+'"><span class="ico">&#128230;</span>In storage · '+esc(stor.type||"")+'</span>':"";
+  const bhChip=(j.type==="straight"&&isFar(j))?(BACKHAUL[j.code]
+    ?'<span class="chip ok"><span class="ico">&#128666;</span>Backhaul set</span>'
+    :'<span class="chip act" data-bh="'+esc(j.code)+'"><span class="ico">&#128241;</span>Find backhaul</span>'):"";
+  return '<div class="jc straight s-'+s.lvl+'" data-code="'+esc(j.code)+'"><div class="edge"></div><div class="jcin">'
+    +'<div class="top"><div><span class="cust">'+esc(j.customer||j.code)+'</span><span class="tag '+j.type+'">'+(j.type==="straight"?"Straight":"Regular")+'</span></div>'
+    +'<div class="pill"><span class="spill '+s.lvl+'">'+esc(s.txt)+'</span><span class="swhy">'+esc(s.why)+'</span></div></div>'
+    +'<div class="route">'+esc(j.pickupState||"?")+' '+esc(j.pickupZip||"")+'<span class="ar">&#8594;</span>'+esc(j.destState||"?")+' '+esc(j.deliveryZip||"")+'</div>'
+    +'<div class="meta"><span>Deliver by <b>'+(j.fad?fmtMDY(j.fad):"—")+'</b></span><span><b>'+(dl==null?"—":dl)+'</b> days left</span><span><b>'+Math.round(j.cf||0).toLocaleString()+'</b> CF</span>'+(j.tripDays?'<span><b>'+j.tripDays+'</b>-day trip</span>':"")+(j.timeframe?'<span>window: '+esc(j.timeframe)+'</span>':"")+'<span>'+esc(j.code)+'</span></div>'
+    +'<div class="row2">'+assignChip+storChip+bhChip+'<span class="chip act" data-code2="'+esc(j.code)+'"><span class="ico">&#128506;</span>Journey</span></div>'
+    +'</div></div>';
 }
-function updateStats(){
-  const vis=LDJOBS.filter(jobVisible);
-  const p=vis.length,st=vis.filter(j=>j.straight).length;
-  const set=(id,v)=>{const e=$(id); if(e)e.textContent=v;};
-  set('stPick',p); set('stStr',st); set('stReg',p-st); set('stCon',CONSOL.length);
+function renderList(){
+  const host=$("#listview");const jobs=sortedJobs();
+  if(!jobs.length){host.innerHTML='<div class="empty"><b>No long-distance jobs</b>Nothing not-delivered in the sheet right now.</div>';return;}
+  // group by week of delivery date (fallback pickup date)
+  const groups={};
+  jobs.forEach(j=>{const d=j.fad||j.pickupDate;const ws=d?weekStart(d):null;const key=ws?ws.getTime():0;(groups[key]=groups[key]||[]).push(j);});
+  const keys=Object.keys(groups).map(Number).sort((a,b)=>a-b);
+  let html="";
+  keys.forEach(k=>{
+    const ws=k?new Date(k):null;const we=ws?new Date(k+6*86400000):null;
+    const label=ws?(MON[ws.getMonth()]+" "+ws.getDate()+" – "+MON[we.getMonth()]+" "+we.getDate()):"Undated";
+    html+='<div class="week"><div class="weekhd"><h3>'+esc(label)+'</h3><span class="wc">'+groups[k].length+' job'+(groups[k].length>1?"s":"")+'</span></div>'+groups[k].map(jobCard).join("")+'</div>';
+  });
+  host.innerHTML=html;
+  host.querySelectorAll("[data-code]").forEach(el=>el.addEventListener("click",e=>{if(e.target.closest("[data-assign],[data-stor],[data-bh],[data-code2]"))return;focusJob(el.dataset.code);}));
+  host.querySelectorAll("[data-code2]").forEach(el=>el.onclick=()=>focusJob(el.dataset.code2));
+  host.querySelectorAll("[data-assign]").forEach(el=>el.onclick=ev=>{ev.stopPropagation();openAssign(el.dataset.assign);});
+  host.querySelectorAll("[data-stor]").forEach(el=>el.onclick=ev=>{ev.stopPropagation();openStorage(el.dataset.stor);});
+  host.querySelectorAll("[data-bh]").forEach(el=>el.onclick=ev=>{ev.stopPropagation();openBackhaul(el.dataset.bh);});
 }
-function pullAll(){
-  $('rfstamp').textContent='Loading\u2026';
-  return Promise.all([loadLDSheet(),loadRoutes()]).then(r=>{ buildLDFilters(); drawRoutes(); computeConsol(); renderFutureJobs(); renderConsol(); updateStats(); updateCalBtns(); if(_DEBUG)ldRenderDebug();
-    $('rfstamp').textContent=LDJOBS.length?(LDJOBS.length+' pickups \u00b7 pulled '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})):'no upcoming pickups';
-  }).catch(e=>{ const g=$('ldgrid'); if(g)g.innerHTML='<div class="empty">Could not pull the calendar \u2014 '+esc((e&&e.message)||'error')+'</div>'; $('rfstamp').textContent=''; });
+/* ============ render: calendar ============ */
+function renderCal(){
+  const host=$("#calview");const jobs=sortedJobs();
+  const byDay={};jobs.forEach(j=>{const d=j.fad||j.pickupDate;if(!d)return;const key=midnight(d).getTime();(byDay[key]=byDay[key]||[]).push(j);});
+  const start=weekStart(new Date());let html="";
+  for(let w=0;w<WEEKS_AHEAD;w++){
+    const ws=new Date(start.getTime()+w*7*86400000);
+    let any=false,cells="";
+    for(let d=0;d<7;d++){const day=new Date(ws.getTime()+d*86400000);const key=midnight(day).getTime();const evs=byDay[key]||[];if(evs.length)any=true;
+      const isToday=key===today0().getTime();
+      cells+='<div class="cday'+(isToday?" today":"")+'"><div class="dn">'+DOW[day.getDay()]+" "+day.getDate()+'</div>'+evs.map(j=>{const s=status(j);return '<div class="cev '+j.type+(s.lvl==="red"?" red":"")+'" data-code="'+esc(j.code)+'" title="'+esc(j.customer)+' — '+esc(s.txt)+'">'+esc((j.customer||j.code).split(" ")[0])+' '+esc(j.destState||"")+'</div>';}).join("")+'</div>';
+    }
+    if(!any&&w>0)continue;
+    const we=new Date(ws.getTime()+6*86400000);
+    html+='<div class="cweek"><div class="cwh">'+MON[ws.getMonth()]+" "+ws.getDate()+" – "+MON[we.getMonth()]+" "+we.getDate()+'<span class="n">week of '+fmtMDY(ws)+'</span></div><div class="cgrid">'+cells+'</div></div>';
+  }
+  host.innerHTML=html||'<div class="empty"><b>Nothing scheduled</b>No dated jobs in the next '+WEEKS_AHEAD+' weeks.</div>';
+  host.querySelectorAll("[data-code]").forEach(el=>el.onclick=()=>{setView("map");focusJob(el.dataset.code);});
 }
-function ldConnect(){ pullAll(); }
-var _cb=$('calbtn'); if(_cb)_cb.addEventListener('click',ldConnect);
-function boot(){ initMap(); updateCalBtns(); buildLDFilters(); renderFutureJobs(); renderConsol(); updateStats(); if(!boot._pulled){boot._pulled=1;pullAll();} }
-boot();
-
+/* ============ map ============ */
+function initMap(){if(LMAP||typeof L==="undefined")return;const el=$("#map");if(!el)return;try{LMAP=L.map("map",{zoomControl:true});L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"© OpenStreetMap © CARTO"}).addTo(LMAP);LMAP.setView([39.5,-83],5);LLAYER=L.layerGroup().addTo(LMAP);}catch(e){LMAP=null;}}
+function drawAll(){initMap();if(!LMAP||!LLAYER)return;try{LLAYER.clearLayers();}catch(e){}const pts=[];
+  JOBS.forEach(j=>{if(!j.pickup||!j.delivery)return;const col=j.type==="straight"?"#B26B0B":"#3B72B0";
+    try{L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:col,weight:2,opacity:.4,dashArray:"5 6"}).addTo(LLAYER);
+      L.marker([j.delivery.lat,j.delivery.lon],{icon:L.divIcon({className:"",html:'<div class="dmark'+(j.type==="straight"?"":'" style="border-color:#3B72B0')+'">'+esc(j.destState||"")+'</div>',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(LLAYER).on("click",()=>focusJob(j.code));
+    }catch(e){}pts.push([j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]);});
+  if(pts.length){try{LMAP.fitBounds(pts,{padding:[26,26]});}catch(e){}}setTimeout(()=>{try{LMAP&&LMAP.invalidateSize();}catch(e){}},200);}
+function focusJob(code){const j=JOBS.find(x=>x.code===code);if(!j)return;if(VIEW==="cal")setView("map");initMap();if(!LMAP||!LLAYER||!j.pickup||!j.delivery){toast(j?("No map coords for "+code):"");return;}
+  try{LLAYER.clearLayers();
+    L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:"#fff",weight:7,opacity:.9}).addTo(LLAYER);
+    L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:j.type==="straight"?"#B26B0B":"#3B72B0",weight:4,opacity:.95,dashArray:"9 7"}).addTo(LLAYER);
+    L.marker([j.pickup.lat,j.pickup.lon],{icon:L.divIcon({className:"",html:'<div class="omark"></div>',iconSize:[12,12],iconAnchor:[6,6]})}).addTo(LLAYER).bindPopup("Pickup · "+esc(j.pickupState));
+    L.marker([j.delivery.lat,j.delivery.lon],{icon:L.divIcon({className:"",html:'<div class="dmark">'+esc(j.destState||"")+'</div>',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(LLAYER).bindPopup("<b>"+esc(j.customer)+"</b><br>"+esc(j.pickupState)+" → "+esc(j.destState)+"<br>"+(j.cf||0)+" CF · by "+fmtMDY(j.fad)).openPopup();
+    LMAP.fitBounds([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{padding:[60,60]});
+  }catch(e){}
+  $("#mapinfo").innerHTML="<b>"+esc(j.customer||j.code)+"</b> — "+esc(j.pickupState)+" → "+esc(j.destState)+" · "+(j.cf||0)+" CF · deliver by "+fmtMDY(j.fad);
+  setTimeout(()=>{try{LMAP.invalidateSize();}catch(e){}},150);
+}
+function showConsolMap(ci){const c=CONS[ci];if(!c)return;setView("map");initMap();if(!LMAP||!LLAYER)return;
+  try{LLAYER.clearLayers();const jobs=[c.S].concat(c.grp.map(g=>g.R)),dest=c.S.delivery,pts=[];
+    jobs.forEach(j=>{if(j.pickup&&dest){L.polyline([[j.pickup.lat,j.pickup.lon],[dest.lat,dest.lon]],{color:"#6C5CE0",weight:4,opacity:.92}).addTo(LLAYER);L.marker([j.pickup.lat,j.pickup.lon],{icon:L.divIcon({className:"",html:'<div class="omark"></div>',iconSize:[12,12],iconAnchor:[6,6]})}).addTo(LLAYER);pts.push([j.pickup.lat,j.pickup.lon]);}});
+    if(dest){L.marker([dest.lat,dest.lon],{icon:L.divIcon({className:"",html:'<div class="dmark">'+esc(c.S.destState||"")+'</div>',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(LLAYER);pts.push([dest.lat,dest.lon]);}
+    if(pts.length)LMAP.fitBounds(pts,{padding:[50,50]});
+  }catch(e){}
+  $("#mapinfo").innerHTML="Consolidated <b>"+esc(c.S.destState)+"</b> run · "+(c.grp.length+1)+" jobs · "+Math.round(c.cf)+" CF";
+}
+/* ============ actions (writes) ============ */
+function acceptRoute(ci){const c=CONS[ci];if(!c)return;
+  const codes=[c.S].concat(c.grp.map(g=>g.R)).map(j=>j.code).filter(Boolean);
+  const ymd=c.S.fad?(""+c.S.fad.getFullYear()+("0"+(c.S.fad.getMonth()+1)).slice(-2)+("0"+c.S.fad.getDate()).slice(-2)):Date.now().toString(36);
+  const id="RT-"+(c.S.destState||"XX")+"-"+ymd+"-"+Math.random().toString(36).slice(2,5).toUpperCase();
+  const obj={"Route ID":id,"Date":c.S.fad?fmtMDY(c.S.fad):"","Destination":c.S.destState||"","Truck":c.truck?c.truck.n:"","Job Codes":codes.join(", "),"CF":Math.round(c.cf),"Created At":new Date().toISOString()};
+  ensureToken(()=>shAppend(ROUTES_TAB,obj).then(()=>{codes.forEach(x=>ROUTED.add(x));toast("Route "+id+" saved.");renderConsol();renderList();}).catch(e=>modal("Couldn't save route","<div class=\"mrow\">"+esc(e.message)+"</div>")));
+}
+function openAssign(code){const j=JOBS.find(x=>x.code===code);if(!j)return;
+  const isS=j.type==="straight";
+  const body='<div class="mrow"><span class="k">'+esc(j.customer||"")+' · '+esc(j.pickupState)+' → '+esc(j.destState)+' · deliver by '+fmtMDY(j.fad)+'</span></div>'+
+    (isS?'<div class="mfield"><label>Foreman (we deliver)</label><select class="asel"><option value="">— pick foreman —</option>'+DATA.foremen.map(f=>'<option>'+esc(f)+'</option>').join("")+'</select></div>'
+       :'<div class="mfield"><label>Carrier (3rd-party delivery)</label><input class="asel" placeholder="Carrier name"></div>');
+  modal((isS?"Assign foreman":"Assign carrier"),body,'<button class="mini" onclick="closeModal()">Cancel</button><button class="mini pri" id="asave">Save</button>');
+  $("#asave").onclick=()=>{const v=($(".asel").value||"").trim();if(!v){toast("Pick/enter one first.");return;}
+    const obj={"Job Code":code,"Foreman":isS?v:"","Carrier":isS?"":v,"Assigned At":new Date().toISOString()};
+    ensureToken(()=>shAppend(ASSIGN_TAB,obj).then(()=>{ASSIGN[code]={foreman:isS?v:(ASSIGN[code]&&ASSIGN[code].carrier),carrier:isS?(ASSIGN[code]&&ASSIGN[code].foreman):v};if(isS)ASSIGN[code]={foreman:v,carrier:""};else ASSIGN[code]={foreman:"",carrier:v};closeModal();toast("Assigned.");renderList();}).catch(e=>modal("Couldn't save","<div class=\"mrow\">"+esc(e.message)+"</div>")));
+  };
+}
+function openStorage(code){const s=STORAGE[code],j=JOBS.find(x=>x.code===code);if(!s)return;
+  modal("Storage — "+esc((j&&j.customer)||code),
+   '<div class="mrow"><span class="k">Where:</span> <b>'+esc(s.type||"—")+'</b></div>'+
+   '<div class="mrow"><span class="k">Location / unit:</span> '+esc(s.label||s.unit||"—")+'</div>'+
+   '<div class="mrow"><span class="k">CF in storage:</span> '+esc(s.cf||"—")+'</div>'+
+   '<div class="mrow"><span class="k">In storage since:</span> '+esc(s.since||"—")+'</div>'+
+   (j?'<div class="mrow"><span class="k">Deliver by:</span> '+(j.fad?fmtMDY(j.fad):"—")+' — pull from storage in time.</div>':""),
+   '<button class="mini pri" onclick="closeModal()">Got it</button>');
+}
+function waMsg(j,kind){const home=DATA.bases[j.pickupState]?j.pickupState:"NJ";
+  if(kind==="out")return "🚚 Going "+(j.pickupState||"NJ")+" → "+(j.destState||"?")+" around "+(j.fad?fmtMDY(j.fad):"TBD")+".\nHave ~"+(j.cf||0)+" CF and room for more — anyone needs a load on the way? Reply with pickup + drop + CF.";
+  return "🔄 Truck returning from "+(j.destState||"?")+" → "+home+" around "+(j.fad?fmtMDY(new Date(midnight(j.fad).getTime()+(j.tripDays||2)*86400000)):"TBD")+", coming back EMPTY.\nLooking for cargo back to "+home+". What've you got?";
+}
+function openBackhaul(code){const j=JOBS.find(x=>x.code===code);if(!j)return;
+  const body='<div class="mrow"><span class="k">'+esc(j.customer||"")+' · '+esc(j.pickupState)+' → '+esc(j.destState)+' · '+(j.cf||0)+' CF</span></div>'+
+   '<div class="mfield"><label>Outbound message (spare space)</label><div class="mwa" id="wo">'+esc(waMsg(j,"out"))+'</div></div>'+
+   '<div class="mfield"><label>Return message (empty back)</label><div class="mwa" id="wr">'+esc(waMsg(j,"ret"))+'</div></div>'+
+   '<div class="mfield"><label>If someone gives you return cargo, record it:</label><input id="bhcargo" placeholder="e.g. 300 CF furniture, Orlando → Newark"></div>';
+  modal("Backhaul — blast WhatsApp & record",body,
+   '<button class="mini" id="cpout">Copy outbound</button><button class="mini" id="cpret">Copy return</button><button class="mini pri green" id="bhsave">Save found cargo</button>');
+  const cp=(t)=>{try{navigator.clipboard.writeText(t);toast("Copied.");}catch(e){toast("Copy from the box above.");}};
+  $("#cpout").onclick=()=>cp(waMsg(j,"out"));$("#cpret").onclick=()=>cp(waMsg(j,"ret"));
+  $("#bhsave").onclick=()=>{const cargo=($("#bhcargo").value||"").trim();if(!cargo){toast("Type what cargo you found.");return;}
+    const obj={"Job Code":code,"Cargo":cargo,"From":j.destState||"","To":j.pickupState||"NJ","Recorded At":new Date().toISOString()};
+    ensureToken(()=>shAppend(BACKHAUL_TAB,obj).then(()=>{BACKHAUL[code]={cargo:cargo,from:j.destState,to:j.pickupState};closeModal();toast("Backhaul recorded.");renderList();}).catch(e=>modal("Couldn't save","<div class=\"mrow\">"+esc(e.message)+"</div>")));
+  };
+}
+/* ============ views ============ */
+function setView(v){VIEW=v;document.querySelectorAll(".vbtn").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
+  const lc=$("#leftcol"),lay=$(".layout");
+  if(v==="map"){lc.classList.add("hidden");lay.classList.add("mapfull");initMap();drawAll();setTimeout(()=>{try{LMAP&&LMAP.invalidateSize();}catch(e){}},160);}
+  else{lc.classList.remove("hidden");lay.classList.remove("mapfull");
+    $("#listview").classList.toggle("hidden",v!=="list");
+    $("#calview").classList.toggle("hidden",v!=="cal");
+    if(v==="cal")renderCal();}
+}
+/* ============ boot ============ */
+function renderAll(){renderStorage();renderConsol();renderList();if(VIEW==="cal")renderCal();drawAll();}
+function pull(){$("#rfstamp").textContent="Loading…";
+  return Promise.all([loadJobs(),loadStorage(),loadRoutes(),loadBackhaul(),loadAssign()]).then(()=>{
+    renderAll();
+    $("#rfstamp").textContent=JOBS.length+" jobs · "+new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+  }).catch(e=>{$("#rfstamp").textContent="load error";});
+}
+document.querySelectorAll(".vbtn").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+$("#refresh").addEventListener("click",pull);
+window.closeModal=closeModal;
+initMap();pull();
 </script>
-</body></html>
+</body>
+</html>
