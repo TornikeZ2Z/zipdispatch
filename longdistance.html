@@ -195,6 +195,20 @@ header h1{font-family:'Barlow Condensed';font-weight:600;font-size:29px;letter-s
 .dmark2{display:flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 6px;border-radius:13px;background:#fff;border:2.5px solid #B26B0B;font-family:'Barlow Condensed';font-weight:600;font-size:12.5px;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.25);white-space:nowrap}
 .dmark2.c{border-color:#3E7CB1}.dmark2.a{border-color:#C0392B}
 .pmark2{width:11px;height:11px;border-radius:50%;background:#2E333A;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.filterbar{display:flex;gap:7px;flex-wrap:wrap}
+.ldf{font:600 13px Inter;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 9px;cursor:pointer}
+#bhmsg{font:inherit;font-size:14.5px;padding:10px 12px;border:1.5px solid var(--line2);border-radius:9px;width:100%;resize:vertical;color:var(--ink);box-sizing:border-box}
+.suggsec{display:flex;align-items:baseline;gap:10px;margin:2px 0 12px;flex-wrap:wrap}
+.suggsec h3{font-family:'Barlow Condensed';font-weight:600;font-size:20px;letter-spacing:.02em}
+.suggsec .meta{font-size:13px;color:var(--dim)}
+.suggcard{border:1px solid var(--travel-bd);background:linear-gradient(180deg,var(--travel-bg),#fff 65%);border-radius:14px;padding:13px 16px;margin-bottom:12px}
+.suggtop{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.suggreg{font-family:'Barlow Condensed';font-weight:600;font-size:17px;color:var(--travel);background:#fff;border:1px solid var(--travel-bd);padding:2px 12px;border-radius:20px}
+.suggmeta{font-size:13.5px;color:var(--dim)}.suggmeta b{color:var(--ink)}
+.suggtop .abtn.dark{margin-left:auto}
+.suggjobs{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.suggjob{font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 9px;color:var(--dim);font-family:'IBM Plex Mono'}
+.suggjob i{color:var(--travel);font-style:normal;font-weight:700;margin:0 3px}
 a.abtn{text-decoration:none;display:inline-flex;align-items:center}
 </style>
 </head>
@@ -204,13 +218,14 @@ a.abtn{text-decoration:none;display:inline-flex;align-items:center}
   <img id="brandlogo" src="logo.png" alt="Zip To Zip" onerror="this.style.display='none'">
   <div><h1>Long Distance Planning</h1><div class="hsub">Don't miss the deadline &middot; fill every truck</div></div>
   <div class="views"><button class="vbtn on" data-view="board">&#9776; Board</button><button class="vbtn" data-view="timeline">&#128197; Timeline</button><button class="vbtn" data-view="map">&#127758; Map</button></div>
-  <select id="ldfilter" title="Filter by delivery date (FAD)"><option value="all">All deliveries</option><option value="wk">Next 7 days</option><option value="2wk">Next 14 days</option><option value="mo">Next 30 days</option></select>
+  <div class="filterbar"><select id="ldfilter" class="ldf" title="Delivery date"><option value="all">All dates</option><option value="wk">Next 7 days</option><option value="2wk">Next 14 days</option><option value="mo">Next 30 days</option></select><select id="ldfreg" class="ldf" title="Destination region"><option value="all">All regions</option><option>Northeast</option><option>Southeast</option><option>Midwest</option><option>South</option><option>West</option></select><select id="ldfst" class="ldf" title="Status"><option value="all">All status</option><option value="action">Needs action</option></select><select id="ldfty" class="ldf" title="Type"><option value="all">All types</option><option value="straight">Straight</option><option value="regular">Regular</option></select></div>
   <div class="stats" id="stats"></div>
   <button id="refreshbtn">&#8635; Refresh</button>
   <span id="rfstamp"></span>
 </header>
 <div class="layout">
   <div class="rail">
+    <div id="suggwrap"></div>
     <div class="railhead"><h2>Trips by week &mdash; deadline order</h2></div>
     <div id="cards"></div>
   </div>
@@ -248,7 +263,9 @@ let JOBS = [], STORAGE = {}, ROUTED = new Set(), ASSIGN = {}, BACKHAUL = {};
 let GTOKEN = null, GTOKEXP = 0, _tc = null;
 let LMAP = null, LLAYER = null, VIZ = null;
 let VIEW = "board", TLSTART = null; const TLDAYS = 42;
-let FILTER = "all", LMAP2 = null, LLAYER2 = null;
+let FILTER = "all", FILTERREG = "all", FILTERST = "all", FILTERTY = "all", LMAP2 = null, LLAYER2 = null;
+const ROUTE_WINDOW = 5;
+const REGIONS = {Northeast:["NJ","NY","PA","CT","MA","RI","NH","VT","ME","DE","MD","DC"],Southeast:["VA","NC","SC","GA","FL","TN","KY","WV","AL","MS"],Midwest:["OH","MI","IN","IL","WI","MN","IA","MO","KS","NE","ND","SD"],South:["TX","OK","AR","LA","NM"],West:["CA","AZ","NV","UT","CO","WY","MT","ID","OR","WA"]};
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 try { const g = JSON.parse(localStorage.getItem("zd_ldtok") || "null"); if (g && g.exp > Date.now()+60000){ GTOKEN=g.t; GTOKEXP=g.exp; } } catch(e){}
 
@@ -468,7 +485,7 @@ function tripCard(j){
   di.forEach(d=>{ chips+='<span class="chip data" data-di="'+esc(j.code)+'">&#9888; '+esc(d)+'</span>'; });
   if(STORAGE[j.code]) chips+='<span class="chip stor" data-stor="'+esc(j.code)+'">&#128230; In storage &middot; '+esc(STORAGE[j.code].type||"")+'</span>';
   if(j.tripDays) chips+='<span class="chip">&#128739; '+j.tripDays+'-day trip</span>';
-  if(isS && isFar(j)) chips+='<span class="chip ov">&#128666; '+spare+' CF free on return</span>';
+  if(isS && isFar(j)) chips+='<span class="chip ov" data-bh="'+esc(j.code)+'">&#128666; '+spare+' CF free on return &middot; find backhaul</span>';
   if(tw.kind==="days"||tw.kind==="range") chips+='<span class="chip">window: '+esc(tw.label)+(tw.end?" (ends "+fmtMDY(tw.end)+")":"")+'</span>';
   const aico = who ? '<div class="aico teal">'+(isS?"FM":"CR")+'</div>' : '<div class="aico amber">'+(isS?"FM":"CR")+'</div>';
   const atext = who
@@ -484,8 +501,8 @@ function tripCard(j){
     '<div class="assign"><div class="arow">'+aico+atext+'</div>'+truckSeg+abtn+'</div></div>';
 }
 function render(){
-  renderStats();
-  const host=$("#cards"), jobs=sortedJobs();
+  renderStats(); renderSuggest();
+  const host=$("#cards"), jobs=sortedJobs().filter(inFilter);
   if(!jobs.length){ host.innerHTML='<div class="empty"><b>No long-distance trips</b>Nothing not-delivered in the sheet right now.</div>'; return; }
   const groups={};
   jobs.forEach(j=>{ const d=j.fad||j.pickupDate; const ws=d?weekStart(d):null; const key=ws?ws.getTime():0; (groups[key]=groups[key]||[]).push(j); });
@@ -500,6 +517,7 @@ function render(){
   host.querySelectorAll("[data-assign]").forEach(el=>el.onclick=()=>openAssign(el.dataset.assign));
   host.querySelectorAll("[data-stor]").forEach(el=>el.onclick=()=>openStorage(el.dataset.stor));
   host.querySelectorAll("[data-di]").forEach(el=>el.onclick=()=>openDataIssue(el.dataset.di));
+  host.querySelectorAll("[data-bh]").forEach(el=>el.onclick=()=>openBackhaul(el.dataset.bh));
   host.querySelectorAll("[data-viz]").forEach(el=>el.onclick=()=>vizJourney(el.dataset.viz));
   if(VIZ){ const b=document.querySelector('.vizbtn[data-viz="'+VIZ+'"]'); if(b){ b.classList.add("on"); b.innerHTML="Hide &#9656;"; } }
 }
@@ -591,7 +609,14 @@ function openDataIssue(code){
     '<button class="abtn dark" onclick="closeModal()">Got it</button>');
 }
 /* ===== map view + filter ===== */
-function inFilter(j){ if(FILTER==="all") return true; const d=daysFromToday(j.fad); if(d==null) return true; const mx=FILTER==="wk"?7:FILTER==="2wk"?14:30; return d<=mx; }
+function regionOf(st){ st=String(st||"").toUpperCase(); for(const r in REGIONS) if(REGIONS[r].indexOf(st)>=0) return r; return "Other"; }
+function inFilter(j){
+  if(FILTER!=="all"){ const d=daysFromToday(j.fad); const mx=FILTER==="wk"?7:FILTER==="2wk"?14:30; if(d!=null && d>mx) return false; }
+  if(FILTERREG!=="all" && regionOf(j.destState)!==FILTERREG) return false;
+  if(FILTERTY!=="all" && j.type!==FILTERTY) return false;
+  if(FILTERST==="action"){ const l=status(j).lvl; if(l!=="hazard" && l!=="rental") return false; }
+  return true;
+}
 function filtered(){ return JOBS.filter(inFilter); }
 function initMap2(){ if(LMAP2||typeof L==="undefined") return; const el=$("#ldmap"); if(!el) return; try{ LMAP2=L.map("ldmap",{zoomControl:true}); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(LMAP2); LMAP2.setView([39.5,-83],5); LLAYER2=L.layerGroup().addTo(LMAP2); }catch(e){ LMAP2=null; } }
 function renderMap(){
@@ -613,6 +638,61 @@ function renderMap(){
   });
   if(pts.length) try{ LMAP2.fitBounds(pts,{padding:[50,50]}); }catch(e){}
   setTimeout(()=>{ try{ LMAP2&&LMAP2.invalidateSize(); }catch(e){} },180);
+}
+/* ===== routing (consolidation) + backhaul ===== */
+function sumCF(js){ return js.reduce((s,x)=>s+(x.cf||0),0); }
+function maxTruckCF(){ return Math.max.apply(null,DATA.trucks.map(t=>t.cf)); }
+function fitTruck(cf){ const ts=DATA.trucks.slice().sort((a,b)=>a.cf-b.cf); return ts.find(t=>t.cf>=cf)||ts[ts.length-1]; }
+function mkSug(js,region){ const cf=sumCF(js), fads=js.map(x=>midnight(x.fad).getTime()), dmin=Math.min.apply(null,fads); return {codes:js.map(x=>x.code),jobs:js,region,cf,truck:fitTruck(cf),deliver:new Date(dmin),depart:new Date(dmin-2*86400000)}; }
+function suggestRoutes(){
+  const cand=filtered().filter(j=>!ROUTED.has(j.code)&&j.fad&&j.destState);
+  const byReg={}; cand.forEach(j=>{ const r=regionOf(j.destState); (byReg[r]=byReg[r]||[]).push(j); });
+  const mx=maxTruckCF(), out=[];
+  Object.keys(byReg).forEach(r=>{
+    const js=byReg[r].slice().sort((a,b)=>midnight(a.fad)-midnight(b.fad));
+    let cur=[];
+    js.forEach(j=>{
+      if(!cur.length){ cur=[j]; return; }
+      const within=Math.abs(daysFromToday(j.fad)-daysFromToday(cur[0].fad))<=ROUTE_WINDOW;
+      if(within && (sumCF(cur)+(j.cf||0))<=mx) cur.push(j);
+      else { if(cur.length>1) out.push(mkSug(cur,r)); cur=[j]; }
+    });
+    if(cur.length>1) out.push(mkSug(cur,r));
+  });
+  return out.sort((a,b)=>a.deliver-b.deliver);
+}
+function renderSuggest(){
+  const host=$("#suggwrap"); if(!host) return;
+  const sug=suggestRoutes(); window._SUG=sug;
+  if(!sug.length){ host.innerHTML=""; return; }
+  host.innerHTML='<div class="suggsec"><h3>Suggested routes</h3><span class="meta">consolidate &amp; deliver yourself &mdash; one truck instead of separate carriers</span></div>'+
+    sug.map((s,i)=>'<div class="suggcard"><div class="suggtop"><span class="suggreg">'+esc(s.region)+'</span><span class="suggmeta"><b>'+s.codes.length+'</b> trips &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; depart by '+fmtMDY(s.depart)+'</span><button class="abtn dark" data-route="'+i+'">Accept &amp; route</button></div><div class="suggjobs">'+s.jobs.map(j=>'<span class="suggjob">'+esc(j.code)+' <i>'+esc(j.destState)+'</i> '+fmtMDY(j.fad)+'</span>').join("")+'</div></div>').join("");
+  host.querySelectorAll("[data-route]").forEach(el=>el.onclick=()=>openRoute(window._SUG[+el.getAttribute("data-route")]));
+}
+function openRoute(s){ if(!s) return;
+  modal("Create route &middot; "+esc(s.region),
+    '<div class="mrow"><b>'+s.codes.length+'</b> trips &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; deliver by '+fmtMDY(s.deliver)+'</div>'+
+    '<div class="mfield"><label>Truck</label><select class="rtruck">'+DATA.trucks.map(t=>'<option value="'+esc(t.n)+'"'+(t.n===s.truck.n?" selected":"")+'>'+esc(t.n)+' &middot; '+t.cf.toLocaleString()+' CF</option>').join("")+'</select></div>'+
+    '<div class="mfield"><label>Foreman &mdash; we deliver this route</label><select class="rfore"><option value="">- pick foreman -</option>'+DATA.foremen.map(f=>'<option>'+esc(f)+'</option>').join("")+'</select></div>'+
+    '<div class="mrow" style="color:var(--dim);font-size:13px">Jobs: '+esc(s.codes.join(", "))+' &middot; depart by '+fmtMDY(s.depart)+'</div>',
+    '<button class="abtn" onclick="closeModal()">Cancel</button><button class="abtn dark" id="rsave">Create route</button>');
+  $("#rsave").onclick=()=>createRoute(s,($(".rtruck")&&$(".rtruck").value)||"",($(".rfore")&&$(".rfore").value)||"");
+}
+function createRoute(s,truckN,fore){
+  const id="R"+Date.now().toString(36).toUpperCase();
+  const obj={"Route ID":id,"Region":s.region,"Job Codes":s.codes.join(", "),"Truck":truckN,"Foreman":fore,"Depart":fmtMDY(s.depart),"Deliver By":fmtMDY(s.deliver),"Total CF":Math.round(s.cf),"Created":new Date().toISOString()};
+  ensureToken(()=>shAppend(ROUTES_TAB,obj).then(()=>{ s.codes.forEach(c=>{ ROUTED.add(c); if(fore) ASSIGN[c]={foreman:fore,carrier:""}; }); closeModal(); toast("Route created - "+s.codes.length+" trips."); renderView(); }).catch(e=>modal("Couldn't save",'<div class="mrow">'+esc(e.message)+'</div><div class="mrow" style="color:var(--dim)">Open on the hosted URL and sign in to save routes.</div>')));
+}
+function openBackhaul(code){
+  const j=JOBS.find(x=>x.code===code); if(!j) return;
+  const spare=spareCF(j), t=suggestTruck(j), org=j.pickupState||"NJ";
+  const msg="Zip To Zip - truck returning "+(j.destState||"?")+" to "+org+" around "+(j.fad?fmtMDY(j.fad):"soon")+". ~"+spare+" CF space free on the way back. Any cargo on this lane? Reply here.";
+  modal("Backhaul broadcast &middot; "+esc(j.code),
+    '<div class="mrow"><span class="k">Empty return</span><br>'+esc(j.destState||"?")+' &#8594; '+esc(org)+' &middot; ~'+spare+' CF free on Truck '+esc(t.n)+'</div>'+
+    '<div class="mfield"><label>WhatsApp message (edit if needed)</label><textarea id="bhmsg" rows="4">'+esc(msg)+'</textarea></div>',
+    '<button class="abtn" id="bhsend">Open WhatsApp</button><button class="abtn dark" id="bhfound">Mark cargo found</button>');
+  $("#bhsend").onclick=()=>{ const m=($("#bhmsg")&&$("#bhmsg").value)||msg; window.open("https://wa.me/?text="+encodeURIComponent(m),"_blank","noopener"); };
+  $("#bhfound").onclick=()=>{ const obj={"Job Code":code,"Lane":(j.destState||"?")+" -> "+org,"Spare CF":spare,"Found At":new Date().toISOString()}; ensureToken(()=>shAppend(BACKHAUL_TAB,obj).then(()=>{ BACKHAUL[code]=1; closeModal(); toast("Backhaul recorded."); renderView(); }).catch(e=>modal("Couldn't save",'<div class="mrow">'+esc(e.message)+'</div>'))); };
 }
 /* ===== timeline (gantt) ===== */
 function tlStart(){ return TLSTART || weekStart(today0()); }
@@ -705,7 +785,7 @@ function pull(){
 }
 $("#refreshbtn").addEventListener("click",pull);
 document.querySelectorAll(".vbtn").forEach(b=>b.onclick=()=>setView(b.getAttribute("data-view")));
-(function(){ const f=$("#ldfilter"); if(f) f.onchange=()=>{ FILTER=f.value; renderView(); }; })();
+(function(){ const set=(id,fn)=>{ const e=$(id); if(e) e.onchange=()=>{ fn(e.value); renderView(); }; }; set("#ldfilter",v=>FILTER=v); set("#ldfreg",v=>FILTERREG=v); set("#ldfst",v=>FILTERST=v); set("#ldfty",v=>FILTERTY=v); })();
 (function(){ const mf=$("#mapfull"); if(mf) mf.onclick=()=>{ const mw=$("#mapwrap"); if(mw&&mw.requestFullscreen) mw.requestFullscreen().catch(()=>{}); setTimeout(()=>{ try{ LMAP&&LMAP.invalidateSize(); }catch(e){} },300); }; })();
 window.closeModal=closeModal;
 pull();
