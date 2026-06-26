@@ -209,6 +209,44 @@ header h1{font-family:'Barlow Condensed';font-weight:600;font-size:29px;letter-s
 .suggjobs{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
 .suggjob{font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 9px;color:var(--dim);font-family:'IBM Plex Mono'}
 .suggjob i{color:var(--travel);font-style:normal;font-weight:700;margin:0 3px}
+.mvcard{position:absolute;top:64px;right:38px;z-index:600;width:300px;max-width:42%;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:14px;padding:15px 17px;box-shadow:0 6px 22px -8px rgba(31,34,38,.3);max-height:calc(100vh - 290px);overflow:auto}
+.mvcard .ith{font-family:'Barlow Condensed';font-weight:600;font-size:22px}
+.mvcard .itsub{font-size:13px;color:var(--dim);margin:2px 0 11px;line-height:1.45}
+.itrow{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink);padding:6px 0;border-top:1px solid var(--line)}
+.ist{flex:0 0 auto;width:30px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:600;font-size:13px;color:#fff}
+.ist.p{background:#1F2329}.ist.d{background:#B26B0B}.ist.r{background:#6C5CE0}
+.mvcard .abtn{margin-top:12px;width:100%;justify-content:center}
+.bmark2{width:36px;height:36px;border-radius:50%;background:#1F2329;color:#fff;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:600;font-size:15px;box-shadow:0 2px 7px rgba(0,0,0,.35)}
+#mapviewwrap{position:relative}
+/* sizing - bigger for readability */
+.tlrow{min-height:74px}
+.tllab{width:308px;flex-basis:308px;padding:10px 18px;gap:14px}
+.tll1 .code{font-size:16px}
+.tlcf{font-size:13px}
+.tlcust{font-size:15.5px}
+.tlchip{font-size:12px;padding:4px 12px 4px 9px}
+.tlchip i{width:7px;height:7px}
+.tlroute{font-size:13.5px}
+.tlav{width:42px;height:42px;font-size:15px}
+.tlb{height:28px;min-width:66px;font-size:13.5px;border-radius:8px}
+.tlb.pick{width:18px!important;height:18px}
+.tldep{width:15px;height:15px}
+.tlwk{font-size:14px;top:13px}
+.tlhead{height:44px}
+.tlrange{font-size:25px}
+.tlsub{font-size:15px}
+.tlnav button{font-size:15px;padding:9px 15px}
+.tllegend{font-size:13px}
+.suggsec h3{font-size:23px}
+.suggsec .meta{font-size:14.5px}
+.suggreg{font-size:20px}
+.suggmeta{font-size:15px}
+.suggjob{font-size:14px}
+.ldf{font-size:14.5px;padding:8px 11px}
+.mvbar{font-size:14px}
+.dmark2{min-width:32px;height:32px;font-size:15px}
+.pmark2{width:14px;height:14px}
+#ldmap{height:calc(100vh - 230px)}
 a.abtn{text-decoration:none;display:inline-flex;align-items:center}
 </style>
 </head>
@@ -237,7 +275,7 @@ a.abtn{text-decoration:none;display:inline-flex;align-items:center}
   </div>
 </div>
 <div id="timelinewrap" style="display:none"></div>
-<div id="mapviewwrap" style="display:none"><div class="mvbar"><span class="mvlegend"><i class="ic-s"></i>we deliver</span><span class="mvlegend"><i class="ic-c"></i>carrier</span><span class="mvlegend"><i class="ic-a"></i>needs action</span><span class="mvcount" id="mvcount"></span></div><div id="ldmap"></div></div>
+<div id="mapviewwrap" style="display:none"><div class="mvbar"><span class="mvlegend"><i class="ic-s"></i>we deliver</span><span class="mvlegend"><i class="ic-c"></i>carrier</span><span class="mvlegend"><i class="ic-a"></i>needs action</span><span class="mvcount" id="mvcount"></span></div><div id="ldmap"></div><div class="mvcard" id="mvcard" style="display:none"></div></div>
 <div id="modalhost"></div>
 <div id="toast"></div>
 <script src="zipdb.js?v=1"></script>
@@ -619,26 +657,38 @@ function inFilter(j){
 }
 function filtered(){ return JOBS.filter(inFilter); }
 function initMap2(){ if(LMAP2||typeof L==="undefined") return; const el=$("#ldmap"); if(!el) return; try{ LMAP2=L.map("ldmap",{zoomControl:true}); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(LMAP2); LMAP2.setView([39.5,-83],5); LLAYER2=L.layerGroup().addTo(LMAP2); }catch(e){ LMAP2=null; } }
-function renderMap(){
-  initMap2();
+const HERE_KEY="0IGXB_hGz84InzFmhfCygxp27_54NI-LkjL6N5RSYT8";
+let drawSeq=0, MAPROUTE=null; const _rcache={};
+function curveP(a,b,sign,scale){ sign=sign||1;scale=scale||1; const n=24,pts=[]; const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2; const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy)||1e-9; const bow=Math.min(len*0.18*scale,0.10*scale)*sign; const cx=mx-dy/len*bow,cy=my+dx/len*bow; for(let i=0;i<=n;i++){const u=i/n; pts.push([(1-u)*(1-u)*a[0]+2*(1-u)*u*cx+u*u*b[0],(1-u)*(1-u)*a[1]+2*(1-u)*u*cy+u*u*b[1]]);} return pts; }
+function arrowAt2(pts,col){ const i=Math.floor(pts.length/2),p=pts[i],q=pts[Math.min(i+1,pts.length-1)],deg=Math.atan2(q[1]-p[1],q[0]-p[0])*180/Math.PI; L.marker(p,{interactive:false,icon:L.divIcon({className:"",iconSize:[16,16],iconAnchor:[8,8],html:'<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid '+col+';transform:rotate('+deg.toFixed(1)+'deg);filter:drop-shadow(0 0 1.5px #fff)"></div>'})}).addTo(LLAYER2); }
+function smark(pt,label,kind,col,pop){ const st=kind==="P"?"background:#1F2329;color:#fff;border:3px solid #fff;":"background:#fff;color:"+col+";border:3px solid "+col+";"; const m=L.marker(pt,{zIndexOffset:500,icon:L.divIcon({className:"",iconSize:[32,32],iconAnchor:[16,16],html:'<div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed;font-weight:600;font-size:16px;box-shadow:0 1px 5px rgba(0,0,0,.3);'+st+'">'+label+'</div>'})}).addTo(LLAYER2); if(pop)m.bindPopup(pop); return m; }
+function decodeFlexPoly(enc){ const DEC="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",idx={};[...DEC].forEach((c,i)=>idx[c]=i); let i=0; function v(){let r=0,s=0,b;do{b=idx[enc[i++]];r|=(b&31)<<s;s+=5;}while(b>=32);return r;} function sv(){const r=v();return (r&1)?~(r>>>1):(r>>>1);} v(); const meta=v(),prec=meta&15,td=(meta>>4)&7,f=Math.pow(10,prec); let lat=0,lng=0;const pts=[]; while(i<enc.length){ lat+=sv();lng+=sv(); if(td)sv(); pts.push([lat/f,lng/f]); } return pts; }
+function truckRoute(a,b){ const ck=a.join()+"|"+b.join(); if(_rcache[ck]!==undefined)return Promise.resolve(_rcache[ck]); const pr=(async()=>{ try{ const u="https://router.hereapi.com/v8/routes?transportMode=truck&routingMode=fast&origin="+a[0]+","+a[1]+"&destination="+b[0]+","+b[1]+"&return=polyline,summary&apikey="+encodeURIComponent(HERE_KEY); const res=await fetch(u); if(!res.ok)throw 0; const j=await res.json(); const sec=(j.routes&&j.routes[0]&&j.routes[0].sections)||[]; if(!sec.length)throw 0; let pts=[],len=0,dur=0; for(const s of sec){pts=pts.concat(decodeFlexPoly(s.polyline));len+=s.summary.length;dur+=s.summary.duration;} const out={pts,mi:len/1609.34,min:dur/60}; _rcache[ck]=out;return out; }catch(e){ _rcache[ck]=null;return null; } })(); _rcache[ck]=pr; return pr; }
+function trail(a,b,col,opt){ opt=opt||{}; const cp=curveP(a,b,opt.sign||1,opt.scale||1); const casing=L.polyline(cp,{color:"#fff",weight:(opt.w||3.5)+3,opacity:.92,lineCap:"round",interactive:false}).addTo(LLAYER2); const line=L.polyline(cp,{color:col,weight:opt.w||3.5,opacity:.95,lineCap:"round",dashArray:opt.dash||null}).addTo(LLAYER2); if(opt.arrow!==false)arrowAt2(cp,col); const seq=drawSeq; truckRoute(a,b).then(rt=>{ if(seq!==drawSeq||!rt)return; try{ casing.setLatLngs(rt.pts); line.setLatLngs(rt.pts); }catch(e){} }); }
+function ldBase(j){ const b=DATA.bases[j&&j.pickupState]; return b?[b.lat,b.lon]:[DATA.bases.NJ.lat,DATA.bases.NJ.lon]; }
+function renderMap(){ initMap2(); if(MAPROUTE) drawRouteJourney(MAPROUTE); else drawAllTrips(); setTimeout(()=>{ try{ LMAP2&&LMAP2.invalidateSize(); }catch(e){} },200); }
+function drawAllTrips(){
   const jobs=filtered();
-  const mc=$("#mvcount"); if(mc) mc.textContent=jobs.length+" trip"+(jobs.length===1?"":"s")+(FILTER==="all"?"":" delivering in range");
-  if(!LMAP2||!LLAYER2) return;
-  try{ LLAYER2.clearLayers(); }catch(e){}
+  const mc=$("#mvcount"); if(mc) mc.innerHTML=jobs.length+" trip"+(jobs.length===1?"":"s")+(FILTER==="all"?"":" in range");
+  const card=$("#mvcard"); if(card) card.style.display="none";
+  if(!LMAP2||!LLAYER2) return; try{ LLAYER2.clearLayers(); }catch(e){} drawSeq++;
   const pts=[];
-  jobs.forEach(j=>{
-    if(!j.pickup||!j.delivery) return;
-    const s=status(j), isS=j.type==="straight";
-    const col=s.lvl==="hazard"?"#C0392B":(isS?"#B26B0B":"#3E7CB1"), cls=s.lvl==="hazard"?"a":(isS?"":"c");
-    L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:"#fff",weight:6,opacity:.85}).addTo(LLAYER2);
-    L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:col,weight:3.5,opacity:.92,dashArray:isS?null:"8 6"}).addTo(LLAYER2);
-    L.marker([j.pickup.lat,j.pickup.lon],{icon:L.divIcon({className:"",html:'<div class="pmark2"></div>',iconSize:[11,11],iconAnchor:[6,6]})}).addTo(LLAYER2).bindPopup(esc(j.code)+" pickup - "+esc(j.pickupState));
-    L.marker([j.delivery.lat,j.delivery.lon],{icon:L.divIcon({className:"",html:'<div class="dmark2 '+cls+'">'+esc(j.destState||"")+'</div>',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(LLAYER2).on("click",()=>openEvent(j.code,"delivery")).bindPopup("<b>"+esc(j.customer||j.code)+"</b><br>"+esc(j.code)+" - deliver by "+esc(fmtMDY(j.fad)));
-    pts.push([j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]);
-  });
-  if(pts.length) try{ LMAP2.fitBounds(pts,{padding:[50,50]}); }catch(e){}
-  setTimeout(()=>{ try{ LMAP2&&LMAP2.invalidateSize(); }catch(e){} },180);
+  jobs.forEach(j=>{ if(!j.pickup||!j.delivery) return; const s=status(j), isS=j.type==="straight"; const col=s.lvl==="hazard"?"#C0392B":(isS?"#B26B0B":"#3E7CB1"), cls=s.lvl==="hazard"?"a":(isS?"":"c"); const a=[j.pickup.lat,j.pickup.lon], b=[j.delivery.lat,j.delivery.lon]; trail(a,b,col,{w:3.5,dash:isS?null:"9 7"}); L.marker(a,{icon:L.divIcon({className:"",html:'<div class="pmark2"></div>',iconSize:[13,13],iconAnchor:[7,7]})}).addTo(LLAYER2).bindPopup(esc(j.code)+" pickup - "+esc(j.pickupState)); L.marker(b,{icon:L.divIcon({className:"",html:'<div class="dmark2 '+cls+'">'+esc(j.destState||"")+'</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(LLAYER2).on("click",()=>openEvent(j.code,"delivery")).bindPopup("<b>"+esc(j.customer||j.code)+"</b><br>"+esc(j.code)+" - deliver by "+esc(fmtMDY(j.fad))); pts.push(a,b); });
+  if(pts.length) try{ LMAP2.fitBounds(pts,{padding:[55,55]}); }catch(e){}
 }
+function drawRouteJourney(s){
+  if(!LMAP2||!LLAYER2) return; try{ LLAYER2.clearLayers(); }catch(e){} drawSeq++;
+  const jobs=s.jobs.slice().filter(j=>j.pickup&&j.delivery).sort((a,b)=>midnight(a.fad)-midnight(b.fad));
+  const base=ldBase(jobs[0]||{}), col="#B26B0B", pts=[base]; let prev=base, itin="";
+  jobs.forEach((j,i)=>{ const p=[j.pickup.lat,j.pickup.lon]; trail(prev,p,"#1F6FD6",{w:2.5,dash:"6 7",scale:1.2}); smark(p,"P"+(i+1),"P",col,"<b>Load "+(i+1)+"</b> "+esc(j.code)+" - "+esc(j.pickupState)); pts.push(p); prev=p; itin+='<div class="itrow"><span class="ist p">P'+(i+1)+'</span>Load '+esc(j.code)+' &middot; '+esc(j.customer||j.pickupState)+'</div>'; });
+  jobs.forEach((j,i)=>{ const d=[j.delivery.lat,j.delivery.lon]; trail(prev,d,col,{w:Math.max(3.5,Math.min((j.cf||500)/300,8))}); smark(d,"D"+(i+1),"D",col,"<b>Deliver "+(i+1)+"</b> "+esc(j.code)+" - "+esc(j.destState)+" by "+esc(fmtMDY(j.fad))); pts.push(d); prev=d; itin+='<div class="itrow"><span class="ist d">D'+(i+1)+'</span>Deliver '+esc(j.code)+' &middot; '+esc(j.destState)+' &middot; by '+fmtMDY(j.fad)+'</div>'; });
+  trail(prev,base,"#6C5CE0",{w:2.5,dash:"3 9",scale:1.3,arrow:false});
+  L.marker(base,{icon:L.divIcon({className:"",html:'<div class="bmark2">'+esc((jobs[0]&&jobs[0].pickupState)||"NJ")+'</div>',iconSize:[36,36],iconAnchor:[18,18]}),zIndexOffset:600}).addTo(LLAYER2).bindPopup("Base &middot; pack the truck here");
+  const mc=$("#mvcount"); if(mc) mc.innerHTML="Route &middot; "+esc(s.region)+" &middot; "+jobs.length+" deliveries &middot; "+Math.round(s.cf).toLocaleString()+" CF";
+  const card=$("#mvcard"); if(card){ card.style.display=""; card.innerHTML='<div class="ith">'+esc(s.region)+' route</div><div class="itsub">pack '+jobs.length+', then deliver one by one &middot; Truck '+esc(s.truck.n)+' &middot; depart by '+fmtMDY(s.depart)+'</div>'+itin+'<div class="itrow"><span class="ist r">&#8617;</span>Return to base</div><button class="abtn" id="mvall">&#8592; Back to all trips</button>'; const ab=$("#mvall"); if(ab) ab.onclick=()=>{ MAPROUTE=null; renderMap(); }; }
+  if(pts.length) try{ LMAP2.fitBounds(pts,{padding:[60,60]}); }catch(e){}
+}
+function routeJourney(s){ if(!s) return; MAPROUTE=s; setView("map"); }
 /* ===== routing (consolidation) + backhaul ===== */
 function sumCF(js){ return js.reduce((s,x)=>s+(x.cf||0),0); }
 function maxTruckCF(){ return Math.max.apply(null,DATA.trucks.map(t=>t.cf)); }
@@ -666,8 +716,9 @@ function renderSuggest(){
   const sug=suggestRoutes(); window._SUG=sug;
   if(!sug.length){ host.innerHTML=""; return; }
   host.innerHTML='<div class="suggsec"><h3>Suggested routes</h3><span class="meta">consolidate &amp; deliver yourself &mdash; one truck instead of separate carriers</span></div>'+
-    sug.map((s,i)=>'<div class="suggcard"><div class="suggtop"><span class="suggreg">'+esc(s.region)+'</span><span class="suggmeta"><b>'+s.codes.length+'</b> trips &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; depart by '+fmtMDY(s.depart)+'</span><button class="abtn dark" data-route="'+i+'">Accept &amp; route</button></div><div class="suggjobs">'+s.jobs.map(j=>'<span class="suggjob">'+esc(j.code)+' <i>'+esc(j.destState)+'</i> '+fmtMDY(j.fad)+'</span>').join("")+'</div></div>').join("");
+    sug.map((s,i)=>'<div class="suggcard"><div class="suggtop"><span class="suggreg">'+esc(s.region)+'</span><span class="suggmeta"><b>'+s.codes.length+'</b> trips &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; depart by '+fmtMDY(s.depart)+'</span><button class="abtn" data-journey="'+i+'">Journey</button><button class="abtn dark" data-route="'+i+'">Accept &amp; route</button></div><div class="suggjobs">'+s.jobs.map(j=>'<span class="suggjob">'+esc(j.code)+' <i>'+esc(j.destState)+'</i> '+fmtMDY(j.fad)+'</span>').join("")+'</div></div>').join("");
   host.querySelectorAll("[data-route]").forEach(el=>el.onclick=()=>openRoute(window._SUG[+el.getAttribute("data-route")]));
+  host.querySelectorAll("[data-journey]").forEach(el=>el.onclick=()=>routeJourney(window._SUG[+el.getAttribute("data-journey")]));
 }
 function openRoute(s){ if(!s) return;
   modal("Create route &middot; "+esc(s.region),
