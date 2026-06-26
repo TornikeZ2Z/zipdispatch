@@ -132,34 +132,43 @@ header h1{font-family:'Barlow Condensed';font-weight:600;font-size:29px;letter-s
 #timelinewrap{padding:18px 26px 90px}
 .tlbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px}
 .tlnav{display:flex;align-items:center;gap:8px}
-.tlnav button{font:600 14px Inter;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 11px;cursor:pointer}
-.tlnav button:hover{background:var(--paper)}
-.tlnav .tlrange{font-weight:700;min-width:170px;text-align:center;font-size:15px;border:none;background:none}
+.tlnav button{font:600 14px Inter;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 11px;cursor:pointer;transition:.15s}
+.tlnav button:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tlnav .tlrange{font-family:'Barlow Condensed';font-weight:600;min-width:188px;text-align:center;font-size:18px;letter-spacing:.02em;border:none;background:none;color:var(--ink);cursor:default}
+.tlnav .tlrange:hover{background:none;color:var(--ink)}
 .tlnav .tltodaybtn{font-weight:700}
-.tllegend{display:flex;gap:13px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);margin-left:auto}
+.tllegend{display:flex;gap:13px;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-left:auto}
 .tllegend span{display:flex;align-items:center;gap:6px}.tllegend i{width:16px;height:10px;border-radius:3px;flex:0 0 auto}
-.tlgrid{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
-.tlhead{display:flex;height:32px;background:var(--paper);border-bottom:1px solid var(--line)}
-.tlrow{display:flex;min-height:50px;border-bottom:1px solid var(--line)}
+.tlgrid{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);box-shadow:0 1px 3px rgba(31,34,38,.05)}
+.tlhead{display:flex;height:34px;background:var(--paper);border-bottom:1px solid var(--line2);position:sticky;top:0;z-index:7}
+.tlrow{display:flex;min-height:46px;border-bottom:1px solid var(--line)}
 .tlrow:last-child{border-bottom:none}
-.tllab{width:230px;flex:0 0 230px;border-right:1px solid var(--line);padding:7px 12px;display:flex;flex-direction:column;justify-content:center;gap:4px}
-.tlhlab{justify-content:center;font-size:11.5px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
-.tll1{display:flex;align-items:baseline;gap:8px}
-.tll1 .code{font-family:'IBM Plex Mono';font-weight:600;font-size:13.5px}
-.tlcf{font-size:12px;color:var(--dim);font-weight:600}
-.tll2{font-size:12.5px;color:var(--dim);display:flex;align-items:center;gap:7px}
-.tltrack{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(100%/42)),repeating-linear-gradient(to right,var(--line2) 0 1.5px,transparent 1.5px calc(100%/6))}
-.tlhtrack{background-image:none}
-.tlwk{position:absolute;top:8px;font-size:11.5px;color:var(--dim);font-weight:600;padding-left:5px}
-.tltoday{position:absolute;top:0;bottom:0;width:2px;background:var(--hazard);z-index:6}
-.tlb{position:absolute;top:50%;transform:translateY(-50%);height:15px;border-radius:4px;cursor:pointer;box-sizing:border-box;z-index:3;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:800}
-.tlb:hover{filter:brightness(1.08);outline:2px solid rgba(31,34,38,.18)}
-.tlb.pick{background:#3A3F46}
-.tlb.pick.noev{opacity:.45;cursor:default}
-.tlb.deliv{background:var(--rental)}
-.tlb.deliv.carrier{background:#3B72B0}
-.tlb.deliv.noevent{background:#fff;border:1.5px dashed var(--hazard);color:var(--hazard);cursor:default}
-.tlbar-stor{position:absolute;top:50%;transform:translateY(-50%);height:19px;border-radius:5px;background:repeating-linear-gradient(45deg,rgba(108,92,224,.22) 0 6px,rgba(108,92,224,.05) 6px 12px);border:1px solid rgba(108,92,224,.4);z-index:1}
+.tlrow:nth-child(even){background:rgba(31,34,38,.015)}
+.tlrow:hover{background:rgba(31,34,38,.04)}
+.tllab{width:248px;flex:0 0 248px;border-right:1px solid var(--line2);padding:6px 14px;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.tlhlab{justify-content:center;font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
+.tll1{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.tll1 .code{font-family:'IBM Plex Mono';font-weight:600;font-size:14px;letter-spacing:-.02em;color:var(--ink)}
+.tlcf{font-size:11.5px;color:var(--faint);font-weight:600;white-space:nowrap}
+.tlcust{font-size:13px;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tlst{align-self:flex-start;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.tlst.fleet{background:var(--fleet-bg);color:var(--fleet)}
+.tlst.rental{background:var(--rental-bg);color:var(--rental)}
+.tlst.hazard{background:var(--hazard-bg);color:var(--hazard)}
+.tlst.travel{background:var(--travel-bg);color:var(--travel)}
+.tltrack{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;background-image:repeating-linear-gradient(to right,transparent 0 calc(100%/6),rgba(31,34,38,.02) calc(100%/6) calc(100%/3)),repeating-linear-gradient(to right,rgba(31,34,38,.05) 0 1px,transparent 1px calc(100%/6)),repeating-linear-gradient(to right,rgba(31,34,38,.018) 0 1px,transparent 1px calc(100%/42))}
+.tlhtrack{background-image:repeating-linear-gradient(to right,rgba(31,34,38,.05) 0 1px,transparent 1px calc(100%/6))}
+.tlwk{position:absolute;top:9px;font-size:12px;color:var(--dim);font-weight:600;padding-left:6px;font-family:'Barlow Condensed';letter-spacing:.03em}
+.tltoday{position:absolute;top:0;bottom:0;width:2px;background:var(--hazard);z-index:2;opacity:.5}
+.tlhead .tltoday{opacity:.85;z-index:6}
+.tlb{position:absolute;top:50%;transform:translateY(-50%);height:16px;border-radius:5px;cursor:pointer;box-sizing:border-box;z-index:3;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:800;box-shadow:0 1px 2px rgba(31,34,38,.16)}
+.tlb:hover{filter:brightness(1.07);box-shadow:0 2px 6px rgba(31,34,38,.28);z-index:5}
+.tlb.pick{background:#33383F;width:14px!important;border-radius:4px}
+.tlb.pick.noev{opacity:.4;cursor:default}
+.tlb.deliv{background:#B26B0B;box-shadow:inset 3px 0 0 rgba(0,0,0,.22),0 1px 2px rgba(31,34,38,.16)}
+.tlb.deliv.carrier{background:#3E7CB1}
+.tlb.deliv.noevent{background:var(--hazard-bg);border:1.5px dashed var(--hazard);color:var(--hazard);box-shadow:none;cursor:default;min-width:20px}
+.tlbar-stor{position:absolute;top:50%;transform:translateY(-50%);height:22px;border-radius:6px;background:repeating-linear-gradient(45deg,rgba(108,92,224,.20) 0 7px,rgba(108,92,224,.04) 7px 14px);border:1px solid rgba(108,92,224,.35);z-index:1}
 a.abtn{text-decoration:none;display:inline-flex;align-items:center}
 </style>
 </head>
@@ -552,11 +561,11 @@ function tlShift(w){ const s=new Date(tlStart()); s.setDate(s.getDate()+w*7); TL
 function tlToday(){ TLSTART=null; renderTimeline(); }
 function dIndex(d,start){ return d? Math.round((midnight(d).getTime()-start.getTime())/86400000) : null; }
 function tlLegend(){
-  return '<span><i style="background:#3A3F46"></i>pickup</span>'+
-    '<span><i style="background:var(--rental)"></i>delivery (we drive)</span>'+
-    '<span><i style="background:#3B72B0"></i>carrier delivery</span>'+
-    '<span><i style="background:repeating-linear-gradient(45deg,rgba(108,92,224,.5) 0 4px,rgba(108,92,224,.12) 4px 8px)"></i>storage</span>'+
-    '<span><i style="background:#fff;border:1.5px dashed var(--hazard)"></i>no delivery event</span>'+
+  return '<span><i style="background:#33383F;width:11px"></i>pickup</span>'+
+    '<span><i style="background:#B26B0B"></i>delivery (we drive)</span>'+
+    '<span><i style="background:#3E7CB1"></i>carrier delivery</span>'+
+    '<span><i style="background:repeating-linear-gradient(45deg,rgba(108,92,224,.45) 0 4px,rgba(108,92,224,.1) 4px 8px);border:1px solid rgba(108,92,224,.35)"></i>storage</span>'+
+    '<span><i style="background:var(--hazard-bg);border:1.5px dashed var(--hazard)"></i>no delivery event</span>'+
     '<span><i style="background:var(--hazard);width:3px"></i>today</span>';
 }
 function renderTimeline(){
@@ -581,14 +590,11 @@ function tlRow(j,start,days,dp){
   const ddate=(j.deliverEv&&j.deliverEv.date)||j.fad;
   const ddi=dIndex(ddate,start);
   const tw=tfWindow(j), wend=tw.end?dIndex(tw.end,start):null;
-  let bars="";
+  const tdi=dIndex(today0(),start);
+  let bars=(tdi>=0&&tdi<days)?'<i class="tltoday" style="left:'+((tdi+0.5)*dp)+'%"></i>':"";
   if((j.inStorage||STORAGE[j.code]) && pdi!=null && ddi!=null){
     const a=Math.min(pdi,ddi), b=Math.max(pdi,ddi)+1;
     bars+='<span class="tlbar-stor" style="left:'+(a*dp)+'%;width:'+((b-a)*dp)+'%" title="In storage"></span>';
-  }
-  if(pdi!=null){
-    const hasEv=!!(j.pickupEv&&j.pickupEv.id);
-    bars+='<span class="tlb pick'+(hasEv?'':' noev')+'"'+(hasEv?' data-ev="'+esc(j.code)+'" data-evk="pickup"':'')+' style="left:'+(pdi*dp)+'%;width:'+dp+'%" title="Pickup '+esc(fmtMDY(j.pickupDate))+'"></span>';
   }
   if(isS && !j.deliverEv){
     if(ddi!=null) bars+='<span class="tlb deliv noevent" style="left:'+(ddi*dp)+'%;width:'+dp+'%" title="No delivery event yet - deliver by '+esc(fmtMDY(j.fad))+'">!</span>';
@@ -596,7 +602,11 @@ function tlRow(j,start,days,dp){
     const b=(wend!=null&&wend>ddi)?wend:ddi;
     bars+='<span class="tlb deliv'+(isS?'':' carrier')+'" data-ev="'+esc(j.code)+'" data-evk="delivery" style="left:'+(ddi*dp)+'%;width:'+(((b-ddi)+1)*dp)+'%" title="Deliver '+esc(fmtMDY(ddate))+'"></span>';
   }
-  return '<div class="tlrow"><div class="tllab"><div class="tll1"><span class="code">'+esc(j.code)+'</span><span class="tlcf">'+Math.round(j.cf||0).toLocaleString()+' CF</span></div><div class="tll2"><span class="spill '+s.lvl+'">'+esc(s.txt)+'</span>'+esc(j.customer||"")+'</div></div><div class="tltrack">'+bars+'</div></div>';
+  if(pdi!=null){
+    const hasEv=!!(j.pickupEv&&j.pickupEv.id);
+    bars+='<span class="tlb pick'+(hasEv?'':' noev')+'"'+(hasEv?' data-ev="'+esc(j.code)+'" data-evk="pickup"':'')+' style="left:'+(pdi*dp)+'%;width:'+dp+'%" title="Pickup '+esc(fmtMDY(j.pickupDate))+'"></span>';
+  }
+  return '<div class="tlrow"><div class="tllab"><div class="tll1"><span class="code">'+esc(j.code)+'</span><span class="tlcf">'+Math.round(j.cf||0).toLocaleString()+' CF</span></div><div class="tlcust">'+esc(j.customer||"(no name)")+'</div><span class="tlst '+s.lvl+'">'+esc(s.txt)+'</span></div><div class="tltrack">'+bars+'</div></div>';
 }
 function fmtFull(d){ return d? (DOW[d.getDay()]+", "+MON[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear()) : "(no date)"; }
 function calLink(ev,j){ return "https://calendar.google.com/calendar/u/0/r/search?q="+encodeURIComponent((ev&&ev.title)||(j&&j.code)||""); }
