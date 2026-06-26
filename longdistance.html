@@ -247,6 +247,9 @@ header h1{font-family:'Barlow Condensed';font-weight:600;font-size:29px;letter-s
 .dmark2{min-width:32px;height:32px;font-size:15px}
 .pmark2{width:14px;height:14px}
 #ldmap{height:calc(100vh - 230px)}
+.suggcard.active{border-color:var(--fleet-bd);background:linear-gradient(180deg,var(--fleet-bg),#fff 65%)}
+.suggreg.ok{color:var(--fleet);border-color:var(--fleet-bd)}
+.suggjob.done{border-color:var(--fleet-bd);color:var(--fleet);font-weight:600}
 a.abtn{text-decoration:none;display:inline-flex;align-items:center}
 </style>
 </head>
@@ -279,6 +282,7 @@ a.abtn{text-decoration:none;display:inline-flex;align-items:center}
 <div id="modalhost"></div>
 <div id="toast"></div>
 <script src="zipdb.js?v=1"></script>
+<script src="ld-localdata.js" onerror="window._ldNoLocal=1"></script>
 <script>
 "use strict";
 const DATA = {
@@ -297,7 +301,9 @@ const JOBS_TAB = "Long Distance Data", STORAGE_TAB = "Storage Management";
 const ROUTES_TAB = "Routes", ASSIGN_TAB = "LD Assignments", BACKHAUL_TAB = "LD Backhaul";
 const GCLIENT = "712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com";
 const ZIPDB = window.ZIPDB || {};
-let JOBS = [], STORAGE = {}, ROUTED = new Set(), ASSIGN = {}, BACKHAUL = {};
+const LOCAL = location.hostname===""||location.hostname==="localhost"||location.hostname.indexOf("127.")===0||location.protocol==="file:";
+function b64csv(b){ try{ return decodeURIComponent(escape(atob(b))); }catch(e){ try{ return atob(b); }catch(_){ return ""; } } }
+let JOBS = [], STORAGE = {}, ROUTED = new Set(), ASSIGN = {}, BACKHAUL = {}, ROUTES = [];
 let GTOKEN = null, GTOKEXP = 0, _tc = null;
 let LMAP = null, LLAYER = null, VIZ = null;
 let VIEW = "board", TLSTART = null; const TLDAYS = 42;
@@ -383,7 +389,7 @@ function shAppend(tab, obj){
 }
 /* ===== load ===== */
 function loadJobs(){
-  return fetch(gviz(JOBS_TAB)).then(r=>r.text()).then(t=>{
+  return (LOCAL&&window.LD_LOCAL_JOBS_B64?Promise.resolve(b64csv(window.LD_LOCAL_JOBS_B64)):fetch(gviz(JOBS_TAB)).then(r=>r.text())).then(t=>{
     const rows=pcsv(t); if(rows.length<2){ JOBS=[]; return; }
     const c=colmap(rows[0]); const g=(r,k)=>{ const i=c[k]; return i==null?"":String(r[i]||"").trim(); };
     /* every row is a calendar event. a DELIVERY event carries a Pickup Job Code linking back to its pickup; a PICKUP event leaves it blank. */
@@ -423,8 +429,8 @@ function loadJobs(){
     JOBS=out.filter(j=>!j.fad||daysFromToday(j.fad)>=-45);
   }).catch(e=>{ JOBS=[]; });
 }
-function loadKV(tab, build){
-  return fetch(gviz(tab)).then(r=>r.ok?r.text():"").then(t=>{
+function loadKV(tab, build, localB64){
+  return (LOCAL&&localB64?Promise.resolve(b64csv(localB64)):fetch(gviz(tab)).then(r=>r.ok?r.text():"")).then(t=>{
     const s={};
     try{ const rows=pcsv(t); if(rows.length<2) return s;
       const c=colmap(rows[0]); const g=(r,k)=>{ const i=c[k]; return i==null?"":String(r[i]||"").trim(); };
@@ -433,8 +439,8 @@ function loadKV(tab, build){
     return s;
   }).catch(()=>({}));
 }
-function loadStorage(){ return loadKV(STORAGE_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code && g(r,"inventory status").toLowerCase()==="active") s[code]={ type:g(r,"location type"), label:g(r,"location label")||g(r,"location") }; }).then(s=>{STORAGE=s;}); }
-function loadRoutes(){ return loadKV(ROUTES_TAB,(s,g,r)=>{ String(g(r,"job codes")||"").split(/[,;]+/).forEach(x=>{ x=x.trim(); if(x) s[x]=1; }); }).then(s=>{ ROUTED=new Set(Object.keys(s)); }); }
+function loadStorage(){ return loadKV(STORAGE_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]={ type:g(r,"storage location type")||g(r,"location type")||"In storage", label:g(r,"storage location label")||g(r,"location label")||g(r,"location")||"" }; }, window.LD_LOCAL_STORAGE_B64).then(s=>{STORAGE=s;}); }
+function loadRoutes(){ return loadKV(ROUTES_TAB,(s,g,r)=>{ const codes=String(g(r,"job codes")||"").split(/[,;]+/).map(x=>x.trim()).filter(Boolean); if(!codes.length) return; const id=g(r,"route id")||("R"+codes[0]); s[id]={id,region:g(r,"region"),truck:g(r,"truck"),foreman:g(r,"foreman"),depart:g(r,"depart"),deliver:g(r,"deliver by"),cf:num(g(r,"total cf")),codes}; }).then(s=>{ ROUTES=Object.values(s); ROUTED=new Set(); ROUTES.forEach(rt=>rt.codes.forEach(c=>ROUTED.add(c))); }); }
 function loadAssign(){ return loadKV(ASSIGN_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]={foreman:g(r,"foreman"),carrier:g(r,"carrier")}; }).then(s=>{ASSIGN=s;}); }
 function loadBackhaul(){ return loadKV(BACKHAUL_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]=1; }).then(s=>{ BACKHAUL=s; }); }
 /* ===== derived ===== */
@@ -713,12 +719,20 @@ function suggestRoutes(){
 }
 function renderSuggest(){
   const host=$("#suggwrap"); if(!host) return;
+  let html="";
+  if(ROUTES.length){
+    html+='<div class="suggsec"><h3>Active routes</h3><span class="meta">accepted &mdash; you deliver these yourself</span></div>'+
+      ROUTES.map((r,i)=>'<div class="suggcard active"><div class="suggtop"><span class="suggreg ok">'+esc(r.region||"Route")+'</span><span class="suggmeta"><b>'+r.codes.length+'</b> jobs'+(r.cf?' &middot; <b>'+Math.round(r.cf).toLocaleString()+'</b> CF':'')+' &middot; Truck '+esc(r.truck||"?")+(r.foreman?' &middot; '+esc(r.foreman):'')+(r.depart?' &middot; depart '+esc(r.depart):'')+'</span><button class="abtn" data-rjourney="'+i+'">Journey &#9656;</button></div><div class="suggjobs">'+r.codes.map(c=>'<span class="suggjob done">&#10003; '+esc(c)+'</span>').join("")+'</div></div>').join("");
+  }
   const sug=suggestRoutes(); window._SUG=sug;
-  if(!sug.length){ host.innerHTML=""; return; }
-  host.innerHTML='<div class="suggsec"><h3>Suggested routes</h3><span class="meta">consolidate &amp; deliver yourself &mdash; one truck instead of separate carriers</span></div>'+
-    sug.map((s,i)=>'<div class="suggcard"><div class="suggtop"><span class="suggreg">'+esc(s.region)+'</span><span class="suggmeta"><b>'+s.codes.length+'</b> trips &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; depart by '+fmtMDY(s.depart)+'</span><button class="abtn" data-journey="'+i+'">Journey</button><button class="abtn dark" data-route="'+i+'">Accept &amp; route</button></div><div class="suggjobs">'+s.jobs.map(j=>'<span class="suggjob">'+esc(j.code)+' <i>'+esc(j.destState)+'</i> '+fmtMDY(j.fad)+'</span>').join("")+'</div></div>').join("");
+  if(sug.length){
+    html+='<div class="suggsec"><h3>Suggested routes</h3><span class="meta">consolidate &amp; deliver yourself &mdash; one truck instead of separate carriers</span></div>'+
+      sug.map((s,i)=>'<div class="suggcard"><div class="suggtop"><span class="suggreg">'+esc(s.region)+'</span><span class="suggmeta"><b>'+s.codes.length+'</b> trips &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; depart by '+fmtMDY(s.depart)+'</span><button class="abtn" data-journey="'+i+'">Journey</button><button class="abtn dark" data-route="'+i+'">Accept &amp; route</button></div><div class="suggjobs">'+s.jobs.map(j=>'<span class="suggjob">'+esc(j.code)+' <i>'+esc(j.destState)+'</i> '+fmtMDY(j.fad)+'</span>').join("")+'</div></div>').join("");
+  }
+  host.innerHTML=html;
   host.querySelectorAll("[data-route]").forEach(el=>el.onclick=()=>openRoute(window._SUG[+el.getAttribute("data-route")]));
   host.querySelectorAll("[data-journey]").forEach(el=>el.onclick=()=>routeJourney(window._SUG[+el.getAttribute("data-journey")]));
+  host.querySelectorAll("[data-rjourney]").forEach(el=>el.onclick=()=>{ const r=ROUTES[+el.getAttribute("data-rjourney")]; const jobs=r.codes.map(c=>JOBS.find(j=>j.code===c)).filter(Boolean); if(jobs.length) routeJourney({region:r.region,jobs,cf:r.cf||0,truck:{n:r.truck},depart:parseDate(r.depart)||today0(),codes:r.codes}); });
 }
 function openRoute(s){ if(!s) return;
   modal("Create route &middot; "+esc(s.region),
@@ -731,8 +745,11 @@ function openRoute(s){ if(!s) return;
 }
 function createRoute(s,truckN,fore){
   const id="R"+Date.now().toString(36).toUpperCase();
-  const obj={"Route ID":id,"Region":s.region,"Job Codes":s.codes.join(", "),"Truck":truckN,"Foreman":fore,"Depart":fmtMDY(s.depart),"Deliver By":fmtMDY(s.deliver),"Total CF":Math.round(s.cf),"Created":new Date().toISOString()};
-  ensureToken(()=>shAppend(ROUTES_TAB,obj).then(()=>{ s.codes.forEach(c=>{ ROUTED.add(c); if(fore) ASSIGN[c]={foreman:fore,carrier:""}; }); closeModal(); toast("Route created - "+s.codes.length+" trips."); renderView(); }).catch(e=>modal("Couldn't save",'<div class="mrow">'+esc(e.message)+'</div><div class="mrow" style="color:var(--dim)">Open on the hosted URL and sign in to save routes.</div>')));
+  const route={id,region:s.region,truck:truckN,foreman:fore,depart:fmtMDY(s.depart),deliver:fmtMDY(s.deliver),cf:Math.round(s.cf),codes:s.codes};
+  const apply=()=>{ s.codes.forEach(c=>{ ROUTED.add(c); if(fore) ASSIGN[c]={foreman:fore,carrier:""}; }); ROUTES.push(route); closeModal(); toast("Route created - "+s.codes.length+" trips."); renderView(); };
+  if(LOCAL){ apply(); return; }
+  const obj={"Route ID":id,"Region":s.region,"Job Codes":s.codes.join(", "),"Truck":truckN,"Foreman":fore,"Depart":route.depart,"Deliver By":route.deliver,"Total CF":route.cf,"Created":new Date().toISOString()};
+  ensureToken(()=>shAppend(ROUTES_TAB,obj).then(apply).catch(e=>modal("Couldn't save",'<div class="mrow">'+esc(e.message)+'</div><div class="mrow" style="color:var(--dim)">Open on the hosted URL and sign in to save routes.</div>')));
 }
 function openBackhaul(code){
   const j=JOBS.find(x=>x.code===code); if(!j) return;
