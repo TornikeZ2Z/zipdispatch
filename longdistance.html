@@ -163,6 +163,36 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 .tlwin.u-amber .dt{color:var(--rental)}
 .tlwin.u-red{background:var(--hazard-bg);border-color:var(--hazard-bd);border-left-color:var(--hazard)}
 .tlwin.u-red .dt{color:var(--hazard)}
+/* timeline view toggle + split-map */
+.tlview{display:inline-flex;background:var(--card);border:1px solid var(--line2);border-radius:11px;overflow:hidden}
+.tlview button{border:0;border-right:1px solid var(--line);background:none;font:600 14px Inter;color:var(--dim);padding:9px 16px;cursor:pointer}
+.tlview button:last-child{border-right:0}
+.tlview button.on{background:var(--ink);color:#fff}
+.tlview button:hover:not(.on){background:var(--paper)}
+.tlsplit{display:flex;gap:18px;align-items:flex-start}
+.tlmain{flex:1;min-width:0}
+#tlside{flex:0 0 50%;position:sticky;top:80px;height:calc(100vh - 165px);min-height:460px;display:none;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#E9F0F1;box-shadow:0 1px 2px rgba(31,34,38,.04),0 22px 46px -30px rgba(31,34,38,.26)}
+#tlside.show{display:block}
+#tlsmap{position:absolute;inset:0}
+#tlsback{position:absolute;top:12px;right:12px;z-index:600;width:34px;height:34px;border:1px solid var(--line2);background:var(--card);border-radius:9px;font-size:18px;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+#tlsback:hover{border-color:var(--ink);color:var(--ink)}
+#tlcard{position:absolute;top:12px;left:12px;width:330px;max-width:calc(100% - 64px);max-height:calc(100% - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:13px;box-shadow:0 14px 40px -12px rgba(31,34,38,.45);z-index:550}
+.tlc-hd{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:2}
+.tlc-hd .code{font-family:'IBM Plex Mono';font-weight:600;font-size:14px}
+.tlc-min{margin-left:auto;width:27px;height:27px;border:1px solid var(--line);background:var(--card);border-radius:7px;cursor:pointer;font-size:15px;color:var(--dim);display:flex;align-items:center;justify-content:center;line-height:1}
+.tlc-min:hover{border-color:var(--ink);color:var(--ink)}
+#tlcard.min{width:auto}
+#tlcard.min .tlc-body{display:none}
+#tlcard .dw-hd{padding:14px 16px 12px;border-bottom:0}
+#tlcard .dw-cust{font-size:23px}
+#tlcard .dw-do{padding:13px 16px;font-size:14px}
+#tlcard .dw-sec{padding:14px 16px}
+.tlrow.sel{background:var(--travel-bg)!important}
+.cw tr.sel td{background:var(--travel-bg)!important}
+.cw tr[data-job]{cursor:pointer}
+.tltable .ty{font-size:10px;padding:2px 7px}
+.miss{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:14px;background:#F1F0EC;color:var(--dim);margin:1px 0}
+.miss.crit{background:var(--hazard-bg);color:var(--hazard)}
 #mapwrap{position:relative}
 #map{width:100%;height:calc(100vh - 210px);min-height:440px;border:1px solid var(--line);border-radius:14px;background:#E9F0F1}
 #mapback{position:absolute;top:14px;left:14px;z-index:600;font:600 14px Inter;border:1.5px solid var(--line2);background:var(--card);border-radius:9px;padding:8px 12px;cursor:pointer}
@@ -211,16 +241,16 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
   <a class="back" href="index.html" title="Back to all tools">&#8249;</a>
   <img id="brandlogo" src="logo.png" alt="Zip To Zip" onerror="this.style.display='none'">
   <div><h1>Long Distance Planning</h1><div class="hsub">Operations planning &middot; what should dispatch do with each job</div></div>
-  <div class="tabs"><button class="tab on" data-tab="timeline">Timeline</button><button class="tab" data-tab="routes">Routes<span class="b" id="rcount">0</span></button><button class="tab" data-tab="map">Map</button><button class="tab" data-tab="board">Board</button><button class="tab" data-tab="carrier">Carrier Watch<span class="b" id="cwcount">0</span></button></div>
+  <div class="tabs"><button class="tab on" data-tab="timeline">Timeline</button><button class="tab" data-tab="routes">Routes<span class="b" id="rcount">0</span></button><button class="tab" data-tab="map">Map</button><button class="tab" data-tab="missing">Missing Data<span class="b" id="mdcount">0</span></button><button class="tab" data-tab="carrier">Carrier Watch<span class="b" id="cwcount">0</span></button></div>
   <div class="stats" id="stats"></div>
   <button id="refreshbtn">&#8635; Refresh</button>
   <span id="rfstamp"></span>
 </header>
 <main>
-  <div id="boardwrap"></div>
+  <div id="timelinewrap"><div id="tlbarwrap"></div><div class="tlsplit"><div class="tlmain" id="tlmain"></div><aside id="tlside"><div id="tlsmap"></div><button id="tlsback" title="Close map">&#215;</button><div id="tlcard"></div></aside></div></div>
   <div id="routeswrap" style="display:none"></div>
-  <div id="timelinewrap" style="display:none"></div>
   <div id="mapwrap" style="display:none"><button id="mapback" style="display:none">&#8592; All jobs</button><div id="map"></div></div>
+  <div id="missingwrap" style="display:none"></div>
   <div id="carrierwrap" style="display:none"></div>
 </main>
 <div id="dwbg"></div>
@@ -234,7 +264,7 @@ const JOBS_TAB="Long Distance Data", STORAGE_TAB="Storage Management", ROUTES_TA
 const TRIP_FALLBACK=1, LEAVE_SOON=2, PICKUP_SOON=7, KEEP_PAST_DAYS=60;
 const OUR_STATES=["NJ","PA","NY","DE","CT","MA"];
 const ZIPDB=window.ZIPDB||{};
-let JOBS=[], STORAGE={}, ROUTED=new Set(), TAB="timeline";
+let JOBS=[], STORAGE={}, ROUTED=new Set(), TAB="timeline", TLVIEW="timeline", SELJOB=null;
 const LOCAL = location.hostname===""||location.hostname==="localhost"||location.hostname.indexOf("127.")===0||location.protocol==="file:";
 function b64csv(b){ try{ return decodeURIComponent(escape(atob(b))); }catch(e){ try{ return atob(b); }catch(_){ return ""; } } }
 
@@ -416,23 +446,24 @@ function jobCard(j,c){
     '<div class="action"><span class="k">Do</span><span>'+esc(c.action)+'</span></div>'+
   '</div>';
 }
-function renderBoard(){
-  const host=$("#boardwrap");
-  const buckets={}; GROUPS.forEach(g=>buckets[g[0]]=[]);
-  let carrier=0;
-  JOBS.forEach(j=>{ const c=computeJob(j); j._c=c; const g=groupOf(c); if(g==="carrier"){carrier++;return;} (buckets[g]=buckets[g]||[]).push({j,c}); });
-  /* sort within group by urgency then soonest date */
-  const ord={red:0,gap:1,amber:2,green:3};
-  Object.values(buckets).forEach(arr=>arr.sort((a,b)=>(ord[a.c.urg.lvl]-ord[b.c.urg.lvl])||((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15))));
-  let html="";
-  GROUPS.forEach(g=>{ const arr=buckets[g[0]]; if(!arr.length) return;
-    html+='<div class="grp g-'+g[0]+'"><div class="grphead"><h2>'+esc(g[1])+'</h2><span class="ct">'+arr.length+' job'+(arr.length>1?"s":"")+'</span></div><div class="cards">'+arr.map(x=>jobCard(x.j,x.c)).join("")+'</div></div>';
-  });
-  if(!html) html='<div class="empty"><b>Nothing needs planning</b>No long-distance jobs in the planning board right now.</div>';
-  host.innerHTML=html;
-  host.querySelectorAll(".jc[data-job]").forEach(el=>el.onclick=()=>openDrawer(el.dataset.job));
-  $("#cwcount").textContent=carrier;
+function computeAll(){
+  let carrier=0,gap=0;
+  JOBS.forEach(j=>{ const c=computeJob(j); j._c=c; if(c.state==="At Carrier")carrier++; if(c.gaps.length)gap++; });
+  $("#cwcount").textContent=carrier; const md=$("#mdcount"); if(md) md.textContent=gap;
   renderStats(carrier);
+}
+function renderMissing(){
+  const host=$("#missingwrap");
+  const rows=JOBS.filter(j=>{const c=j._c||computeJob(j);return c.gaps.length;}).map(j=>({j,c:j._c||computeJob(j)}));
+  rows.sort((a,b)=>((a.c.critGap?0:1)-(b.c.critGap?0:1))||((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
+  if(!rows.length){ host.innerHTML='<div class="empty"><b>No missing data</b>Every job has the fields needed to plan it.</div>'; return; }
+  const bodyR=rows.map(x=>{ const j=x.j,c=x.c;
+    const miss=c.gaps.map(g=>'<span class="miss'+((g==="FAD"||g==="Delivery timeframe")?" crit":"")+'">'+esc(g)+'</span>').join(" ");
+    return '<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td>'+(c.isS?"Straight":"Regular")+'</td>'+
+      '<td>'+miss+'</td><td>'+(j.fad?fmt(j.fad):"&mdash;")+'</td><td>'+Math.round(j.cf||0).toLocaleString()+'</td><td>'+(j.eventDate?fmt(j.eventDate):"&mdash;")+'</td></tr>'; }).join("");
+  host.innerHTML='<p class="cwnote">Jobs missing fields needed to plan them &mdash; fix these in the sheet. <span class="miss crit">red</span> blocks planning entirely.</p>'+
+    '<div class="cwwrap"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Missing</th><th>FAD</th><th>CF</th><th>Pickup</th></tr></thead><tbody>'+bodyR+'</tbody></table></div>';
+  host.querySelectorAll("tr[data-job]").forEach(el=>el.onclick=()=>openDrawer(el.dataset.job));
 }
 function renderStats(carrier){
   let red=0,amber=0,gap=0,poss=0;
@@ -486,11 +517,39 @@ function openDrawer(code){
   $("#drawer").classList.add("show"); $("#dwbg").classList.add("show");
 }
 function closeDrawer(){ const d=$("#drawer"),b=$("#dwbg"); if(d)d.classList.remove("show"); if(b)b.classList.remove("show"); }
+function jobDetailHTML(j,c,withMap){
+  const u="u-"+c.urg.lvl; const dep=(c.isS&&j.fad)?addDays(j.fad,-(j.tripDays||TRIP_FALLBACK)):null; const st=STORAGE[j.code]||{};
+  let legs='<div class="dw-leg"><span class="pin"></span><div><div class="pl">Pickup</div><div class="pv">'+esc(j.pickupState||"?")+" "+esc(j.pickupZip||"")+'</div>'+(j.pickupCity?('<div class="ps">'+esc(j.pickupCity)+'</div>'):"")+'<div class="ps">'+(j.eventDate?("picks up "+fmt(j.eventDate)):"pickup date TBD")+'</div></div></div>';
+  legs+='<div class="dw-leg del '+u+'"><span class="pin"></span><div><div class="pl">Delivery</div><div class="pv">'+esc(j.destState||"?")+" "+esc(j.deliveryZip||"")+'</div>'+(j.destCity?('<div class="ps">'+esc(j.destCity)+'</div>'):"")+'<div class="ps">'+esc(c.deliverLabel)+'</div></div></div>';
+  let fields=dwField("Operational state",esc(c.state))+dwField("Volume",Math.round(j.cf||0).toLocaleString()+" CF")+dwField("Delivery",esc(c.deliverLabel));
+  if(c.isS) fields+=dwField("Truck departs",dep?(fmt(dep)+(j.tripDays?(" &middot; "+j.tripDays+"-day trip"):" (est.)")):"&mdash;");
+  fields+=dwField("Foreman",j.foreman?esc(j.foreman):'<span style="color:var(--faint);font-weight:500">unassigned</span>');
+  if(j.carrier) fields+=dwField("Carrier",esc(j.carrier)+(j.carrierRate?(" &middot; $"+esc(j.carrierRate)):""),true);
+  if(j.inStorage) fields+=dwField("Storage",esc(j.storLabel||st.location||"in storage"),true);
+  const chips='<span class="chip state"><i></i>'+esc(c.state)+'</span><span class="chip '+u+'">'+esc(c.urg.txt)+'</span><span class="chip route">'+esc(c.route)+'</span>';
+  const gaps=c.gaps.length?('<div class="dw-sec"><div class="dw-gap"><span>&#9888;</span><span>Missing data: '+esc(c.gaps.join(", "))+" &mdash; fix in the sheet to plan this job.</span></div></div>"):"";
+  const mapbtn=(withMap&&geo(j.deliveryZip))?'<button class="dw-mapbtn" id="dwmap">&#128205; Show route on map</button>':"";
+  return '<div class="dw-do '+u+'"><span class="k">Do</span><span>'+esc(c.action)+'</span></div><div class="dw-sec"><h4>Route</h4>'+legs+mapbtn+'</div><div class="dw-sec"><h4>Details</h4><div class="dw-grid">'+fields+'</div></div><div class="dw-sec"><h4>Status</h4><div class="dw-dims">'+chips+'</div></div>'+gaps;
+}
+function initSideMap(){ if(SMAP||typeof L==="undefined")return; const el=$("#tlsmap"); if(!el)return; try{ SMAP=L.map("tlsmap",{zoomControl:false}); L.control.zoom({position:"bottomright"}).addTo(SMAP); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(SMAP); SMAP.setView([40.5,-77],6); SLAYER=L.layerGroup().addTo(SMAP);}catch(e){SMAP=null;} }
+function sTrail(a,b,col,dash){ const cp=curveP(a,b,1,1); L.polyline(cp,{color:"#fff",weight:6,opacity:.85}).addTo(SLAYER); const ln=L.polyline(cp,{color:col,weight:3.5,opacity:.95,dashArray:dash||null}).addTo(SLAYER); const sq=sSeq; truckRoute(a,b).then(p=>{ if(sq===sSeq&&p){try{ln.setLatLngs(p);}catch(e){}} }); }
+function sMark(pt,lab,kind,col){ return L.marker(pt,{icon:L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:'<div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px Barlow Condensed;'+(kind==="P"?"background:#2E333A;color:#fff;border:2px solid #fff":"background:#fff;color:"+col+";border:2.5px solid "+col)+';box-shadow:0 1px 5px rgba(0,0,0,.35)">'+lab+'</div>'})}).addTo(SLAYER); }
+function showJobMap(j){ initSideMap(); if(!SMAP)return; try{SLAYER.clearLayers();}catch(e){} sSeq++; const p=geo(j.pickupZip),d=geo(j.deliveryZip); const a=p?[p.lat,p.lon]:[BASE.lat,BASE.lon]; const c=j._c||computeJob(j); const col=c.urg.lvl==="red"?"#C0392B":(j.type==="straight"?"#B26B0B":"#3E7CB1"); const pts=[a]; sMark(a,"P","P",col); if(d){ const b=[d.lat,d.lon]; sTrail(a,b,col,j.type==="straight"?null:"8 6"); sMark(b,esc(j.destState||"D"),"D",col); pts.push(b);} setTimeout(()=>{ try{ SMAP.invalidateSize(); if(pts.length>1)SMAP.fitBounds(pts,{padding:[70,70]}); else SMAP.setView(a,7);}catch(e){} },240); }
+function fillJobCard(j,c){ const card=$("#tlcard"); card.className="";
+  card.innerHTML='<div class="tlc-hd"><span class="code">'+esc(j.code)+'</span><span class="ty '+j.type+'">'+(c.isS?"Straight":"Regular")+'</span><button class="tlc-min" id="tlcmin" title="Minimize">&#8211;</button></div><div class="tlc-body"><div class="dw-hd"><div class="dw-cust">'+esc(j.customer||"(no name)")+'</div></div>'+jobDetailHTML(j,c,false)+'</div>';
+  $("#tlcmin").onclick=()=>card.classList.toggle("min");
+}
+function openJobMap(code){ const j=jobByCode(code); if(!j) return; const c=j._c||computeJob(j); SELJOB=code;
+  document.querySelectorAll("#tlmain .sel").forEach(e=>e.classList.remove("sel"));
+  document.querySelectorAll('#tlmain [data-job="'+code+'"]').forEach(e=>e.classList.add("sel"));
+  $("#tlside").classList.add("show"); fillJobCard(j,c); showJobMap(j);
+}
+function closeJobMap(){ SELJOB=null; const s=$("#tlside"); if(s)s.classList.remove("show"); document.querySelectorAll("#tlmain .sel").forEach(e=>e.classList.remove("sel")); }
 /* ===== distance + route-suggestion engine (spec sec 8) ===== */
 const TRUCKS=[{n:"#7",cf:1622},{n:"#9",cf:1741},{n:"#15",cf:1741},{n:"#33",cf:1741},{n:"#77",cf:1809},{n:"#10",cf:1741},{n:"#11",cf:1848},{n:"#27",cf:1741}];
 const BASE={lat:40.23,lon:-74.30}, TRUCK_MAX=1848, DETOUR_MAX=180, ROUTE_SPAN=5;
 const HERE_KEY="0IGXB_hGz84InzFmhfCygxp27_54NI-LkjL6N5RSYT8";
-let LMAP=null,LLAYER=null,MAPROUTE=null,MAPFOCUS=null,TLSTART=null,drawSeq=0; const _rc={}; const TLDAYS=42;
+let LMAP=null,LLAYER=null,MAPROUTE=null,MAPFOCUS=null,TLSTART=null,drawSeq=0,SMAP=null,SLAYER=null,sSeq=0; const _rc={}; const TLDAYS=42;
 function hav(a,b){ if(!a||!b||a.lat==null) return 0; const R=3959,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180,h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
 function geo(zip){ zip=String(zip||"").replace(/\D/g,"").slice(0,5).padStart(5,"0"); const z=ZIPDB[zip]; return z?{lat:z[0],lon:z[1],city:z[2],state:z[3]}:null; }
 function dMin(a,b){ return a&&b?hav(a,b)/45*60:0; }
@@ -529,22 +588,33 @@ function renderRoutes(){
 function tlStart(){ const x=TLSTART||midnight(new Date()); const d=new Date(x); d.setDate(d.getDate()-d.getDay()); return d; }
 function dIdx(d,st){ return d?Math.round((midnight(d).getTime()-st.getTime())/86400000):null; }
 function renderTimeline(){
-  const host=$("#timelinewrap"); const start=tlStart(),days=TLDAYS,dp=100/days,end=new Date(start.getTime()+(days-1)*86400000);
-  const jobs=JOBS.filter(j=>!j.carrier).map(j=>({j,c:computeJob(j)})).sort((a,b)=>((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
-  let cal="";
-  for(let d=0;d<days;d++){ const dt=new Date(start.getTime()+d*86400000);
-    if(d===0||dt.getDate()===1) cal+='<span class="tlmon" style="left:'+(d*dp)+'%">'+MON[dt.getMonth()]+'</span>';
-    if(d%7===0) cal+='<span class="tlday" style="left:'+((d+.5)*dp)+'%">'+dt.getDate()+'</span>';
+  const start=tlStart(),days=TLDAYS,dp=100/days,end=new Date(start.getTime()+(days-1)*86400000);
+  const jobs=JOBS.filter(j=>!j.carrier).map(j=>({j,c:j._c||computeJob(j)})).sort((a,b)=>((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
+  const toggle='<div class="tlview"><button data-tlv="timeline"'+(TLVIEW==="timeline"?' class="on"':'')+'>Timeline</button><button data-tlv="table"'+(TLVIEW==="table"?' class="on"':'')+'>Table</button></div>';
+  const legend=(TLVIEW==="timeline")?'<div class="tllg"><span><i class="lg-pk"></i>pickup</span><span><i class="lg-s"></i>straight deadline</span><span><i class="lg-r"></i>regular window</span></div>':"";
+  $("#tlbarwrap").innerHTML='<div class="tlbar"><div class="tlnav"><button data-tl="prev" title="Earlier">&#8249;</button><button data-tl="today">Today</button><button data-tl="next" title="Later">&#8250;</button></div>'+
+    '<div class="tlrange">'+MON[start.getMonth()]+" "+start.getDate()+" &ndash; "+MON[end.getMonth()]+" "+end.getDate()+'<small>'+days+'-day plan window</small></div>'+toggle+legend+'</div>';
+  if(TLVIEW==="table"){ $("#tlmain").innerHTML=timeTable(jobs); }
+  else {
+    let cal="";
+    for(let d=0;d<days;d++){ const dt=new Date(start.getTime()+d*86400000);
+      if(d===0||dt.getDate()===1) cal+='<span class="tlmon" style="left:'+(d*dp)+'%">'+MON[dt.getMonth()]+'</span>';
+      if(d%7===0) cal+='<span class="tlday" style="left:'+((d+.5)*dp)+'%">'+dt.getDate()+'</span>';
+    }
+    const tdi=dIdx(midnight(new Date()),start);
+    const pill=(tdi>=0&&tdi<days)?'<span class="tltodaylab" style="left:'+((tdi+.5)*dp)+'%">TODAY</span>':"";
+    const body=jobs.map(x=>tlRow(x.j,x.c,start,days,dp)).join("")||'<div class="empty" style="margin:30px"><b>No jobs</b>Nothing scheduled in this range.</div>';
+    $("#tlmain").innerHTML='<div class="tlgrid"><div class="tlhead"><div class="tlhlab">Job</div><div class="tlhcal">'+cal+pill+'</div></div><div class="tlbody">'+body+'</div></div>';
   }
-  const tdi=dIdx(midnight(new Date()),start);
-  const pill=(tdi>=0&&tdi<days)?'<span class="tltodaylab" style="left:'+((tdi+.5)*dp)+'%">TODAY</span>':"";
-  const body=jobs.map(x=>tlRow(x.j,x.c,start,days,dp)).join("")||'<div class="empty" style="margin:30px"><b>No jobs</b>Nothing scheduled in this range.</div>';
-  host.innerHTML='<div class="tlbar"><div class="tlnav"><button data-tl="prev" title="Earlier">&#8249;</button><button data-tl="today">Today</button><button data-tl="next" title="Later">&#8250;</button></div>'+
-    '<div class="tlrange">'+MON[start.getMonth()]+" "+start.getDate()+" &ndash; "+MON[end.getMonth()]+" "+end.getDate()+'<small>'+days+'-day plan window</small></div>'+
-    '<div class="tllg"><span><i class="lg-pk"></i>pickup</span><span><i class="lg-s"></i>straight deadline</span><span><i class="lg-r"></i>regular window</span></div></div>'+
-    '<div class="tlgrid"><div class="tlhead"><div class="tlhlab">Job</div><div class="tlhcal">'+cal+pill+'</div></div><div class="tlbody">'+body+'</div></div>';
-  host.querySelectorAll("[data-tl]").forEach(el=>el.onclick=()=>{ const a=el.dataset.tl; if(a==="today")TLSTART=null; else{ const s=new Date(tlStart()); s.setDate(s.getDate()+(a==="next"?14:-14)); TLSTART=s; } renderTimeline(); });
-  host.querySelectorAll(".tlrow[data-job]").forEach(el=>el.onclick=()=>openDrawer(el.dataset.job));
+  $("#tlbarwrap").querySelectorAll("[data-tl]").forEach(el=>el.onclick=()=>{ const a=el.dataset.tl; if(a==="today")TLSTART=null; else{ const s=new Date(tlStart()); s.setDate(s.getDate()+(a==="next"?14:-14)); TLSTART=s; } renderTimeline(); });
+  $("#tlbarwrap").querySelectorAll("[data-tlv]").forEach(el=>el.onclick=()=>{ TLVIEW=el.dataset.tlv; renderTimeline(); });
+  $("#tlmain").querySelectorAll("[data-job]").forEach(el=>el.onclick=()=>openJobMap(el.dataset.job));
+  if(SELJOB) $("#tlmain").querySelectorAll('[data-job="'+SELJOB+'"]').forEach(e=>e.classList.add("sel"));
+}
+function timeTable(jobs){
+  const body=jobs.map(x=>{ const j=x.j,c=x.c; const dep=(c.isS&&j.fad)?addDays(j.fad,-(j.tripDays||TRIP_FALLBACK)):null;
+    return '<tr data-job="'+esc(j.code)+'" class="u-'+c.urg.lvl+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td><span class="ty '+j.type+'">'+(c.isS?"S":"R")+'</span></td><td>'+pathLine(j)+'</td><td>'+esc(c.deliverLabel)+'</td><td>'+(c.isS?(dep?fmt(dep):"&mdash;"):"&mdash;")+'</td><td>'+Math.round(j.cf||0).toLocaleString()+'</td><td>'+(j.foreman?esc(j.foreman):'<span style="color:var(--faint)">&mdash;</span>')+'</td><td><span class="chip u-'+c.urg.lvl+'" style="font-size:10.5px">'+esc(c.urg.txt)+'</span></td></tr>'; }).join("");
+  return '<div class="cwwrap"><table class="cw tltable"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Route</th><th>Delivery</th><th>Depart</th><th>CF</th><th>Foreman</th><th>Status</th></tr></thead><tbody>'+body+'</tbody></table></div>';
 }
 function tlRow(j,c,start,days,dp){
   const isS=j.type==="straight", pdi=dIdx(j.eventDate,start), tdi=dIdx(midnight(new Date()),start);
@@ -579,14 +649,14 @@ function renderMap(){ initMap2(); if(!LMAP||!LLAYER)return; try{LLAYER.clearLaye
 }
 /* ===== tabs + boot ===== */
 function setTab(t){ TAB=t; document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.getAttribute("data-tab")===t));
-  $("#boardwrap").style.display=t==="board"?"":"none"; $("#routeswrap").style.display=t==="routes"?"":"none"; $("#timelinewrap").style.display=t==="timeline"?"":"none"; $("#mapwrap").style.display=t==="map"?"":"none"; $("#carrierwrap").style.display=t==="carrier"?"":"none";
-  if(t==="routes") renderRoutes(); else if(t==="timeline") renderTimeline(); else if(t==="map") renderMap(); else if(t==="carrier") renderCarrier(); else renderBoard(); }
+  $("#timelinewrap").style.display=t==="timeline"?"":"none"; $("#routeswrap").style.display=t==="routes"?"":"none"; $("#mapwrap").style.display=t==="map"?"":"none"; $("#missingwrap").style.display=t==="missing"?"":"none"; $("#carrierwrap").style.display=t==="carrier"?"":"none";
+  if(t==="routes") renderRoutes(); else if(t==="map") renderMap(); else if(t==="missing") renderMissing(); else if(t==="carrier") renderCarrier(); else renderTimeline(); }
 function pull(){ $("#rfstamp").textContent="Loading...";
-  return Promise.all([loadJobs(),loadStorage(),loadRoutes()]).then(()=>{ renderBoard(); try{$("#rcount").textContent=buildSuggestions().length;}catch(e){} setTab(TAB); $("#rfstamp").textContent=JOBS.length+" jobs"+(LOCAL?" (local test data)":""); })
+  return Promise.all([loadJobs(),loadStorage(),loadRoutes()]).then(()=>{ computeAll(); try{$("#rcount").textContent=buildSuggestions().length;}catch(e){} setTab(TAB); $("#rfstamp").textContent=JOBS.length+" jobs"+(LOCAL?" (local test data)":""); })
   .catch(e=>{ $("#rfstamp").textContent="load error"; }); }
 $("#refreshbtn").addEventListener("click",pull);
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setTab(b.getAttribute("data-tab")));
-$("#dwbg").onclick=closeDrawer; document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeDrawer(); });
+$("#dwbg").onclick=closeDrawer; (function(){ const tb=$("#tlsback"); if(tb) tb.onclick=closeJobMap; })(); document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeDrawer(); closeJobMap(); } });
 (function(){ const mb=$("#mapback"); if(mb) mb.onclick=()=>{ MAPROUTE=null; MAPFOCUS=null; renderMap(); }; })();
 pull();
 </script>
