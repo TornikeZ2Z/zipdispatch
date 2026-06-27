@@ -1390,11 +1390,18 @@ function zgeoJS(z){
   return e?{zip:z,lat:e[0],lon:e[1],city:e[2],state:e[3]}:null;
 }
 
+/* foreman-email chaining = the actual chaining the dispatcher set on the calendar (the foreman shows up as a guest) */
+function giorgiEmail(){ const g=(DATA.foremen||[]).find(f=>/kolbaia/i.test((f.name||'')+' '+(f.nick||''))); return (g&&g.email||'').toLowerCase(); }
+function jobAtMostTomorrow(j){ const ds=String(j.start||'').slice(0,10); if(!ds)return false; const jd=new Date(ds+'T00:00').getTime(); const lim=new Date(); lim.setHours(0,0,0,0); lim.setDate(lim.getDate()+1); return jd<=lim.getTime(); }
+function foremanEmailOf(j){ if(!j)return null; const G=giorgiEmail(); const guests=(j.guests||[]).filter(e=>e&&e!==j.organizer); const nonG=guests.filter(e=>e!==G); if(nonG.length) return nonG[0]; if(guests.length&&jobAtMostTomorrow(j)) return G; return null; }
+function emailChainPrev(jobs){ const fe={},byE={}; jobs.forEach(j=>{ const e=foremanEmailOf(j); fe[j.code]=e; if(e)(byE[e]=byE[e]||[]).push(j); }); const prev={}; Object.keys(byE).forEach(e=>{ const g=byE[e].slice().sort((a,b)=>Date.parse(a.start||0)-Date.parse(b.start||0)); for(let i=1;i<g.length;i++)prev[g[i].code]=g[i-1].code; }); return {fe,prev}; }
 /* buildRoutes */
 function buildRoutes(){
   const jobs=DATA.jobs.filter(j=>!EXCL.has(jobKey(j))), used=new Set(), routes=[];
   const cmap={}; manualChains.concat(AUTOCHAINS).forEach(c=>cmap[c.tail]=c.after);
-  const aft=j=>cmap[j.code]||j.after;
+  const ec=emailChainPrev(jobs);
+  /* if a foreman guest is on the job, the chain follows the foreman email (same day) and the After Job Code is ignored; otherwise fall back to the After Job Code */
+  const aft=j=>{ if(ec.fe[j.code]) return ec.prev[j.code]||null; return cmap[j.code]||j.after; };
   for(const h of jobs.filter(j=>j.first&&!aft(j))){
     if(used.has(h.code))continue;
     const legs=[h]; used.add(h.code);
@@ -1441,8 +1448,13 @@ function makeRoute(legs,idx,orphan=false){
   let base=null,bd=1e9;
   if(legs[0].pickup){for(const [k,b] of Object.entries(DATA.bases)){const d=hav(legs[0].pickup,b); if(d<bd){bd=d;base=k;}}}
   else base=legs[0].base;
+  const _fe=legs.map(l=>foremanEmailOf(l)).find(Boolean)||null;
+  let _af=null;
+  if(_fe){ const kn=(DATA.foremen||[]).find(f=>(f.email||'').toLowerCase()===_fe); _af=kn||{name:_fe,nick:_fe.split('@')[0],email:_fe,base:base,status:'Active',states:[pickupState],_byEmail:true}; }
+  const _cw=(_fe&&(totalCF>700||legs.length>3))?('actual chain exceeds the usual limit'+(legs.length>3?' ('+legs.length+' jobs)':'')+(totalCF>700?' ('+totalCF.toLocaleString()+' CF)':'')):null;
   return {id:'R'+(idx+1),legs,totalCF,maxCF,crew,trucksNeeded,vansNeeded,ordIdx,isLD,ldDeparture,hasCarrier,laborOnly,estimateVisit,flatRate,packing,piano,
           pickupState,nearestBase:base,baseDist:Math.round(bd),sheetBase:legs[0].base,base:null,orphan,
+          assignedEmail:_fe,assignedForeman:_af,chainWarn:_cw,
           stale:legs.some(l=>l.rescheduled)&&legs.length>1};
 }
 
@@ -1547,7 +1559,7 @@ function assignAll(routes,w,baseMode){
       if(f&&freeF(f.name,r))book(busyF,f.name,r);
       else r._pinBusy=true;
     }
-    r._pinIssues=[];
+    r._pinIssues=r.chainWarn?[r.chainWarn]:[];
     r.pinTrucks=r.pinTrucks||[];
     for(const pn of r.pinTrucks){
       if(!pn||pn==='R26'||pn==='R20')continue;
@@ -1559,11 +1571,14 @@ function assignAll(routes,w,baseMode){
       else r._pinIssues.push(pn+' unavailable in this window — auto-assigned instead');
     }
   }
+  for(const r of order){ if(r.assignedForeman) book(busyF,r.assignedForeman.name,r); }
   computeStreaks();
   const ctx={pendingAt:b=>order.filter(x=>!x.foreman&&x.base===b).length,
              homeAvail:b=>DATA.foremen.filter(f=>f.base===b&&f.status==='Active').length,
              streak:n=>STREAKS[n]||0};
   for(const r of order){
+    if(r.assignedForeman){ r.foreman=r.assignedForeman; r.foremanEval={f:r.assignedForeman,score:100,byEmail:true,pros:['assigned on the calendar'],cons:[]}; r.foremanTravel=!!(r.assignedForeman.base&&r.assignedForeman.base!==r.base); r.candidates=[r.foremanEval]; }
+    else {
     const evals=[];
     for(const f of DATA.foremen){
       if(f.status==='Cancelled')continue;
@@ -1587,6 +1602,7 @@ function assignAll(routes,w,baseMode){
     r.foreman=best?best.f:null;
     r.foremanEval=best;
     r.foremanTravel=best&&best.f.base!==r.base;
+    }
     const need=[];r.rentals=0;r._crewGap=false;
     const atBase=ty=>DATA.trucks.filter(t=>t.status==='Active'&&t.state===r.base&&t.type===ty&&truckActiveOn(t,currentDay)&&!TRIPAWAY_T[_tn(t.n)]&&free(busyT,t.n,r));
     const take=t=>{book(busyT,t.n,r);need.push({kind:'fleet',t});};
@@ -3269,7 +3285,9 @@ function parseCalEvent(ev){
     start:isoDT(start),end:isoDT(end),strict:_strict,winEnd:_win?isoDT(_win):null,tripDays,
     piano:String(ev.summary||'').includes('🎹'),
     rescheduled:String(ev.summary||'').toUpperCase().includes('RESCHEDULED'),
-    actH,mf:toks.length>=3?(toks[1].trim()||null):null,mt:toks.length>=4?(toks[2].trim()||null):null
+    actH,mf:toks.length>=3?(toks[1].trim()||null):null,mt:toks.length>=4?(toks[2].trim()||null):null,
+    guests:(ev.attendees||[]).map(a=>String((a&&a.email)||'').toLowerCase()).filter(Boolean),
+    organizer:String((ev.organizer&&ev.organizer.email)||(ev.creator&&ev.creator.email)||'').toLowerCase()
   };
 }
 async function calImport(){
