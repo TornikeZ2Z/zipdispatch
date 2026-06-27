@@ -1,861 +1,477 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Long Distance Planning &mdash; Zip To Zip</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Long Distance Planning</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="zipdb.js?v=1"></script>
+<script src="ld-localdata.js" onerror="window._ldNoLocal=1"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 <style>
-:root{--bg:#F7F6F2;--paper:#F7F6F2;--card:#FFFFFF;--ink:#1F2329;--dim:#646B73;--faint:#969CA3;
-  --line:#E6E4DC;--line2:#D3D0C6;
-  --fleet:#6E9220;--fleet-bg:#F3F8E4;--fleet-bd:#D3E3A6;
+:root{
+  --paper:#F7F6F2;--card:#FFF;--ink:#1F2329;--dim:#646B73;--faint:#969CA3;--line:#E6E4DC;--line2:#D3D0C6;
+  --fleet:#5E8A1E;--fleet-bg:#EFF6E0;--fleet-bd:#D3E3A6;
   --rental:#B26B0B;--rental-bg:#FBF0DC;--rental-bd:#EDD6A8;
-  --hazard:#B3362A;--hazard-bg:#FBE9E6;--hazard-bd:#F0C7C0;
-  --travel:#6C5CE0;--travel-bg:#EFECFB;--travel-bd:#D6D0F5;}
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
-.mono{font-family:'IBM Plex Mono',monospace}
-::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:5px;border:2px solid var(--paper)}
-/* header */
-header{display:flex;align-items:center;gap:16px;padding:13px 26px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1100;flex-wrap:wrap}
-.back{flex:0 0 auto;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--line2);background:var(--card);color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:24px;text-decoration:none;font-family:'Barlow Condensed'}
-.back:hover{border-color:var(--ink);color:var(--ink)}
-#brandlogo{height:40px;width:auto;display:block}
-header h1{font-family:'Barlow Condensed';font-weight:600;font-size:29px;letter-spacing:.05em;text-transform:uppercase;line-height:1}
-.hsub{color:var(--dim);font-size:14px}
-.views{display:flex;gap:9px;margin-left:6px}
-.vbtn{background:var(--card);border:1.5px solid var(--line2);border-radius:9px;font-family:'Inter';font-weight:600;font-size:15px;padding:8px 14px;cursor:pointer;color:var(--ink)}
-.vbtn:hover{border-color:var(--ink)}
-.vbtn.on{background:#8CAF2C;border-color:#8CAF2C;color:#15200A;font-weight:800}
-.stats{display:flex;align-items:stretch;margin-left:auto}
-.stat{display:flex;flex-direction:column;justify-content:center;gap:2px;padding:0 20px;border-left:1px solid var(--line)}
-.stat:first-child{border-left:none}
-.stat .v{font-family:'Barlow Condensed';font-weight:600;font-size:32px;line-height:1}
-.stat .v.amber{color:var(--rental)}.stat .v.red{color:var(--hazard)}.stat .v.teal{color:var(--fleet)}
-.stat .l{white-space:nowrap;color:var(--faint);font-size:13px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
-#refreshbtn{background:var(--card);border:1.5px solid var(--line2);color:var(--ink);font-family:'Inter';font-weight:500;font-size:15px;padding:9px 14px;border-radius:10px;cursor:pointer;margin-left:14px}
+  --hazard:#C0392B;--hazard-bg:#FBE9E6;--hazard-bd:#F0C7C0;
+  --travel:#6C5CE0;--travel-bg:#EFECFB;--travel-bd:#D6D0F5;
+  --teal:#1E8E7E;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;font-size:16px;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+header{display:flex;align-items:center;gap:16px;padding:14px 26px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.back{font-size:24px;color:var(--faint);text-decoration:none;line-height:1}
+#brandlogo{height:34px}
+header h1{font-family:'Barlow Condensed';font-weight:600;font-size:26px;letter-spacing:.02em;margin:0;text-transform:uppercase}
+.hsub{font-size:12.5px;color:var(--dim);margin-top:1px}
+.tabs{display:inline-flex;border:1px solid var(--line2);border-radius:11px;overflow:hidden;background:var(--card)}
+.tab{border:0;border-right:1px solid var(--line2);background:none;color:var(--ink);font:600 14.5px Inter;padding:9px 16px;cursor:pointer}
+.tab:last-child{border-right:0}
+.tab.on{background:var(--ink);color:#fff}
+.tab .b{display:inline-block;min-width:18px;margin-left:6px;padding:0 5px;border-radius:9px;background:rgba(31,34,38,.1);font-size:12px}
+.tab.on .b{background:rgba(255,255,255,.25)}
+.stats{display:flex;gap:18px;margin-left:auto}
+.stat{text-align:center}
+.stat .v{font-family:'Barlow Condensed';font-weight:700;font-size:26px;line-height:1}
+.stat .v.red{color:var(--hazard)}.stat .v.amber{color:var(--rental)}.stat .v.teal{color:var(--teal)}
+.stat .l{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+#refreshbtn{border:1.5px solid var(--line2);background:var(--card);color:var(--ink);font:600 14px Inter;padding:8px 13px;border-radius:10px;cursor:pointer}
 #refreshbtn:hover{border-color:var(--ink)}
-#rfstamp{font-size:13px;color:var(--faint);margin-left:10px}
-/* rail */
-.rail{padding:20px 26px 90px;max-width:1180px;margin:0 auto}
-.railhead h2{font-family:'Barlow Condensed';font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:6px}
-.basesec{margin:24px 0 13px;display:flex;align-items:baseline;gap:12px;border-bottom:2.5px solid var(--ink);padding-bottom:7px}
-.basesec:first-child{margin-top:8px}
-.basesec h3{font-family:'Barlow Condensed';font-size:25px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
-.basesec .meta{margin-left:auto;font-size:15px;color:var(--dim);font-weight:500}
-/* card (dispatch route card) */
-.card{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--faint);border-radius:13px;padding:16px 20px;margin-bottom:14px;transition:box-shadow .15s}
-.card:hover{box-shadow:0 3px 14px rgba(31,35,41,.08)}
-.card.st-fleet{border-left-color:var(--fleet)}.card.st-rental{border-left-color:var(--rental)}.card.st-hazard{border-left-color:var(--hazard)}.card.st-travel{border-left-color:var(--travel)}
-.cardtop{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
-.rpill{font-family:'IBM Plex Mono';font-size:14.5px;font-weight:500;color:var(--dim);border:1px solid var(--line2);border-radius:6px;padding:2px 8px}
-.pathline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
-.jp{font-family:'Barlow Condensed';font-weight:600;font-size:21px;letter-spacing:.02em}
-.jp.dest{color:var(--rental)}
-.ja{color:var(--faint);font-size:16px}
-.ldtag{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 9px;border-radius:6px}
-.ldtag.straight{background:var(--rental-bg);color:var(--rental);border:1px solid var(--rental-bd)}
-.ldtag.regular{background:var(--paper);color:var(--dim);border:1px solid var(--line2)}
-.statwrap{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px;text-align:right}
-.spill{font-size:14px;font-weight:700;letter-spacing:.02em;padding:3px 11px;border-radius:7px;white-space:nowrap}
-.spill.hazard{background:var(--hazard-bg);color:var(--hazard);border:1px solid var(--hazard-bd)}
-.spill.rental{background:var(--rental-bg);color:var(--rental);border:1px solid var(--rental-bd)}
-.spill.fleet{background:var(--fleet-bg);color:var(--fleet);border:1px solid var(--fleet-bd)}
-.spill.travel{background:var(--travel-bg);color:var(--travel);border:1px solid var(--travel-bd)}
-.swhy{font-size:12.5px;color:var(--faint)}
-.metaline{margin:9px 0 3px;font-size:15.5px;color:var(--dim)}
-.metaline b{color:var(--ink);font-weight:600}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 0}
-.chip{font-size:14.5px;font-weight:500;color:var(--dim);background:var(--paper);border:1px solid var(--line);padding:3px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:5px}
-.chip.warn{color:var(--hazard);border-color:var(--hazard-bd);background:var(--hazard-bg);font-weight:600}
-.chip.data{color:var(--rental);border-color:var(--rental-bd);background:var(--rental-bg);font-weight:600;cursor:pointer}
-.chip.stor{color:#8A530A;border-color:var(--rental-bd);background:var(--rental-bg);cursor:pointer}
-.chip.ov{color:var(--travel);border-color:var(--travel-bd);background:var(--travel-bg)}
-/* assignment block */
-.assign{border-top:1px solid var(--line);margin-top:13px;padding-top:13px;display:flex;gap:13px;align-items:center;flex-wrap:wrap}
-.arow{display:flex;gap:12px;align-items:center;flex:1;min-width:240px}
-.aico{width:44px;height:44px;border-radius:50%;background:var(--paper);border:1.5px solid var(--line2);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:600;font-size:16px;flex-shrink:0;color:var(--dim)}
-.aico.teal{color:var(--fleet);border-color:var(--fleet-bd);background:var(--fleet-bg)}
-.aico.amber{color:var(--hazard);border-color:var(--hazard-bd);background:var(--hazard-bg)}
-.atext .t{font-size:16.5px;font-weight:600;line-height:1.3}
-.atext .s{font-size:14px;color:var(--dim)}
-.vbadge{display:inline-flex;align-items:center;gap:9px;font-size:15px;color:var(--ink)}
-.vbadge .b{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:600;font-size:15px;border:1.5px solid var(--fleet-bd);background:var(--fleet-bg);color:var(--fleet)}
-.abtn{background:var(--card);border:1.5px solid var(--line2);border-radius:9px;font-family:'Inter';font-weight:600;font-size:14.5px;padding:8px 14px;cursor:pointer;color:var(--ink)}
-.abtn:hover{border-color:var(--ink)}
-.abtn.amber{border-color:var(--hazard-bd);color:var(--hazard);background:var(--hazard-bg)}
-.abtn.amber:hover{background:var(--hazard);color:#fff}
-.empty{padding:54px 20px;text-align:center;color:var(--dim);background:var(--card);border:1px solid var(--line);border-radius:14px}
+#rfstamp{font-size:12.5px;color:var(--faint)}
+main{padding:20px 26px 90px;max-width:1240px;margin:0 auto}
+/* board groups */
+.grp{margin-bottom:26px}
+.grphead{display:flex;align-items:baseline;gap:11px;margin:0 0 12px;padding-bottom:7px;border-bottom:2px solid var(--line)}
+.grphead h2{font-family:'Barlow Condensed';font-weight:600;font-size:21px;letter-spacing:.02em;margin:0}
+.grphead .ct{font-size:13px;color:var(--faint);font-weight:600}
+.grp.g-critical .grphead h2{color:var(--hazard)} .grp.g-critical .grphead{border-color:var(--hazard-bd)}
+.grp.g-data .grphead h2{color:var(--rental)}
+.grp.g-pickup .grphead h2{color:var(--travel)}
+.grp.g-accepted .grphead h2{color:var(--fleet)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:13px}
+/* job card */
+.jc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 15px;box-shadow:0 1px 2px rgba(31,34,38,.04);position:relative}
+.jc.u-red{box-shadow:inset 4px 0 0 var(--hazard)}
+.jc.u-amber{box-shadow:inset 4px 0 0 var(--rental)}
+.jc.u-gap{box-shadow:inset 4px 0 0 var(--faint)}
+.jc.u-green{box-shadow:inset 4px 0 0 var(--fleet)}
+.jctop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.code{font-family:'IBM Plex Mono';font-weight:600;font-size:14.5px;letter-spacing:-.02em}
+.ty{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px}
+.ty.straight{background:var(--rental-bg);color:var(--rental)}
+.ty.regular{background:var(--travel-bg);color:var(--travel)}
+.cf{font-size:12px;color:var(--dim);font-weight:600;margin-left:auto}
+.cust{font-size:15px;font-weight:600;margin:7px 0 2px}
+.route-line{font-size:12.5px;color:var(--dim);font-family:'IBM Plex Mono'}
+.deliv{font-size:13.5px;font-weight:600;margin:9px 0 3px}
+.deliv .sub{font-size:12px;color:var(--dim);font-weight:500}
+.dims{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 0}
+.chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-flex;align-items:center;gap:5px;border:1px solid transparent}
+.chip i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
+.chip.state{background:var(--paper);color:var(--dim);border-color:var(--line)}
+.chip.u-red{background:var(--hazard-bg);color:var(--hazard)}
+.chip.u-amber{background:var(--rental-bg);color:var(--rental)}
+.chip.u-gap{background:#F1F0EC;color:var(--dim)}
+.chip.u-green{background:var(--fleet-bg);color:var(--fleet)}
+.chip.route{background:var(--travel-bg);color:var(--travel);border-color:var(--travel-bd)}
+.chip.stor{background:var(--travel-bg);color:#5A4FB8}
+.action{margin-top:11px;padding:9px 11px;background:var(--paper);border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:600;display:flex;gap:8px;align-items:flex-start}
+.action .k{color:var(--faint);font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.05em;flex:0 0 auto;margin-top:2px}
+.jc.u-red .action{background:var(--hazard-bg);border-color:var(--hazard-bd)}
+.jc.u-amber .action{background:var(--rental-bg);border-color:var(--rental-bd)}
+/* carrier watch table */
+.cwwrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:auto}
+table.cw{width:100%;border-collapse:collapse;font-size:13.5px}
+table.cw th{background:var(--paper);text-align:left;padding:11px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:700;border-bottom:1px solid var(--line2);position:sticky;top:0}
+table.cw td{padding:10px 12px;border-bottom:1px solid var(--line)}
+table.cw tr:last-child td{border-bottom:none}
+table.cw tr:hover td{background:var(--paper)}
+table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
+.cwnote{font-size:13px;color:var(--dim);margin:0 0 13px}
+.empty{text-align:center;color:var(--dim);padding:50px 20px;background:var(--card);border:1px dashed var(--line2);border-radius:14px}
 .empty b{display:block;font-family:'Barlow Condensed';font-size:21px;color:var(--ink);margin-bottom:6px}
-/* route / journey map */
-.layout{display:flex;align-items:flex-start}
-.rail{flex:1 1 auto;min-width:0}
-.layout.mapon .rail{max-width:none;margin:0}
-#mapwrap{flex:0 0 auto;width:0;overflow:hidden;position:sticky;top:65px;height:calc(100vh - 65px);transition:width .4s cubic-bezier(.22,.8,.3,1);border-left:0 solid var(--line)}
-.layout.mapon #mapwrap{width:46vw;border-left-width:1px}
-@media(max-width:900px){.layout{flex-direction:column}#mapwrap{position:relative;top:0;height:0;width:100%!important;border-left:none}.layout.mapon #mapwrap{height:60vh}}
-#map{width:100%;height:100%;background:#E9F0F1}
-.leaflet-container{font-family:'Inter'}.leaflet-tile-pane{filter:saturate(.88)}
-.vizbtn{background:var(--fleet-bg);border:1px solid var(--fleet-bd);color:var(--fleet);font-family:'Inter';font-weight:600;font-size:14.5px;padding:6px 12px;border-radius:8px;cursor:pointer}
-.vizbtn:hover{background:var(--fleet);color:#fff}
-.vizbtn.on{background:var(--ink);border-color:var(--ink);color:#fff}
-.pmark{width:15px;height:15px;border-radius:50%;background:#1F2329;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
-.dmark{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid var(--rental);font-family:'Barlow Condensed';font-weight:600;font-size:13px;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.2)}
-.dmark.f{border-color:var(--travel)}
-.maplegend{position:absolute;left:14px;bottom:14px;display:flex;gap:16px;font-size:13.5px;color:var(--dim);background:rgba(255,255,255,.94);padding:9px 14px;border:1px solid var(--line);border-radius:10px;z-index:600}
-.maplegend span{display:flex;align-items:center;gap:7px}.maplegend i{width:20px;border-top:3px solid;border-radius:2px}
-.mapcard{position:absolute;left:14px;top:14px;z-index:600;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:12px;padding:14px 18px;max-width:min(440px,62%);box-shadow:0 4px 16px rgba(0,0,0,.09)}
-.mapcard .mt{font-family:'Barlow Condensed';font-weight:600;font-size:21px;letter-spacing:.02em}
-.mapcard .ms{font-size:14.5px;color:var(--dim);margin-top:4px;line-height:1.5}
-.mapcard .step{font-size:14.5px;display:flex;gap:9px;position:relative;padding-left:16px;margin-top:7px;line-height:1.4}
-.mapcard .step .dot{position:absolute;left:0;top:6px;width:9px;height:9px;border-radius:50%;background:var(--ink)}
-.mapcard .step:not(:last-child)::after{content:'';position:absolute;left:4px;top:16px;bottom:-8px;width:1.5px;background:var(--line2)}
-.mapfull{position:absolute;top:12px;right:12px;z-index:700;background:var(--card);border:1.5px solid var(--line2);border-radius:9px;font:600 14px Inter;padding:7px 11px;cursor:pointer;color:var(--ink)}
-/* modal */
-.mbg{position:fixed;inset:0;background:rgba(31,34,38,.45);display:flex;align-items:center;justify-content:center;z-index:3000;padding:18px}
-.mbox{background:var(--card);border-radius:16px;max-width:480px;width:100%;padding:22px 26px;box-shadow:0 24px 60px rgba(0,0,0,.3);position:relative}
-.mbox h3{font-family:'Barlow Condensed';font-weight:600;font-size:23px;letter-spacing:.03em;margin-bottom:14px}
-.mx{position:absolute;top:14px;right:16px;border:0;background:none;font-size:20px;cursor:pointer;color:var(--dim)}
-.mrow{font-size:15.5px;margin:6px 0}.mrow .k{color:var(--faint);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
-.mfield{margin:13px 0;display:flex;flex-direction:column;gap:6px}
-.mfield label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
-.mfield input,.mfield select{font:inherit;font-size:15.5px;padding:10px 12px;border:1.5px solid var(--line2);border-radius:9px;background:var(--card);color:var(--ink);width:100%}
-.mfoot{margin-top:16px;display:flex;gap:10px;justify-content:flex-end}
-.mbtn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.sug{background:var(--card);border:1px solid var(--travel-bd);border-radius:14px;padding:14px 16px;margin-bottom:13px;box-shadow:0 1px 2px rgba(31,34,38,.04)}
+.sugtop{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.sugid{font-family:'Barlow Condensed';font-weight:600;font-size:18px;color:var(--travel);background:var(--travel-bg);border:1px solid var(--travel-bd);padding:2px 12px;border-radius:20px}
+.sugmeta{font-size:13.5px;color:var(--dim)}.sugmeta b{color:var(--ink)}
+.rbtn{font:600 13.5px Inter;border:1.5px solid var(--line2);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 12px;cursor:pointer}
+.rbtn:hover{border-color:var(--ink)} .rbtn.acc{background:var(--ink);color:#fff;border-color:var(--ink);margin-left:auto}
+.sugexp{font-size:13.5px;color:var(--dim);margin:10px 0 0;line-height:1.5}
+.rstops{display:flex;flex-direction:column;gap:5px;margin-top:11px}
+.rstop{font-size:13px;display:flex;align-items:center;gap:8px}
+.rstop .rn{width:20px;height:20px;border-radius:50%;background:var(--rental);color:#fff;font:700 11px Inter;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.rstop b{font-family:'IBM Plex Mono'}
+.tlbar{display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.tlnav{display:inline-flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+.tlnav button{border:0;border-right:1px solid var(--line2);background:var(--card);font:600 14px Inter;padding:7px 12px;cursor:pointer}
+.tlnav button:last-child{border-right:0}.tlnav button:hover{background:var(--paper)}
+.tlrange{font-family:'Barlow Condensed';font-weight:600;font-size:20px}
+.tllg{display:flex;gap:12px;margin-left:auto;font-size:11.5px;color:var(--dim);flex-wrap:wrap}
+.tllg span{display:flex;align-items:center;gap:5px}.tllg i{width:14px;height:9px;border-radius:3px}
+.lg-pk{background:#2E333A!important;border-radius:50%!important;width:10px!important;height:10px!important;border:1.5px solid #fff}
+.lg-dep{background:#B26B0B!important;border-radius:50%!important;width:10px!important;height:10px!important;border:1.5px solid #fff}
+.lg-s{background:var(--hazard)} .lg-r{background:#3E7CB1}
+.tlgrid{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+.tlhead{display:flex;height:34px;background:var(--paper);border-bottom:1px solid var(--line2)}
+.tlrow{display:flex;min-height:48px;border-bottom:1px solid var(--line)}
+.tlrow:last-child{border-bottom:none}
+.tlrow.u-red{box-shadow:inset 3px 0 0 var(--hazard)} .tlrow.u-amber{box-shadow:inset 3px 0 0 var(--rental)}
+.tllab{width:210px;flex:0 0 210px;border-right:1px solid var(--line);padding:7px 13px;display:flex;align-items:center;gap:7px}
+.tllab b{font-family:'IBM Plex Mono';font-size:13px}.tllab span{font-size:12px;color:var(--dim);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex:1}
+.tllab .ty{flex:0 0 auto}
+.tltrk{position:relative;flex:1;min-width:0;overflow:hidden;background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(100%/6)),repeating-linear-gradient(to right,rgba(31,34,38,.015) 0 1px,transparent 1px calc(100%/42))}
+.tlhead .tltrk{background:none}
+.tlwk{position:absolute;top:9px;font-size:12px;color:var(--dim);font-weight:600;padding-left:6px;font-family:'Barlow Condensed'}
+.tltoday{position:absolute;top:0;bottom:0;width:2px;background:var(--hazard);opacity:.5;z-index:2}
+.tlb{position:absolute;top:50%;transform:translateY(-50%);height:20px;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;z-index:3}
+.tlb.trip{background:var(--rental-bd);height:6px;border-radius:3px;z-index:1;padding:0}
+.tlb.deadline{background:var(--hazard);min-width:42px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tlb.window{background:#3E7CB1;min-width:62px;box-shadow:inset 3px 0 0 rgba(0,0,0,.18)}
+.tlpk{position:absolute;top:50%;width:13px;height:13px;border-radius:50%;transform:translateY(-50%);background:#2E333A;border:2px solid #fff;z-index:4}
+.tldep{position:absolute;top:50%;width:13px;height:13px;border-radius:50%;transform:translateY(-50%);background:#B26B0B;border:2px solid #fff;z-index:4}
+#mapwrap{position:relative}
+#map{width:100%;height:calc(100vh - 210px);min-height:440px;border:1px solid var(--line);border-radius:14px;background:#E9F0F1}
+#mapback{position:absolute;top:14px;left:14px;z-index:600;font:600 14px Inter;border:1.5px solid var(--line2);background:var(--card);border-radius:9px;padding:8px 12px;cursor:pointer}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:11px;font-size:15px;opacity:0;pointer-events:none;transition:.25s;z-index:4000}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-/* timeline (gantt) */
-#timelinewrap{padding:18px 26px 90px}
-.tlbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:15px}
-.tlnav{display:inline-flex;border:1px solid var(--line2);border-radius:11px;overflow:hidden;background:var(--card)}
-.tlnav button{font:600 14px Inter;border:0;border-right:1px solid var(--line2);background:none;color:var(--ink);padding:7px 13px;cursor:pointer;transition:.14s}
-.tlnav button:last-child{border-right:0}
-.tlnav button:hover{background:var(--paper)}
-.tlnav .tltodaybtn{font-weight:700}
-.tlrange{font-family:'Barlow Condensed';font-weight:600;font-size:21px;letter-spacing:.01em;color:var(--ink)}
-.tlsub{font-size:13px;color:var(--dim)}.tlsub b{color:var(--hazard);font-weight:700}
-.tllegend{display:flex;gap:13px;flex-wrap:wrap;font-size:11.5px;color:var(--dim);margin-left:auto}
-.tllegend span{display:flex;align-items:center;gap:6px}.tllegend i{width:15px;height:9px;border-radius:3px;flex:0 0 auto}
-@keyframes tlfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.tlgrid{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--card);box-shadow:0 6px 22px -12px rgba(31,34,38,.2),0 1px 3px rgba(31,34,38,.05);animation:tlfade .35s cubic-bezier(.22,.8,.3,1) both}
-.tlhead{display:flex;height:38px;background:var(--paper);border-bottom:1px solid var(--line2);position:sticky;top:0;z-index:7}
-.tlrow{display:flex;min-height:60px;border-bottom:1px solid var(--line);transition:background .14s}
-.tlrow:last-child{border-bottom:none}
-.tlrow:hover{background:#FAFAF8}
-.tlrow.act{box-shadow:inset 3px 0 0 var(--hazard);background:linear-gradient(90deg,rgba(179,54,42,.04),transparent 300px)}
-.tlrow.wn{box-shadow:inset 3px 0 0 var(--rental)}
-.tllab{width:266px;flex:0 0 266px;border-right:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:12px}
-.tlhlab{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.07em}
-.tlav{width:34px;height:34px;flex:0 0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 12.5px Inter;color:#fff;background:#1E8E7E}
-.tlav.car{background:var(--rental)}
-.tlav.none{background:transparent;color:var(--faint);border:1.5px dashed var(--line2);font-size:18px;font-weight:400}
-.tlinfo{min-width:0;display:flex;flex-direction:column;gap:2px}
-.tll1{display:flex;align-items:baseline;gap:8px}
-.tll1 .code{font-family:'IBM Plex Mono';font-weight:600;font-size:13.5px;letter-spacing:-.02em;color:var(--ink)}
-.tlcf{font-size:11px;color:var(--faint);font-weight:600;white-space:nowrap}
-.tlcust{font-size:13.5px;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tlroute{font-size:11.5px;color:var(--faint);font-weight:600;letter-spacing:.03em;display:flex;align-items:center;gap:5px}
-.tlroute b{color:var(--line2);font-weight:700}.tlroute .stp{color:var(--travel);opacity:.85}
-.tlchip{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px 3px 8px;border-radius:20px;margin-top:1px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.tlchip i{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
-.tlchip.al{color:var(--hazard);background:var(--hazard-bg)}.tlchip.al i{background:var(--hazard)}
-.tlchip.wn{color:var(--rental);background:var(--rental-bg)}.tlchip.wn i{background:var(--rental)}
-.tltrack{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;background-image:repeating-linear-gradient(to right,rgba(31,34,38,.045) 0 1px,transparent 1px calc(100%/6)),repeating-linear-gradient(to right,rgba(31,34,38,.013) 0 1px,transparent 1px calc(100%/42))}
-.tlhtrack{background-image:repeating-linear-gradient(to right,rgba(31,34,38,.045) 0 1px,transparent 1px calc(100%/6))}
-.tlpast{position:absolute;left:0;top:0;bottom:0;background:rgba(31,34,38,.028);z-index:0}
-.tlwk{position:absolute;top:11px;font-size:12px;color:var(--dim);font-weight:600;padding-left:7px;font-family:'Barlow Condensed';letter-spacing:.03em}
-.tltoday{position:absolute;top:0;bottom:0;width:2px;background:var(--hazard);z-index:2;opacity:.38}
-.tlhead .tltoday{opacity:.85}
-.tlnow{position:absolute;top:6px;width:9px;height:9px;border-radius:50%;background:var(--hazard);transform:translateX(-50%);z-index:8;box-shadow:0 0 0 3px rgba(179,54,42,.16)}
-.tlconn{position:absolute;top:50%;height:2px;transform:translateY(-50%);background:rgba(31,34,38,.13);border-radius:2px;z-index:1}
-.tlb{position:absolute;top:50%;transform:translateY(-50%);height:23px;min-width:52px;border-radius:7px;cursor:pointer;box-sizing:border-box;z-index:3;display:flex;align-items:center;padding:0 10px;font-size:11.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;box-shadow:inset 3px 0 0 rgba(0,0,0,.18),0 1px 2px rgba(31,34,38,.13);transition:box-shadow .14s}
-.tlb:hover{box-shadow:inset 3px 0 0 rgba(0,0,0,.18),0 3px 9px rgba(31,34,38,.22);z-index:5}
-.tlb.deliv{background:#B26B0B}
-.tlb.deliv.carrier{background:#3E7CB1}
-.tlb.deliv.ghost{background:transparent;border:1.5px dashed #3E7CB1;color:#3E7CB1;box-shadow:none;font-weight:700}
-.tlb.deliv.late{background:var(--hazard)}
-.tlb.deliv.noevent{background:#fff;border:1.5px dashed var(--hazard);color:var(--hazard);box-shadow:none;font-weight:700;cursor:default}
-.tlb.pick{width:15px!important;min-width:0;height:15px;padding:0;border-radius:50%;background:#2E333A;border:2.5px solid #fff;box-shadow:0 1px 3px rgba(31,34,38,.3);z-index:4}
-.tlb.pick:hover{transform:translateY(-50%) scale(1.16)}
-.tlb.pick.noev{opacity:.4;cursor:default}
-.tlbar-stor{position:absolute;top:50%;transform:translateY(-50%);height:27px;border-radius:8px;background:repeating-linear-gradient(45deg,rgba(108,92,224,.15) 0 8px,rgba(108,92,224,.03) 8px 16px);border:1px solid rgba(108,92,224,.26);z-index:1;display:flex;align-items:center;padding-left:11px;font-size:11px;font-weight:600;color:#5A4FB8;white-space:nowrap;overflow:hidden}
-.tldep{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;transform:translateY(-50%);background:#B26B0B;border:2px solid #fff;box-shadow:0 1px 3px rgba(31,34,38,.3);z-index:5}
-/* map view */
-#ldfilter{font:600 13.5px Inter;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 10px;cursor:pointer}
-#mapviewwrap{padding:0 26px 30px}
-.mvbar{display:flex;align-items:center;gap:18px;padding:12px 2px;font-size:12.5px;color:var(--dim);flex-wrap:wrap}
-.mvlegend{display:flex;align-items:center;gap:7px}
-.mvlegend i{width:18px;height:4px;border-radius:2px}.mvlegend .ic-s{background:#B26B0B}.mvlegend .ic-c{background:#3E7CB1}.mvlegend .ic-a{background:#C0392B}
-.mvcount{margin-left:auto;font-weight:600;color:var(--ink)}
-#ldmap{width:100%;height:calc(100vh - 215px);min-height:440px;border:1px solid var(--line);border-radius:16px;background:#E9F0F1;box-shadow:0 6px 22px -12px rgba(31,34,38,.2)}
-.dmark2{display:flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 6px;border-radius:13px;background:#fff;border:2.5px solid #B26B0B;font-family:'Barlow Condensed';font-weight:600;font-size:12.5px;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.25);white-space:nowrap}
-.dmark2.c{border-color:#3E7CB1}.dmark2.a{border-color:#C0392B}
-.pmark2{width:11px;height:11px;border-radius:50%;background:#2E333A;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
-.filterbar{display:flex;gap:7px;flex-wrap:wrap}
-.ldf{font:600 13px Inter;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 9px;cursor:pointer}
-#bhmsg{font:inherit;font-size:14.5px;padding:10px 12px;border:1.5px solid var(--line2);border-radius:9px;width:100%;resize:vertical;color:var(--ink);box-sizing:border-box}
-.suggsec{display:flex;align-items:baseline;gap:10px;margin:2px 0 12px;flex-wrap:wrap}
-.suggsec h3{font-family:'Barlow Condensed';font-weight:600;font-size:20px;letter-spacing:.02em}
-.suggsec .meta{font-size:13px;color:var(--dim)}
-.suggcard{border:1px solid var(--travel-bd);background:linear-gradient(180deg,var(--travel-bg),#fff 65%);border-radius:14px;padding:13px 16px;margin-bottom:12px}
-.suggtop{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.suggreg{font-family:'Barlow Condensed';font-weight:600;font-size:17px;color:var(--travel);background:#fff;border:1px solid var(--travel-bd);padding:2px 12px;border-radius:20px}
-.suggmeta{font-size:13.5px;color:var(--dim)}.suggmeta b{color:var(--ink)}
-.suggtop .abtn.dark{margin-left:auto}
-.suggjobs{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
-.suggjob{font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 9px;color:var(--dim);font-family:'IBM Plex Mono'}
-.suggjob i{color:var(--travel);font-style:normal;font-weight:700;margin:0 3px}
-.mvcard{position:absolute;top:64px;right:38px;z-index:600;width:300px;max-width:42%;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:14px;padding:15px 17px;box-shadow:0 6px 22px -8px rgba(31,34,38,.3);max-height:calc(100vh - 290px);overflow:auto}
-.mvcard .ith{font-family:'Barlow Condensed';font-weight:600;font-size:22px}
-.mvcard .itsub{font-size:13px;color:var(--dim);margin:2px 0 11px;line-height:1.45}
-.itrow{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink);padding:6px 0;border-top:1px solid var(--line)}
-.ist{flex:0 0 auto;width:30px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:600;font-size:13px;color:#fff}
-.ist.p{background:#1F2329}.ist.d{background:#B26B0B}.ist.r{background:#6C5CE0}
-.mvcard .abtn{margin-top:12px;width:100%;justify-content:center}
-.bmark2{width:36px;height:36px;border-radius:50%;background:#1F2329;color:#fff;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:600;font-size:15px;box-shadow:0 2px 7px rgba(0,0,0,.35)}
-#mapviewwrap{position:relative}
-/* sizing - bigger for readability */
-.tlrow{min-height:74px}
-.tllab{width:308px;flex-basis:308px;padding:10px 18px;gap:14px}
-.tll1 .code{font-size:16px}
-.tlcf{font-size:13px}
-.tlcust{font-size:15.5px}
-.tlchip{font-size:12px;padding:4px 12px 4px 9px}
-.tlchip i{width:7px;height:7px}
-.tlroute{font-size:13.5px}
-.tlav{width:42px;height:42px;font-size:15px}
-.tlb{height:28px;min-width:66px;font-size:13.5px;border-radius:8px}
-.tlb.pick{width:18px!important;height:18px}
-.tldep{width:15px;height:15px}
-.tlwk{font-size:14px;top:13px}
-.tlhead{height:44px}
-.tlrange{font-size:25px}
-.tlsub{font-size:15px}
-.tlnav button{font-size:15px;padding:9px 15px}
-.tllegend{font-size:13px}
-.suggsec h3{font-size:23px}
-.suggsec .meta{font-size:14.5px}
-.suggreg{font-size:20px}
-.suggmeta{font-size:15px}
-.suggjob{font-size:14px}
-.ldf{font-size:14.5px;padding:8px 11px}
-.mvbar{font-size:14px}
-.dmark2{min-width:32px;height:32px;font-size:15px}
-.pmark2{width:14px;height:14px}
-#ldmap{height:calc(100vh - 230px)}
-.suggcard.active{border-color:var(--fleet-bd);background:linear-gradient(180deg,var(--fleet-bg),#fff 65%)}
-.suggreg.ok{color:var(--fleet);border-color:var(--fleet-bd)}
-.suggjob.done{border-color:var(--fleet-bd);color:var(--fleet);font-weight:600}
-a.abtn{text-decoration:none;display:inline-flex;align-items:center}
 </style>
 </head>
 <body>
 <header>
   <a class="back" href="index.html" title="Back to all tools">&#8249;</a>
   <img id="brandlogo" src="logo.png" alt="Zip To Zip" onerror="this.style.display='none'">
-  <div><h1>Long Distance Planning</h1><div class="hsub">Don't miss the deadline &middot; fill every truck</div></div>
-  <div class="views"><button class="vbtn on" data-view="board">&#9776; Board</button><button class="vbtn" data-view="timeline">&#128197; Timeline</button><button class="vbtn" data-view="map">&#127758; Map</button></div>
-  <div class="filterbar"><select id="ldfilter" class="ldf" title="Delivery date"><option value="all">All dates</option><option value="wk">Next 7 days</option><option value="2wk">Next 14 days</option><option value="mo">Next 30 days</option></select><select id="ldfreg" class="ldf" title="Destination region"><option value="all">All regions</option><option>Northeast</option><option>Southeast</option><option>Midwest</option><option>South</option><option>West</option></select><select id="ldfst" class="ldf" title="Status"><option value="all">All status</option><option value="action">Needs action</option></select><select id="ldfty" class="ldf" title="Type"><option value="all">All types</option><option value="straight">Straight</option><option value="regular">Regular</option></select></div>
+  <div><h1>Long Distance Planning</h1><div class="hsub">Operations planning &middot; what should dispatch do with each job</div></div>
+  <div class="tabs"><button class="tab on" data-tab="board">Board</button><button class="tab" data-tab="routes">Routes<span class="b" id="rcount">0</span></button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="map">Map</button><button class="tab" data-tab="carrier">Carrier Watch<span class="b" id="cwcount">0</span></button></div>
   <div class="stats" id="stats"></div>
   <button id="refreshbtn">&#8635; Refresh</button>
   <span id="rfstamp"></span>
 </header>
-<div class="layout">
-  <div class="rail">
-    <div id="suggwrap"></div>
-    <div class="railhead"><h2>Trips by week &mdash; deadline order</h2></div>
-    <div id="cards"></div>
-  </div>
-  <div id="mapwrap">
-    <button class="mapfull" id="mapfull">&#9974; Full screen</button>
-    <div id="map"></div>
-    <div class="mapcard" id="mapcard"></div>
-    <div class="maplegend"><span><i style="border-color:var(--rental)"></i>straight (we deliver)</span><span><i style="border-color:#3B72B0"></i>regular (carrier)</span></div>
-  </div>
-</div>
-<div id="timelinewrap" style="display:none"></div>
-<div id="mapviewwrap" style="display:none"><div class="mvbar"><span class="mvlegend"><i class="ic-s"></i>we deliver</span><span class="mvlegend"><i class="ic-c"></i>carrier</span><span class="mvlegend"><i class="ic-a"></i>needs action</span><span class="mvcount" id="mvcount"></span></div><div id="ldmap"></div><div class="mvcard" id="mvcard" style="display:none"></div></div>
-<div id="modalhost"></div>
+<main>
+  <div id="boardwrap"></div>
+  <div id="routeswrap" style="display:none"></div>
+  <div id="timelinewrap" style="display:none"></div>
+  <div id="mapwrap" style="display:none"><button id="mapback" style="display:none">&#8592; All jobs</button><div id="map"></div></div>
+  <div id="carrierwrap" style="display:none"></div>
+</main>
 <div id="toast"></div>
-<script src="zipdb.js?v=1"></script>
-<script src="ld-localdata.js" onerror="window._ldNoLocal=1"></script>
 <script>
 "use strict";
-const DATA = {
-  bases:{
-    NJ:{zip:"07728",lat:40.2302,lon:-74.2954}, PA:{zip:"19341",lat:40.0394,lon:-75.6381},
-    NY:{zip:"11214",lat:40.5977,lon:-74.001}, DE:{zip:"19808",lat:39.7345,lon:-75.6651},
-    CT:{zip:"06610",lat:41.2065,lon:-73.1715}, MA:{zip:"01742",lat:42.4606,lon:-71.3642}
-  },
-  trucks:[{n:"#7",cf:1622},{n:"#9",cf:1741},{n:"#15",cf:1741},{n:"#33",cf:1741},{n:"#77",cf:1809},{n:"#10",cf:1741},{n:"#11",cf:1848},{n:"#27",cf:1741}],
-  foremen:["Giorgi Kolbaia","Zaza Zvanbaia","Vaska Buadze","Giorgi Abazadze","Shota Zivzivadze","Oto Chapurishvili","Shalva Khundzakishvili","Bachi Bolkvadze","Mostafa Walid","Bacho Kiknavelidze","Guga Natelashvili","Kaki Kakhetelidze","Arsen Gvishiani","Kakhaber Hagemann"]
-};
-const OUR_STATES = ["NJ","PA","NY","DE","CT","MA"];
-const ASSIGN_DAYS = 7, LEAVE_SOON = 2, BACKHAUL_DAYS = 2, BACKHAUL_MIN = 300;
-const SHEET_ID = "1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs";
-const JOBS_TAB = "Long Distance Data", STORAGE_TAB = "Storage Management";
-const ROUTES_TAB = "Routes", ASSIGN_TAB = "LD Assignments", BACKHAUL_TAB = "LD Backhaul";
-const GCLIENT = "712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com";
-const ZIPDB = window.ZIPDB || {};
+/* ===== config ===== */
+const SHEET_ID="1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs";
+const JOBS_TAB="Long Distance Data", STORAGE_TAB="Storage Management", ROUTES_TAB="Routes";
+const TRIP_FALLBACK=1, LEAVE_SOON=2, PICKUP_SOON=7, KEEP_PAST_DAYS=60;
+const OUR_STATES=["NJ","PA","NY","DE","CT","MA"];
+const ZIPDB=window.ZIPDB||{};
+let JOBS=[], STORAGE={}, ROUTED=new Set(), TAB="board";
 const LOCAL = location.hostname===""||location.hostname==="localhost"||location.hostname.indexOf("127.")===0||location.protocol==="file:";
 function b64csv(b){ try{ return decodeURIComponent(escape(atob(b))); }catch(e){ try{ return atob(b); }catch(_){ return ""; } } }
-let JOBS = [], STORAGE = {}, ROUTED = new Set(), ASSIGN = {}, BACKHAUL = {}, ROUTES = [];
-let GTOKEN = null, GTOKEXP = 0, _tc = null;
-let LMAP = null, LLAYER = null, VIZ = null;
-let VIEW = "board", TLSTART = null; const TLDAYS = 42;
-let FILTER = "all", FILTERREG = "all", FILTERST = "all", FILTERTY = "all", LMAP2 = null, LLAYER2 = null;
-const ROUTE_WINDOW = 5;
-const REGIONS = {Northeast:["NJ","NY","PA","CT","MA","RI","NH","VT","ME","DE","MD","DC"],Southeast:["VA","NC","SC","GA","FL","TN","KY","WV","AL","MS"],Midwest:["OH","MI","IN","IL","WI","MN","IA","MO","KS","NE","ND","SD"],South:["TX","OK","AR","LA","NM"],West:["CA","AZ","NV","UT","CO","WY","MT","ID","OR","WA"]};
-const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-try { const g = JSON.parse(localStorage.getItem("zd_ldtok") || "null"); if (g && g.exp > Date.now()+60000){ GTOKEN=g.t; GTOKEXP=g.exp; } } catch(e){}
 
-const $ = s => document.querySelector(s);
-function esc(x){ return String(x==null?"":x).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
-function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),4200); }
+/* ===== helpers ===== */
+const $=s=>document.querySelector(s);
+function esc(x){ return String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
 function num(s){ if(s==null) return 0; const n=parseFloat(String(s).replace(/[$,]/g,"")); return isFinite(n)?n:0; }
-function pcsv(t){
-  const rows=[]; let r=[], c="", q=false;
+function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3600); }
+function pcsv(t){ const rows=[]; let r=[],c="",q=false;
   for(let i=0;i<t.length;i++){ const ch=t[i];
-    if(q){ if(ch==='"'){ if(t[i+1]==='"'){ c+='"'; i++; } else q=false; } else c+=ch; }
-    else { if(ch==='"') q=true; else if(ch===","){ r.push(c); c=""; } else if(ch==="\n"){ r.push(c); rows.push(r); r=[]; c=""; } else if(ch!=="\r") c+=ch; }
-  }
-  if(c!==""||r.length){ r.push(c); rows.push(r); }
-  return rows;
-}
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){c+='"';i++;} else q=false; } else c+=ch; }
+    else { if(ch==='"')q=true; else if(ch===","){r.push(c);c="";} else if(ch==="\n"){r.push(c);rows.push(r);r=[];c="";} else if(ch!=="\r")c+=ch; } }
+  if(c!==""||r.length){ r.push(c); rows.push(r); } return rows; }
+function colmap(H){ const m={}; H.forEach((h,i)=>m[String(h).trim().toLowerCase()]=i); return m; }
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function midnight(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
 function today0(){ return midnight(new Date()); }
-function parseDate(s){
-  s=String(s||"").trim(); if(!s) return null;
+function parseDate(s){ s=String(s||"").trim(); if(!s) return null;
   let m=s.match(/(\d{4})-(\d{2})-(\d{2})/); if(m) return new Date(+m[1],+m[2]-1,+m[3]);
-  m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if(m){ let y=+m[3]; if(y<100)y+=2000; return new Date(y,+m[1]-1,+m[2]); }
-  return null;
-}
-function fmtMDY(d){ if(!d) return ""; return ("0"+(d.getMonth()+1)).slice(-2)+"/"+("0"+d.getDate()).slice(-2)+"/"+String(d.getFullYear()).slice(-2); }
+  m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if(m){ let y=+m[3]; if(y<100)y+=2000; return new Date(y,+m[1]-1,+m[2]); } return null; }
+function addDays(d,n){ if(!d) return null; const x=midnight(d); x.setDate(x.getDate()+n); return x; }
 function daysFromToday(d){ if(!d) return null; return Math.round((midnight(d)-today0())/86400000); }
-function weekStart(d){ const x=midnight(d); x.setDate(x.getDate()-x.getDay()); return x; }
-function geo(zip){ zip=String(zip||"").replace(/\D/g,"").slice(0,5).padStart(5,"0"); const z=ZIPDB[zip]; return z?{lat:z[0],lon:z[1],city:z[2],state:z[3]}:null; }
+function fmt(d){ if(!d) return "?"; return MON[d.getMonth()]+" "+d.getDate(); }
 function stateZip(s){ s=String(s||"").trim(); const st=(s.match(/[A-Za-z]{2}/)||[""])[0].toUpperCase(); const z=(s.match(/\d{5}/)||[""])[0]; return {state:st,zip:z}; }
 function gviz(tab){ return "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&headers=1&sheet="+encodeURIComponent(tab)+"&_t="+Date.now(); }
-function colmap(H){ const m={}; H.forEach((h,i)=>m[String(h).trim().toLowerCase()]=i); return m; }
-function modal(title, body, foot){
-  const host=$("#modalhost");
-  host.innerHTML='<div class="mbg"><div class="mbox"><button class="mx">&#10005;</button><h3>'+esc(title)+'</h3><div>'+body+'</div>'+(foot?'<div class="mfoot">'+foot+'</div>':'')+'</div></div>';
-  const bg=host.querySelector(".mbg");
-  bg.addEventListener("click", e=>{ if(e.target===bg) host.innerHTML=""; });
-  host.querySelector(".mx").onclick=()=>host.innerHTML="";
-}
-function closeModal(){ $("#modalhost").innerHTML=""; }
-function ensureToken(cb){
-  if(GTOKEN && Date.now()<GTOKEXP-60000) return cb();
-  if(window._gsiFail || !(window.google && google.accounts && google.accounts.oauth2))
-    return modal("Sign-in needed", '<div class="mrow">Open this on the hosted GitHub Pages URL to sign in. Reading works without it; saving needs a quick Google sign-in.</div>');
-  _tc = _tc || google.accounts.oauth2.initTokenClient({ client_id:GCLIENT, scope:"https://www.googleapis.com/auth/spreadsheets", callback:()=>{} });
-  _tc.callback = resp => {
-    if(resp && resp.access_token){
-      GTOKEN=resp.access_token; GTOKEXP=Date.now()+((resp.expires_in||3600)*1000);
-      try{ localStorage.setItem("zd_ldtok", JSON.stringify({t:GTOKEN,exp:GTOKEXP})); }catch(e){}
-      cb();
-    } else toast("Sign-in failed.");
-  };
-  _tc.requestAccessToken({ prompt: GTOKEN?"":"consent" });
-}
-function shFetch(path, opt){
-  return fetch("https://sheets.googleapis.com/v4/spreadsheets/"+SHEET_ID+path,
-    Object.assign({ headers:{ Authorization:"Bearer "+GTOKEN, "Content-Type":"application/json" } }, opt||{}))
-    .then(r => { if(!r.ok) return r.text().then(b=>{ throw new Error("Sheets "+r.status); }); return r.status===204?null:r.json(); });
-}
-function shAppend(tab, obj){
-  const enc=encodeURIComponent("'"+tab+"'");
-  return shFetch("/values/"+enc+"?valueRenderOption=FORMATTED_VALUE").catch(()=>({})).then(v=>{
-    let header=(v && v.values && v.values[0]) || [];
-    let pre=Promise.resolve();
-    if(!header.length){
-      pre = shFetch(":batchUpdate",{ method:"POST", body:JSON.stringify({requests:[{addSheet:{properties:{title:tab}}}]}) }).catch(()=>{}).then(()=>{
-        header=Object.keys(obj);
-        return shFetch("/values/"+encodeURIComponent("'"+tab+"'!A1")+"?valueInputOption=USER_ENTERED",{ method:"PUT", body:JSON.stringify({values:[header]}) });
-      });
-    }
-    return pre.then(()=>{
-      const row=header.map(h=>obj[h]!=null?String(obj[h]):"");
-      Object.keys(obj).forEach(k=>{ if(header.indexOf(k)<0) row.push(String(obj[k])); });
-      return shFetch("/values/"+enc+":append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",{ method:"POST", body:JSON.stringify({values:[row]}) });
-    });
-  });
-}
-/* ===== load ===== */
+
+/* ===== data ===== */
 function loadJobs(){
   return (LOCAL&&window.LD_LOCAL_JOBS_B64?Promise.resolve(b64csv(window.LD_LOCAL_JOBS_B64)):fetch(gviz(JOBS_TAB)).then(r=>r.text())).then(t=>{
     const rows=pcsv(t); if(rows.length<2){ JOBS=[]; return; }
     const c=colmap(rows[0]); const g=(r,k)=>{ const i=c[k]; return i==null?"":String(r[i]||"").trim(); };
-    /* every row is a calendar event. a DELIVERY event carries a Pickup Job Code linking back to its pickup; a PICKUP event leaves it blank. */
-    const delByPickup={};
-    rows.slice(1).forEach(r=>{
-      const pjc=g(r,"pickup job code"); if(!pjc) return;
-      delByPickup[pjc]={ id:g(r,"event id"), title:g(r,"event title"), date:parseDate(g(r,"event date")), loc:g(r,"location") };
-    });
     const out=[];
     rows.slice(1).forEach(r=>{
-      if(g(r,"pickup job code")) return;            /* delivery rows are attached to their pickup, not listed on their own */
-      const isDel = g(r,"is delivered").toLowerCase()==="delivered" || g(r,"current location").toLowerCase()==="delivered";
-      if(isDel) return;
       const code=g(r,"job code"); if(!code) return;
-      const pz=stateZip(g(r,"pickup zip code")), dz=stateZip(g(r,"delivery zip code"));
-      const pg=geo(pz.zip), dg=geo(dz.zip);
-      const jt=g(r,"job type");
+      const isDelivered=/delivered/i.test(g(r,"is delivered"));
       const fad=parseDate(g(r,"final fad")||g(r,"fad by paper")||g(r,"fad (first available date)"));
+      if(isDelivered) return;                              /* delivered to customer = out of planning */
+      if(fad && daysFromToday(fad) < -KEEP_PAST_DAYS) return;  /* very old leftovers */
+      const pz=stateZip(g(r,"pickup zip code")), dz=stateZip(g(r,"delivery zip code"));
+      const jt=g(r,"job type");
+      const stor=g(r,"is in storage");
       let trip=parseFloat(g(r,"estimated trip days")); trip=(isFinite(trip)&&trip>0)?trip:null;
-      const stor=g(r,"is in storage"); const inStor=/yes|true|^y$|^1$/i.test(stor)||stor.charCodeAt(0)===10003;
       out.push({
         code, customer:g(r,"customer name"),
         type:/straight/i.test(jt)?"straight":"regular",
-        pickupState:pg?pg.state:pz.state, destState:dg?dg.state:dz.state,
-        pickup:pg?{lat:pg.lat,lon:pg.lon}:null, delivery:dg?{lat:dg.lat,lon:dg.lon}:null,
-        pickupZip:pz.zip, deliveryZip:dz.zip,
-        cf:num(g(r,"final cf"))||num(g(r,"estimated cf")),
-        fad, timeframeRaw:g(r,"delivery time frame"), tripDays:trip,
-        foreman:g(r,"forman"), carrier:g(r,"carrier"),
-        currentLocation:g(r,"current location"),
-        inStorage:inStor, storLabel:g(r,"storage location label")||g(r,"storage location type"),
-        pickupDate:parseDate(g(r,"event date")),
-        pickupEv:{ id:g(r,"event id"), title:g(r,"event title"), date:parseDate(g(r,"event date")), loc:g(r,"location") },
-        deliverEv: delByPickup[code]||null
+        eventDate:parseDate(g(r,"event date")),
+        pickupState:pz.state, pickupZip:pz.zip, pickupCity:(g(r,"pickup city")||""),
+        destState:dz.state, deliveryZip:dz.zip, destCity:(g(r,"moving to")||"").split(",").slice(0,1)[0],
+        fad, timeframeRaw:g(r,"delivery time frame"),
+        cf:num(g(r,"final cf"))||num(g(r,"estimated cf")), tripDays:trip,
+        foreman:g(r,"forman"), carrier:g(r,"carrier"), carrierRate:g(r,"rate"),
+        isDelivered:g(r,"is delivered"),
+        inStorage:/true|yes|^y$|^1$/i.test(stor)||stor.charCodeAt(0)===10003,
+        storLabel:g(r,"storage location label")||g(r,"storage location type")
       });
     });
-    JOBS=out.filter(j=>!j.fad||daysFromToday(j.fad)>=-45);
+    JOBS=out;
   }).catch(e=>{ JOBS=[]; });
 }
 function loadKV(tab, build, localB64){
   return (LOCAL&&localB64?Promise.resolve(b64csv(localB64)):fetch(gviz(tab)).then(r=>r.ok?r.text():"")).then(t=>{
-    const s={};
-    try{ const rows=pcsv(t); if(rows.length<2) return s;
-      const c=colmap(rows[0]); const g=(r,k)=>{ const i=c[k]; return i==null?"":String(r[i]||"").trim(); };
-      rows.slice(1).forEach(r=>build(s,g,r));
-    }catch(e){}
-    return s;
+    const s={}; try{ const rows=pcsv(t); if(rows.length<2) return s; const c=colmap(rows[0]); const g=(r,k)=>{ const i=c[k]; return i==null?"":String(r[i]||"").trim(); }; rows.slice(1).forEach(r=>build(s,g,r)); }catch(e){} return s;
   }).catch(()=>({}));
 }
-function loadStorage(){ return loadKV(STORAGE_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]={ type:g(r,"storage location type")||g(r,"location type")||"In storage", label:g(r,"storage location label")||g(r,"location label")||g(r,"location")||"" }; }, window.LD_LOCAL_STORAGE_B64).then(s=>{STORAGE=s;}); }
-function loadRoutes(){ return loadKV(ROUTES_TAB,(s,g,r)=>{ const codes=String(g(r,"job codes")||"").split(/[,;]+/).map(x=>x.trim()).filter(Boolean); if(!codes.length) return; const id=g(r,"route id")||("R"+codes[0]); s[id]={id,region:g(r,"region"),truck:g(r,"truck"),foreman:g(r,"foreman"),depart:g(r,"depart"),deliver:g(r,"deliver by"),cf:num(g(r,"total cf")),codes}; }).then(s=>{ ROUTES=Object.values(s); ROUTED=new Set(); ROUTES.forEach(rt=>rt.codes.forEach(c=>ROUTED.add(c))); }); }
-function loadAssign(){ return loadKV(ASSIGN_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]={foreman:g(r,"foreman"),carrier:g(r,"carrier")}; }).then(s=>{ASSIGN=s;}); }
-function loadBackhaul(){ return loadKV(BACKHAUL_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]=1; }).then(s=>{ BACKHAUL=s; }); }
-/* ===== derived ===== */
-function foremanOf(j){ return (ASSIGN[j.code]&&ASSIGN[j.code].foreman)||j.foreman||""; }
-function carrierOf(j){ return (ASSIGN[j.code]&&ASSIGN[j.code].carrier)||j.carrier||""; }
-function isFar(j){ return j.destState && OUR_STATES.indexOf(j.destState)<0; }
-function suggestTruck(j){ const ts=DATA.trucks.slice().sort((a,b)=>a.cf-b.cf); for(const t of ts) if(t.cf>=j.cf) return t; return ts[ts.length-1]; }
-function spareCF(j){ const t=suggestTruck(j); return t ? t.cf - (j.cf||0) : 0; }
-function leaveBy(j){ if(!j.fad) return null; return new Date(midnight(j.fad).getTime()-(j.tripDays||1)*86400000); }
-function tfWindow(j){
-  const s=String(j.timeframeRaw||"").trim();
-  if(!s) return {kind:"missing"};
-  const m=s.match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})\s*[-to ]+\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/i);
-  if(m){ return {kind:"range", end:parseDate(m[2]), label:s}; }
-  const n=s.match(/^\s*(\d{1,3})\s*$/);
-  if(n && j.fad){ const days=+n[1]; return {kind:"days", days, end:new Date(midnight(j.fad).getTime()+days*86400000), label:days+"-day window from FAD"}; }
-  return {kind:"unknown", label:s};
+function loadStorage(){ return loadKV(STORAGE_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]={ address:g(r,"storage address")||g(r,"address"), location:g(r,"storage location")||g(r,"storage location label"), unit:g(r,"storage unit")||g(r,"unit number"), cf:g(r,"storage cf")||g(r,"chargeable cf") }; }, window.LD_LOCAL_STORAGE_B64).then(s=>{STORAGE=s;}); }
+function loadRoutes(){ return loadKV(ROUTES_TAB,(s,g,r)=>{ String(g(r,"job codes")||"").split(/[,;]+/).forEach(x=>{ x=x.trim(); if(x)s[x]=1; }); }).then(s=>{ ROUTED=new Set(Object.keys(s)); }).catch(()=>{}); }
+
+/* ===== the engine: four separate dimensions per spec ===== */
+function parseTimeframe(raw, fad){
+  const s=String(raw||"").trim(); if(!s) return null;
+  const m=s.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[-to ]+\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  if(m) return {end:parseDate(m[2]), label:s};
+  const n=s.match(/(\d{1,3})/);
+  if(n&&fad) return {end:addDays(fad,+n[1]), days:+n[1], label:n[1]+" days"};
+  return null;
 }
-function dataIssues(j){
-  const out=[];
-  if(!j.fad) out.push("No Final FAD");
-  const tw=tfWindow(j);
-  if(tw.kind==="missing") out.push("No delivery timeframe");
-  else if(tw.kind==="unknown") out.push("Timeframe not understood");
+function computeJob(j){
+  const isS=j.type==="straight";
+  /* data gaps */
+  const gaps=[];
+  if(!j.fad) gaps.push("FAD");
+  const tf=parseTimeframe(j.timeframeRaw,j.fad);
+  if(!isS && !tf) gaps.push("Delivery timeframe");
+  if(!j.destState && !j.deliveryZip) gaps.push("Delivery ZIP");
+  if(!j.cf) gaps.push("CF");
+  const critGap = gaps.indexOf("FAD")>=0 || (!isS && gaps.indexOf("Delivery timeframe")>=0);
+  /* delivery model: Straight = fixed date; Regular = window */
+  let deliverDate=null, winStart=null, winEnd=null, departBy=null, deliverLabel="", deliverSub="";
+  if(isS){
+    deliverDate=j.fad;
+    departBy=j.fad?addDays(j.fad,-(j.tripDays||TRIP_FALLBACK)):null;
+    deliverLabel=j.fad?("Deliver "+fmt(j.fad)):"No delivery date";
+    deliverSub=j.fad?("fixed date · depart by "+fmt(departBy)+(j.tripDays?"":" (trip days assumed)")):"critical data gap";
+  } else {
+    winStart=j.fad; winEnd=tf?tf.end:null;
+    deliverLabel=(winStart&&winEnd)?("Window "+fmt(winStart)+" – "+fmt(winEnd)):(winStart?("FAD "+fmt(winStart)):"No FAD");
+    deliverSub=(winStart&&winEnd)?"flexible delivery window":(winStart?"missing timeframe — window unknown":"critical data gap");
+  }
+  /* operational state, computed (NOT from Current Location) */
+  const dPick=daysFromToday(j.eventDate);
+  let state;
+  if(j.carrier) state="At Carrier";
+  else if(j.inStorage) state="In Storage";
+  else if(dPick==null) state="Unknown";
+  else if(dPick>0) state="Not Picked Up";
+  else if(dPick===0) state="Pickup Today";
+  else state="Picked Up";
+  /* urgency, priority order from spec */
+  const dDeliver=isS?daysFromToday(deliverDate):null;
+  const dWinEnd=!isS?daysFromToday(winEnd):null;
+  const dDepart=isS?daysFromToday(departBy):null;
+  let urg;
+  if(critGap) urg={lvl:"gap",txt:"Missing data"};
+  else if(isS && dDeliver!=null && dDeliver<0) urg={lvl:"red",txt:"Delivery date passed"};
+  else if(!isS && dWinEnd!=null && dWinEnd<0) urg={lvl:"red",txt:"Delivery window expired"};
+  else if(isS && dDepart!=null && dDepart<=0) urg={lvl:"red",txt:"Departure passed"};
+  else if(state==="Pickup Today") urg={lvl:"amber",txt:"Pickup today"};
+  else if(!isS && !j.carrier && dPick!=null && dPick>=0 && dPick<=PICKUP_SOON) urg={lvl:"amber",txt:"Carrier / route decision before pickup"};
+  else if(j.inStorage && isS && dDepart!=null && dDepart<=LEAVE_SOON) urg={lvl:"amber",txt:"Pull from storage"};
+  else if(isS && dDepart!=null && dDepart<=LEAVE_SOON) urg={lvl:"amber",txt:"Departure soon"};
+  else urg={lvl:"green",txt:"On track"};
+  /* route status (separate from urgency) */
+  let route;
+  if(ROUTED.has(j.code)) route="Accepted Route";
+  else if(state==="At Carrier") route="—";
+  else if(isS || winEnd) route="Route Candidate";
+  else route="Not Routed";
+  /* recommended action, plain language */
+  const action=recAction(j,{isS,state,urg,gaps,deliverDate,winStart,winEnd,departBy,route,dPick,dDepart});
+  return {isS,state,urg,route,action,gaps,critGap,deliverLabel,deliverSub,winEnd};
+}
+function recAction(j,c){
+  if(c.gaps.length) return "Fix data: "+c.gaps.join(", ");
+  if(c.state==="At Carrier") return "Track delivery in Carrier Watch";
+  if(c.isS && c.urg.lvl==="red") return "Deliver now — fixed date "+fmt(c.deliverDate)+" has passed";
+  if(!c.isS && c.urg.lvl==="red") return "Deliver now — delivery window has closed";
+  if(c.isS && c.dDepart!=null && c.dDepart<=0) return "Start moving now — deliver "+fmt(c.deliverDate);
+  if(c.isS && c.dDepart!=null && c.dDepart<=LEAVE_SOON) return "Plan departure by "+fmt(c.departBy);
+  if(!c.isS && !j.carrier) return "Decide: assign carrier, or convert to Straight and route it";
+  if(!c.isS && c.route==="Route Candidate") return "Consider converting Regular → Straight (route it within the window)";
+  if(c.isS && !j.foreman) return "Assign foreman";
+  if(j.inStorage) return "In storage — pull before route departure";
+  if(c.state==="Not Picked Up") return "Scheduled — plan route or carrier";
+  if(c.state==="Picked Up") return "In our possession — plan delivery or route";
+  return "On track";
+}
+function groupOf(c){
+  if(c.state==="At Carrier") return "carrier";
+  if(c.route==="Accepted Route") return "accepted";
+  if(c.critGap) return "data";
+  if(c.urg.lvl==="red") return "critical";
+  if(c.state==="Pickup Today"||c.state==="Not Picked Up") return "pickup";
+  if(c.state==="Picked Up"||c.state==="In Storage") return "possession";
+  return "candidates";
+}
+const GROUPS=[
+  ["critical","Critical — needs action today"],
+  ["data","Data gaps — blocking planning"],
+  ["pickup","Pickup today / upcoming"],
+  ["possession","In our possession"],
+  ["candidates","Route candidates"],
+  ["accepted","Accepted routes"]
+];
+
+/* ===== render ===== */
+function pathLine(j){ return esc(j.pickupState||"?")+" "+esc(j.pickupZip||"")+" &#8594; "+esc(j.destState||"?")+" "+esc(j.deliveryZip||""); }
+function jobCard(j,c){
+  const u="u-"+c.urg.lvl;
+  let chips='<span class="chip state"><i></i>'+esc(c.state)+'</span>';
+  chips+='<span class="chip '+u+'">'+esc(c.urg.txt)+'</span>';
+  chips+='<span class="chip route">'+esc(c.route)+'</span>';
+  if(j.inStorage){ const st=STORAGE[j.code]||{}; chips+='<span class="chip stor">&#128230; '+esc(j.storLabel||st.location||"storage")+'</span>'; }
+  return '<div class="jc '+u+'">'+
+    '<div class="jctop"><span class="code">'+esc(j.code)+'</span><span class="ty '+j.type+'">'+(c.isS?"Straight":"Regular")+'</span><span class="cf">'+Math.round(j.cf||0).toLocaleString()+' CF</span></div>'+
+    '<div class="cust">'+esc(j.customer||"(no name)")+'</div>'+
+    '<div class="route-line">'+pathLine(j)+'</div>'+
+    '<div class="deliv">'+esc(c.deliverLabel)+'<div class="sub">'+esc(c.deliverSub)+'</div></div>'+
+    '<div class="dims">'+chips+'</div>'+
+    '<div class="action"><span class="k">Do</span><span>'+esc(c.action)+'</span></div>'+
+  '</div>';
+}
+function renderBoard(){
+  const host=$("#boardwrap");
+  const buckets={}; GROUPS.forEach(g=>buckets[g[0]]=[]);
+  let carrier=0;
+  JOBS.forEach(j=>{ const c=computeJob(j); j._c=c; const g=groupOf(c); if(g==="carrier"){carrier++;return;} (buckets[g]=buckets[g]||[]).push({j,c}); });
+  /* sort within group by urgency then soonest date */
+  const ord={red:0,gap:1,amber:2,green:3};
+  Object.values(buckets).forEach(arr=>arr.sort((a,b)=>(ord[a.c.urg.lvl]-ord[b.c.urg.lvl])||((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15))));
+  let html="";
+  GROUPS.forEach(g=>{ const arr=buckets[g[0]]; if(!arr.length) return;
+    html+='<div class="grp g-'+g[0]+'"><div class="grphead"><h2>'+esc(g[1])+'</h2><span class="ct">'+arr.length+' job'+(arr.length>1?"s":"")+'</span></div><div class="cards">'+arr.map(x=>jobCard(x.j,x.c)).join("")+'</div></div>';
+  });
+  if(!html) html='<div class="empty"><b>Nothing needs planning</b>No long-distance jobs in the planning board right now.</div>';
+  host.innerHTML=html;
+  $("#cwcount").textContent=carrier;
+  renderStats(carrier);
+}
+function renderStats(carrier){
+  let red=0,amber=0,gap=0,poss=0;
+  JOBS.forEach(j=>{ const c=j._c||computeJob(j); if(c.state==="At Carrier")return; if(c.urg.lvl==="red")red++; else if(c.urg.lvl==="amber")amber++; if(c.critGap)gap++; if(c.state==="Picked Up"||c.state==="In Storage")poss++; });
+  $("#stats").innerHTML=
+    '<div class="stat"><div class="v red">'+red+'</div><div class="l">Act now</div></div>'+
+    '<div class="stat"><div class="v amber">'+amber+'</div><div class="l">Act soon</div></div>'+
+    '<div class="stat"><div class="v teal">'+poss+'</div><div class="l">In hand</div></div>'+
+    '<div class="stat"><div class="v">'+gap+'</div><div class="l">Data gaps</div></div>';
+}
+function renderCarrier(){
+  const host=$("#carrierwrap");
+  const rows=JOBS.filter(j=>j.carrier).map(j=>{ const c=j._c||computeJob(j); return {j,c}; });
+  rows.sort((a,b)=>(a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15));
+  let body=rows.map(x=>{ const j=x.j,c=x.c; const dl=c.isS?("Deliver "+fmt(j.fad)):(c.winEnd?("by "+fmt(c.winEnd)):"window?"); return '<tr>'+
+    '<td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td>'+(c.isS?"Straight":"Regular")+'</td>'+
+    '<td>'+esc(j.carrier||"")+'</td><td>'+esc(j.carrierRate?("$"+j.carrierRate):"—")+'</td><td>'+Math.round(j.cf||0).toLocaleString()+'</td>'+
+    '<td>'+(j.eventDate?fmt(j.eventDate):"—")+'</td><td>'+(j.fad?fmt(j.fad):"—")+'</td><td>'+esc(dl)+'</td>'+
+    '<td>'+(/delivered/i.test(j.isDelivered)?"delivered":"awaiting confirmation")+'</td></tr>'; }).join("");
+  host.innerHTML='<p class="cwnote">Jobs already handed to a carrier &mdash; for follow-up and delivery confirmation, not route planning.</p>'+
+    (rows.length?('<div class="cwwrap"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Carrier</th><th>Rate</th><th>CF</th><th>Pickup</th><th>FAD</th><th>Delivery</th><th>Status</th></tr></thead><tbody>'+body+'</tbody></table></div>')
+    :'<div class="empty"><b>No jobs at carrier</b>Nothing to track here right now.</div>');
+}
+
+/* ===== distance + route-suggestion engine (spec sec 8) ===== */
+const TRUCKS=[{n:"#7",cf:1622},{n:"#9",cf:1741},{n:"#15",cf:1741},{n:"#33",cf:1741},{n:"#77",cf:1809},{n:"#10",cf:1741},{n:"#11",cf:1848},{n:"#27",cf:1741}];
+const BASE={lat:40.23,lon:-74.30}, TRUCK_MAX=1848, DETOUR_MAX=180, ROUTE_SPAN=5;
+const HERE_KEY="0IGXB_hGz84InzFmhfCygxp27_54NI-LkjL6N5RSYT8";
+let LMAP=null,LLAYER=null,MAPROUTE=null,TLSTART=null,drawSeq=0; const _rc={}; const TLDAYS=42;
+function hav(a,b){ if(!a||!b||a.lat==null) return 0; const R=3959,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180,h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function geo(zip){ zip=String(zip||"").replace(/\D/g,"").slice(0,5).padStart(5,"0"); const z=ZIPDB[zip]; return z?{lat:z[0],lon:z[1],city:z[2],state:z[3]}:null; }
+function dMin(a,b){ return a&&b?hav(a,b)/45*60:0; }
+function fitTruck(cf){ const ts=TRUCKS.slice().sort((a,b)=>a.cf-b.cf); return ts.find(t=>t.cf>=cf)||ts[ts.length-1]; }
+function fmtHrs(m){ m=Math.round(m); const h=Math.floor(m/60),r=m%60; return h?(h+"h"+(r?" "+r+"m":"")):(r+"m"); }
+function delWindow(j){ const tf=parseTimeframe(j.timeframeRaw,j.fad); if(j.type==="straight") return j.fad?{s:j.fad,e:j.fad}:null; return (j.fad&&tf)?{s:j.fad,e:tf.end}:null; }
+function routeDrive(stops){ let m=0,prev=BASE; stops.forEach(s=>{ m+=dMin(prev,s.g); prev=s.g; }); return m+dMin(prev,BASE); }
+function orderStops(stops){ const S=stops.filter(s=>s.j.type==="straight").sort((a,b)=>midnight(a.w.s)-midnight(b.w.s)); const R=stops.filter(s=>s.j.type!=="straight").sort((a,b)=>midnight(a.w.s)-midnight(b.w.s)); return S.concat(R); }
+function compatible(stops,x){ const all=stops.concat([x]); const ls=Math.max.apply(null,all.map(s=>midnight(s.w.s).getTime())); const ee=Math.min.apply(null,all.map(s=>midnight(s.w.e).getTime())); return ls<=ee+ROUTE_SPAN*86400000; }
+function buildSuggestions(){
+  const cand=JOBS.filter(j=>!j.carrier&&!ROUTED.has(j.code)).map(j=>({j,g:geo(j.deliveryZip),w:delWindow(j)})).filter(x=>x.g&&x.w&&x.j.cf);
+  cand.sort((a,b)=>midnight(a.w.s)-midnight(b.w.s));
+  const used=new Set(), out=[];
+  cand.forEach(seed=>{ if(used.has(seed.j.code))return; let stops=[seed]; used.add(seed.j.code); let cf=seed.j.cf,cur=routeDrive(stops);
+    while(true){ let best=null,bi=1e9; cand.forEach(x=>{ if(used.has(x.j.code)||cf+x.j.cf>TRUCK_MAX||!compatible(stops,x))return; const inc=routeDrive(orderStops(stops.concat([x])))-cur; if(inc<=DETOUR_MAX&&inc<bi){best=x;bi=inc;} }); if(!best)break; stops.push(best); used.add(best.j.code); cf+=best.j.cf; cur=routeDrive(orderStops(stops)); }
+    if(stops.length>=2) out.push(mkSug(orderStops(stops))); });
   return out;
 }
-function status(j){
-  if(ROUTED.has(j.code)) return {lvl:"travel",txt:"Routed",why:"in an accepted route"};
-  if(!j.fad) return {lvl:"hazard",txt:"No delivery date",why:"Final FAD is blank - fix the sheet"};
-  const isS=j.type==="straight";
-  const dPick=daysFromToday(j.pickupDate), picked=dPick!=null&&dPick<0, dFad=daysFromToday(j.fad);
-  if(dFad!=null && dFad<0) return {lvl:"hazard",txt:"Overdue",why:"FAD was "+fmtMDY(j.fad)+", "+(-dFad)+"d ago"};
-  if(/at carrier/i.test(j.currentLocation)) return {lvl:"fleet",txt:"At carrier",why:"carrier has it - they deliver"};
-  if(j.inStorage || STORAGE[j.code]){
-    const dl0=daysFromToday(leaveBy(j));
-    if(isS && dl0!=null && dl0<=0) return {lvl:"hazard",txt:"Pull from storage",why:"should leave now - deliver by "+fmtMDY(j.fad)};
-    if(isS && dl0!=null && dl0<=LEAVE_SOON) return {lvl:"rental",txt:"Pull soon",why:"leave by "+fmtMDY(leaveBy(j))};
-    return {lvl:"travel",txt:"In storage",why:(j.storLabel||"stored")+(j.fad?" - deliver by "+fmtMDY(j.fad):"")};
-  }
-  if(isS){
-    if(!foremanOf(j)){
-      if(dPick!=null && dPick<=LEAVE_SOON) return {lvl:"hazard",txt:"Needs foreman",why:"pickup "+(dPick<0?"overdue":"in "+dPick+"d")+", none assigned"};
-      if(dPick!=null && dPick<=ASSIGN_DAYS) return {lvl:"rental",txt:"Needs foreman",why:"assign before pickup "+fmtMDY(j.pickupDate)};
-    }
-    if(isFar(j) && dFad!=null && dFad<=BACKHAUL_DAYS && spareCF(j)>BACKHAUL_MIN && !BACKHAUL[j.code]) return {lvl:"rental",txt:"Find backhaul",why:spareCF(j)+" CF free on the empty return"};
-    const lb=leaveBy(j), dl=daysFromToday(lb);
-    if(dl!=null && dl<=0) return {lvl:"hazard",txt:"Start moving",why:(j.tripDays||1)+"-day trip, deliver by "+fmtMDY(j.fad)};
-    if(dl!=null && dl<=LEAVE_SOON) return {lvl:"rental",txt:"Move soon",why:"leave by "+fmtMDY(lb)};
-    if(picked) return {lvl:"fleet",txt:"Picked up",why:"in hand - leave by "+fmtMDY(lb)};
-    return {lvl:"fleet",txt:"Scheduled",why:"pickup "+fmtMDY(j.pickupDate)};
-  }
-  if(!carrierOf(j)){
-    if(dPick!=null && dPick<=LEAVE_SOON) return {lvl:"hazard",txt:"Needs carrier",why:"pickup "+(dPick<0?"overdue":"in "+dPick+"d")+", no carrier"};
-    return {lvl:"rental",txt:"No carrier yet",why:"assign before pickup"+(j.pickupDate?" "+fmtMDY(j.pickupDate):"")};
-  }
-  if(picked) return {lvl:"fleet",txt:"Picked up",why:"carrier: "+carrierOf(j)};
-  return {lvl:"fleet",txt:"Carrier set",why:carrierOf(j)};
-}
-function sortKey(j){ return [ STORAGE[j.code]?0:1, j.fad?midnight(j.fad).getTime():9e15 ]; }
-function sortedJobs(){ return JOBS.slice().sort((a,b)=>{ const ka=sortKey(a),kb=sortKey(b); return (ka[0]-kb[0])||(ka[1]-kb[1]); }); }
-function initials(n){ const p=String(n||"").trim().split(/\s+/).filter(Boolean); return p.length?((p[0][0]||"")+(p.length>1?p[p.length-1][0]:"")).toUpperCase():""; }
-function tlSortKey(j){ const c=[]; if(j.fad)c.push(midnight(j.fad).getTime()); const lb=leaveBy(j); if(j.type==="straight"&&lb)c.push(midnight(lb).getTime()); const need=j.type==="straight"?!foremanOf(j):!carrierOf(j); if(need&&j.pickupDate)c.push(midnight(j.pickupDate).getTime()); return c.length?Math.min.apply(null,c):9e15; }
-/* ===== render ===== */
-function renderStats(){
-  const red=JOBS.filter(j=>status(j).lvl==="hazard").length;
-  const di=JOBS.filter(j=>dataIssues(j).length).length;
-  const inSt=JOBS.filter(j=>STORAGE[j.code]).length;
-  $("#stats").innerHTML =
-    '<div class="stat"><div class="v">'+JOBS.length+'</div><div class="l">Trips</div></div>'+
-    '<div class="stat"><div class="v red">'+red+'</div><div class="l">Urgent</div></div>'+
-    '<div class="stat"><div class="v amber">'+di+'</div><div class="l">Data gaps</div></div>'+
-    '<div class="stat"><div class="v teal">'+inSt+'</div><div class="l">In storage</div></div>';
-}
-function pathLine(j){
-  return '<div class="pathline"><span class="jp">'+esc(j.pickupState||"?")+'</span>'+
-    '<span class="mono" style="color:var(--faint);font-size:13px">'+esc(j.pickupZip||"")+'</span>'+
-    '<span class="ja">&#8594;</span><span class="jp dest">'+esc(j.destState||"?")+'</span>'+
-    '<span class="mono" style="color:var(--faint);font-size:13px">'+esc(j.deliveryZip||"")+'</span>'+
-    '<span class="ldtag '+j.type+'">'+(j.type==="straight"?"Straight":"Regular")+'</span></div>';
-}
-function tripCard(j){
-  const s=status(j), isS=j.type==="straight", who=isS?foremanOf(j):carrierOf(j);
-  const dl=daysFromToday(j.fad), tw=tfWindow(j), di=dataIssues(j);
-  const t=suggestTruck(j), spare=spareCF(j);
-  let chips="";
-  di.forEach(d=>{ chips+='<span class="chip data" data-di="'+esc(j.code)+'">&#9888; '+esc(d)+'</span>'; });
-  if(STORAGE[j.code]) chips+='<span class="chip stor" data-stor="'+esc(j.code)+'">&#128230; In storage &middot; '+esc(STORAGE[j.code].type||"")+'</span>';
-  if(j.tripDays) chips+='<span class="chip">&#128739; '+j.tripDays+'-day trip</span>';
-  if(isS && isFar(j)) chips+='<span class="chip ov" data-bh="'+esc(j.code)+'">&#128666; '+spare+' CF free on return &middot; find backhaul</span>';
-  if(tw.kind==="days"||tw.kind==="range") chips+='<span class="chip">window: '+esc(tw.label)+(tw.end?" (ends "+fmtMDY(tw.end)+")":"")+'</span>';
-  const aico = who ? '<div class="aico teal">'+(isS?"FM":"CR")+'</div>' : '<div class="aico amber">'+(isS?"FM":"CR")+'</div>';
-  const atext = who
-    ? '<div class="atext"><div class="t">'+esc(who.split("@")[0])+'</div><div class="s">'+(isS?"foreman &middot; we deliver":"carrier &middot; 3rd-party")+'</div></div>'
-    : '<div class="atext"><div class="t">'+(isS?"No foreman assigned":"No carrier assigned")+'</div><div class="s">'+(isS?"we deliver &mdash; assign before it leaves":"assign before pickup")+'</div></div>';
-  const truckSeg = isS ? '<span class="vbadge"><span class="b">'+esc(t.n.replace("#",""))+'</span>Truck '+esc(t.n)+' &middot; '+t.cf.toLocaleString()+' CF &middot; '+spare+' free</span>' : "";
-  const abtn = who ? "" : '<button class="abtn amber" data-assign="'+esc(j.code)+'">Assign '+(isS?"foreman":"carrier")+'</button>';
-  return '<div class="card st-'+s.lvl+'" data-code="'+esc(j.code)+'">'+
-    '<div class="cardtop"><span class="rpill">'+esc(j.code)+'</span>'+pathLine(j)+'<button class="vizbtn" data-viz="'+esc(j.code)+'">Journey &#9656;</button>'+
-    '<span class="statwrap"><span class="spill '+s.lvl+'">'+esc(s.txt)+'</span><span class="swhy">'+esc(s.why)+'</span></span></div>'+
-    '<div class="metaline"><b>'+esc(j.customer||"(no name)")+'</b> &middot; deliver by <b>'+(j.fad?fmtMDY(j.fad):"&mdash;")+'</b> &middot; <b>'+(dl==null?"&mdash;":dl)+'</b> days left &middot; <b>'+Math.round(j.cf||0).toLocaleString()+'</b> CF</div>'+
-    '<div class="chips">'+chips+'</div>'+
-    '<div class="assign"><div class="arow">'+aico+atext+'</div>'+truckSeg+abtn+'</div></div>';
-}
-function render(){
-  renderStats(); renderSuggest();
-  const host=$("#cards"), jobs=sortedJobs().filter(inFilter);
-  if(!jobs.length){ host.innerHTML='<div class="empty"><b>No long-distance trips</b>Nothing not-delivered in the sheet right now.</div>'; return; }
-  const groups={};
-  jobs.forEach(j=>{ const d=j.fad||j.pickupDate; const ws=d?weekStart(d):null; const key=ws?ws.getTime():0; (groups[key]=groups[key]||[]).push(j); });
-  const keys=Object.keys(groups).map(Number).sort((a,b)=>a-b);
-  let html="";
-  keys.forEach(k=>{
-    const ws=k?new Date(k):null, we=ws?new Date(k+6*86400000):null;
-    const label=ws?(MON[ws.getMonth()]+" "+ws.getDate()+" - "+MON[we.getMonth()]+" "+we.getDate()):"Undated";
-    html+='<div class="basesec"><h3>'+esc(label)+'</h3><span class="meta">'+groups[k].length+' trip'+(groups[k].length>1?"s":"")+'</span></div>'+groups[k].map(tripCard).join("");
-  });
+function mkSug(stops){ const cf=stops.reduce((s,x)=>s+x.j.cf,0); const drive=routeDrive(stops); let mi=0,prev=BASE; stops.forEach(s=>{mi+=hav(prev,s.g);prev=s.g;}); mi+=hav(prev,BASE); const baseline=Math.max.apply(null,stops.map(s=>routeDrive([s]))); return {stops,cf,truck:fitTruck(cf),miles:Math.round(mi*1.15),driveMin:Math.round(drive),detourMin:Math.max(0,Math.round(drive-baseline)),converts:stops.filter(s=>s.j.type!=="straight").map(s=>s.j.code),jobs:stops.map(s=>s.j),codes:stops.map(s=>s.j.code)}; }
+function renderRoutes(){
+  const host=$("#routeswrap"); const sug=buildSuggestions(); window._SUG=sug;
+  let html='<p class="cwnote">Distance-based suggestions &mdash; combine jobs (converting Regular &#8594; Straight where the window allows) when the extra detour stays under 3 hours and the load fits one truck.</p>';
+  if(!sug.length){ host.innerHTML=html+'<div class="empty"><b>No route suggestions</b>No combinable jobs within the 3-hour detour limit right now.</div>'; return; }
+  html+=sug.map((s,i)=>{ const nS=s.jobs.filter(j=>j.type==="straight").length, nR=s.jobs.length-nS;
+    let exp="Combine "+s.jobs.length+" jobs ("+nS+" Straight, "+nR+" Regular). ";
+    if(nR) exp+="Convert "+nR+" Regular &#8594; Straight &mdash; their windows allow delivery on this run. ";
+    exp+=Math.round(s.cf).toLocaleString()+" CF fits Truck "+s.truck.n+". ~"+s.miles.toLocaleString()+" mi / "+fmtHrs(s.driveMin)+" drive, +"+fmtHrs(s.detourMin)+" extra detour (under 3h).";
+    const stopsH=s.stops.map((st,k)=>{ const j=st.j; const dl=j.type==="straight"?("deliver "+fmt(j.fad)+" (fixed)"):("by "+fmt(st.w.e)+" (window)"); return '<div class="rstop"><span class="rn">'+(k+1)+'</span><b>'+esc(j.code)+'</b> '+esc(j.destState)+' '+(j.type==="straight"?'<span class="ty straight">S</span>':'<span class="ty regular">R&#8594;S</span>')+' &middot; '+dl+'</div>'; }).join("");
+    return '<div class="sug"><div class="sugtop"><span class="sugid">Route '+(i+1)+'</span><span class="sugmeta"><b>'+s.jobs.length+'</b> jobs &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; +'+fmtHrs(s.detourMin)+' detour</span><button class="rbtn" data-rj="'+i+'">Journey</button><button class="rbtn acc" data-acc="'+i+'">Accept route</button></div><div class="sugexp">'+exp+'</div><div class="rstops">'+stopsH+'</div></div>';
+  }).join("");
   host.innerHTML=html;
-  host.querySelectorAll("[data-assign]").forEach(el=>el.onclick=()=>openAssign(el.dataset.assign));
-  host.querySelectorAll("[data-stor]").forEach(el=>el.onclick=()=>openStorage(el.dataset.stor));
-  host.querySelectorAll("[data-di]").forEach(el=>el.onclick=()=>openDataIssue(el.dataset.di));
-  host.querySelectorAll("[data-bh]").forEach(el=>el.onclick=()=>openBackhaul(el.dataset.bh));
-  host.querySelectorAll("[data-viz]").forEach(el=>el.onclick=()=>vizJourney(el.dataset.viz));
-  if(VIZ){ const b=document.querySelector('.vizbtn[data-viz="'+VIZ+'"]'); if(b){ b.classList.add("on"); b.innerHTML="Hide &#9656;"; } }
+  host.querySelectorAll("[data-acc]").forEach(el=>el.onclick=()=>{ const s=window._SUG[+el.dataset.acc]; s.codes.forEach(c=>ROUTED.add(c)); toast("Route accepted - "+s.codes.length+" jobs."); renderRoutes(); renderBoard(); });
+  host.querySelectorAll("[data-rj]").forEach(el=>el.onclick=()=>{ MAPROUTE=window._SUG[+el.dataset.rj]; setTab("map"); });
 }
-/* ===== route / journey map ===== */
-function hav(a,b){ if(!a||!b||a.lat==null||b.lat==null) return 0; const R=3959,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180; const h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
-function roadMi(a,b){ return Math.round(hav(a,b)*1.18); }
-function initMap(){
-  if(LMAP || typeof L==="undefined") return;
-  const el=$("#map"); if(!el) return;
-  try{
-    LMAP=L.map("map",{zoomControl:true});
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(LMAP);
-    LMAP.setView([39.5,-83],5);
-    LLAYER=L.layerGroup().addTo(LMAP);
-  }catch(e){ LMAP=null; }
-}
-function closeViz(){
-  VIZ=null;
-  const lay=$(".layout"); if(lay) lay.classList.remove("mapon");
-  document.querySelectorAll(".vizbtn").forEach(b=>{ b.classList.remove("on"); b.innerHTML="Journey &#9656;"; });
-}
-function vizJourney(code){
-  const j=JOBS.find(x=>x.code===code); if(!j) return;
-  if(VIZ===code){ closeViz(); return; }
-  VIZ=code;
-  const lay=$(".layout"); if(lay) lay.classList.add("mapon");
-  document.querySelectorAll(".vizbtn").forEach(b=>{ b.classList.remove("on"); b.innerHTML="Journey &#9656;"; });
-  const btn=document.querySelector('.vizbtn[data-viz="'+code+'"]'); if(btn){ btn.classList.add("on"); btn.innerHTML="Hide &#9656;"; }
-  initMap(); drawJourney(j);
-  setTimeout(()=>{ try{ LMAP&&LMAP.invalidateSize(); }catch(e){} },220);
-}
-function drawJourney(j){
-  const mi=(j.pickup&&j.delivery)?roadMi(j.pickup,j.delivery):null;
-  const t=suggestTruck(j);
-  $("#mapcard").innerHTML=
-    '<div class="mt">'+esc(j.customer||j.code)+'</div>'+
-    '<div class="ms">'+esc(j.pickupState)+' &#8594; '+esc(j.destState)+(mi?' &middot; ~'+mi.toLocaleString()+' mi':'')+(j.tripDays?' &middot; '+j.tripDays+'-day trip':'')+'</div>'+
-    '<div class="step"><span class="dot"></span><div><b>Pickup</b> &middot; '+esc(j.pickupState)+' '+esc(j.pickupZip)+(j.pickupDate?' &middot; '+fmtMDY(j.pickupDate):'')+'</div></div>'+
-    '<div class="step"><span class="dot" style="background:var(--rental)"></span><div><b>Deliver</b> &middot; '+esc(j.destState)+' '+esc(j.deliveryZip)+' &middot; by '+(j.fad?fmtMDY(j.fad):'?')+'</div></div>'+
-    (j.type==="straight"?'<div class="step"><span class="dot" style="background:var(--travel)"></span><div><b>Return</b> to '+esc(j.pickupState)+(isFar(j)?' &middot; '+spareCF(j)+' CF free, find backhaul':'')+'</div></div>':'')+
-    (t?'<div class="ms" style="margin-top:9px">Truck '+esc(t.n)+' &middot; '+t.cf.toLocaleString()+' CF</div>':'');
-  if(!LMAP||!LLAYER) return;
-  try{
-    LLAYER.clearLayers();
-    if(j.pickup&&j.delivery){
-      const col=j.type==="straight"?"#B26B0B":"#3B72B0";
-      L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:"#fff",weight:7,opacity:.9}).addTo(LLAYER);
-      L.polyline([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{color:col,weight:4,opacity:.95,dashArray:"9 7"}).addTo(LLAYER);
-      L.marker([j.pickup.lat,j.pickup.lon],{icon:L.divIcon({className:"",html:'<div class="pmark"></div>',iconSize:[15,15],iconAnchor:[7,7]})}).addTo(LLAYER).bindPopup("Pickup - "+esc(j.pickupState));
-      L.marker([j.delivery.lat,j.delivery.lon],{icon:L.divIcon({className:"",html:'<div class="dmark'+(j.type==="straight"?"":" f")+'">'+esc(j.destState||"")+'</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(LLAYER);
-      LMAP.fitBounds([[j.pickup.lat,j.pickup.lon],[j.delivery.lat,j.delivery.lon]],{padding:[60,60]});
-    }
-  }catch(e){}
-}
-/* ===== actions ===== */
-function openAssign(code){
-  const j=JOBS.find(x=>x.code===code); if(!j) return;
-  const isS=j.type==="straight";
-  const head='<div class="mrow"><span class="k">'+esc(j.customer||"")+'</span><br>'+esc(j.pickupState)+' &#8594; '+esc(j.destState)+' &middot; deliver by '+fmtMDY(j.fad)+'</div>';
-  const field=isS
-    ? '<div class="mfield"><label>Foreman &mdash; we deliver this</label><select class="asel"><option value="">- pick foreman -</option>'+DATA.foremen.map(f=>'<option>'+esc(f)+'</option>').join("")+'</select></div>'
-    : '<div class="mfield"><label>Carrier &mdash; 3rd-party delivery</label><input class="asel" placeholder="Carrier name"></div>';
-  modal((isS?"Assign foreman":"Assign carrier"), head+field, '<button class="abtn" onclick="closeModal()">Cancel</button><button class="abtn dark" id="asave">Save</button>');
-  $("#asave").onclick=()=>{
-    const v=($(".asel").value||"").trim();
-    if(!v){ toast("Pick or enter one first."); return; }
-    const obj={ "Job Code":code, "Foreman":isS?v:"", "Carrier":isS?"":v, "Assigned At":new Date().toISOString() };
-    ensureToken(()=>shAppend(ASSIGN_TAB,obj).then(()=>{
-      ASSIGN[code]=isS?{foreman:v,carrier:""}:{foreman:"",carrier:v};
-      closeModal(); toast("Assigned."); render();
-    }).catch(e=>modal("Couldn't save",'<div class="mrow">'+esc(e.message)+'</div>')));
-  };
-}
-function openStorage(code){
-  const s=STORAGE[code], j=JOBS.find(x=>x.code===code); if(!s) return;
-  modal("Storage &mdash; "+esc((j&&j.customer)||code),
-    '<div class="mrow"><span class="k">Where</span><br><b>'+esc(s.type||"-")+'</b></div>'+
-    '<div class="mrow"><span class="k">Location</span><br>'+esc(s.label||"-")+'</div>'+
-    (j?'<div class="mrow"><span class="k">Deliver by</span><br>'+(j.fad?fmtMDY(j.fad):"-")+' &mdash; pull it from storage in time.</div>':""),
-    '<button class="abtn dark" onclick="closeModal()">Got it</button>');
-}
-function openDataIssue(code){
-  const j=JOBS.find(x=>x.code===code); if(!j) return;
-  const di=dataIssues(j);
-  modal("Data to fix &mdash; "+esc(j.code),
-    '<div class="mrow">This trip can\'t be planned reliably until the sheet is fixed:</div>'+
-    '<ul style="margin:8px 0 0 18px;font-size:15px">'+di.map(d=>'<li>'+esc(d)+'</li>').join("")+'</ul>'+
-    '<div class="mrow" style="color:var(--dim);margin-top:10px">Fill these in the Long Distance Data sheet, then Refresh.</div>',
-    '<button class="abtn dark" onclick="closeModal()">Got it</button>');
-}
-/* ===== map view + filter ===== */
-function regionOf(st){ st=String(st||"").toUpperCase(); for(const r in REGIONS) if(REGIONS[r].indexOf(st)>=0) return r; return "Other"; }
-function inFilter(j){
-  if(FILTER!=="all"){ const d=daysFromToday(j.fad); const mx=FILTER==="wk"?7:FILTER==="2wk"?14:30; if(d!=null && d>mx) return false; }
-  if(FILTERREG!=="all" && regionOf(j.destState)!==FILTERREG) return false;
-  if(FILTERTY!=="all" && j.type!==FILTERTY) return false;
-  if(FILTERST==="action"){ const l=status(j).lvl; if(l!=="hazard" && l!=="rental") return false; }
-  return true;
-}
-function filtered(){ return JOBS.filter(inFilter); }
-function initMap2(){ if(LMAP2||typeof L==="undefined") return; const el=$("#ldmap"); if(!el) return; try{ LMAP2=L.map("ldmap",{zoomControl:true}); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(LMAP2); LMAP2.setView([39.5,-83],5); LLAYER2=L.layerGroup().addTo(LMAP2); }catch(e){ LMAP2=null; } }
-const HERE_KEY="0IGXB_hGz84InzFmhfCygxp27_54NI-LkjL6N5RSYT8";
-let drawSeq=0, MAPROUTE=null; const _rcache={};
-function curveP(a,b,sign,scale){ sign=sign||1;scale=scale||1; const n=24,pts=[]; const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2; const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy)||1e-9; const bow=Math.min(len*0.18*scale,0.10*scale)*sign; const cx=mx-dy/len*bow,cy=my+dx/len*bow; for(let i=0;i<=n;i++){const u=i/n; pts.push([(1-u)*(1-u)*a[0]+2*(1-u)*u*cx+u*u*b[0],(1-u)*(1-u)*a[1]+2*(1-u)*u*cy+u*u*b[1]]);} return pts; }
-function arrowAt2(pts,col){ const i=Math.floor(pts.length/2),p=pts[i],q=pts[Math.min(i+1,pts.length-1)],deg=Math.atan2(q[1]-p[1],q[0]-p[0])*180/Math.PI; L.marker(p,{interactive:false,icon:L.divIcon({className:"",iconSize:[16,16],iconAnchor:[8,8],html:'<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid '+col+';transform:rotate('+deg.toFixed(1)+'deg);filter:drop-shadow(0 0 1.5px #fff)"></div>'})}).addTo(LLAYER2); }
-function smark(pt,label,kind,col,pop){ const st=kind==="P"?"background:#1F2329;color:#fff;border:3px solid #fff;":"background:#fff;color:"+col+";border:3px solid "+col+";"; const m=L.marker(pt,{zIndexOffset:500,icon:L.divIcon({className:"",iconSize:[32,32],iconAnchor:[16,16],html:'<div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed;font-weight:600;font-size:16px;box-shadow:0 1px 5px rgba(0,0,0,.3);'+st+'">'+label+'</div>'})}).addTo(LLAYER2); if(pop)m.bindPopup(pop); return m; }
-function decodeFlexPoly(enc){ const DEC="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",idx={};[...DEC].forEach((c,i)=>idx[c]=i); let i=0; function v(){let r=0,s=0,b;do{b=idx[enc[i++]];r|=(b&31)<<s;s+=5;}while(b>=32);return r;} function sv(){const r=v();return (r&1)?~(r>>>1):(r>>>1);} v(); const meta=v(),prec=meta&15,td=(meta>>4)&7,f=Math.pow(10,prec); let lat=0,lng=0;const pts=[]; while(i<enc.length){ lat+=sv();lng+=sv(); if(td)sv(); pts.push([lat/f,lng/f]); } return pts; }
-function truckRoute(a,b){ const ck=a.join()+"|"+b.join(); if(_rcache[ck]!==undefined)return Promise.resolve(_rcache[ck]); const pr=(async()=>{ try{ const u="https://router.hereapi.com/v8/routes?transportMode=truck&routingMode=fast&origin="+a[0]+","+a[1]+"&destination="+b[0]+","+b[1]+"&return=polyline,summary&apikey="+encodeURIComponent(HERE_KEY); const res=await fetch(u); if(!res.ok)throw 0; const j=await res.json(); const sec=(j.routes&&j.routes[0]&&j.routes[0].sections)||[]; if(!sec.length)throw 0; let pts=[],len=0,dur=0; for(const s of sec){pts=pts.concat(decodeFlexPoly(s.polyline));len+=s.summary.length;dur+=s.summary.duration;} const out={pts,mi:len/1609.34,min:dur/60}; _rcache[ck]=out;return out; }catch(e){ _rcache[ck]=null;return null; } })(); _rcache[ck]=pr; return pr; }
-function trail(a,b,col,opt){ opt=opt||{}; const cp=curveP(a,b,opt.sign||1,opt.scale||1); const casing=L.polyline(cp,{color:"#fff",weight:(opt.w||3.5)+3,opacity:.92,lineCap:"round",interactive:false}).addTo(LLAYER2); const line=L.polyline(cp,{color:col,weight:opt.w||3.5,opacity:.95,lineCap:"round",dashArray:opt.dash||null}).addTo(LLAYER2); if(opt.arrow!==false)arrowAt2(cp,col); const seq=drawSeq; truckRoute(a,b).then(rt=>{ if(seq!==drawSeq||!rt)return; try{ casing.setLatLngs(rt.pts); line.setLatLngs(rt.pts); }catch(e){} }); }
-function ldBase(j){ const b=DATA.bases[j&&j.pickupState]; return b?[b.lat,b.lon]:[DATA.bases.NJ.lat,DATA.bases.NJ.lon]; }
-function renderMap(){ initMap2(); if(MAPROUTE) drawRouteJourney(MAPROUTE); else drawAllTrips(); setTimeout(()=>{ try{ LMAP2&&LMAP2.invalidateSize(); }catch(e){} },200); }
-function drawAllTrips(){
-  const jobs=filtered();
-  const mc=$("#mvcount"); if(mc) mc.innerHTML=jobs.length+" trip"+(jobs.length===1?"":"s")+(FILTER==="all"?"":" in range");
-  const card=$("#mvcard"); if(card) card.style.display="none";
-  if(!LMAP2||!LLAYER2) return; try{ LLAYER2.clearLayers(); }catch(e){} drawSeq++;
-  const pts=[];
-  jobs.forEach(j=>{ if(!j.pickup||!j.delivery) return; const s=status(j), isS=j.type==="straight"; const col=s.lvl==="hazard"?"#C0392B":(isS?"#B26B0B":"#3E7CB1"), cls=s.lvl==="hazard"?"a":(isS?"":"c"); const a=[j.pickup.lat,j.pickup.lon], b=[j.delivery.lat,j.delivery.lon]; trail(a,b,col,{w:3.5,dash:isS?null:"9 7"}); L.marker(a,{icon:L.divIcon({className:"",html:'<div class="pmark2"></div>',iconSize:[13,13],iconAnchor:[7,7]})}).addTo(LLAYER2).bindPopup(esc(j.code)+" pickup - "+esc(j.pickupState)); L.marker(b,{icon:L.divIcon({className:"",html:'<div class="dmark2 '+cls+'">'+esc(j.destState||"")+'</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(LLAYER2).on("click",()=>openEvent(j.code,"delivery")).bindPopup("<b>"+esc(j.customer||j.code)+"</b><br>"+esc(j.code)+" - deliver by "+esc(fmtMDY(j.fad))); pts.push(a,b); });
-  if(pts.length) try{ LMAP2.fitBounds(pts,{padding:[55,55]}); }catch(e){}
-}
-function drawRouteJourney(s){
-  if(!LMAP2||!LLAYER2) return; try{ LLAYER2.clearLayers(); }catch(e){} drawSeq++;
-  const jobs=s.jobs.slice().filter(j=>j.pickup&&j.delivery).sort((a,b)=>midnight(a.fad)-midnight(b.fad));
-  const base=ldBase(jobs[0]||{}), col="#B26B0B", pts=[base]; let prev=base, itin="";
-  jobs.forEach((j,i)=>{ const p=[j.pickup.lat,j.pickup.lon]; trail(prev,p,"#1F6FD6",{w:2.5,dash:"6 7",scale:1.2}); smark(p,"P"+(i+1),"P",col,"<b>Load "+(i+1)+"</b> "+esc(j.code)+" - "+esc(j.pickupState)); pts.push(p); prev=p; itin+='<div class="itrow"><span class="ist p">P'+(i+1)+'</span>Load '+esc(j.code)+' &middot; '+esc(j.customer||j.pickupState)+'</div>'; });
-  jobs.forEach((j,i)=>{ const d=[j.delivery.lat,j.delivery.lon]; trail(prev,d,col,{w:Math.max(3.5,Math.min((j.cf||500)/300,8))}); smark(d,"D"+(i+1),"D",col,"<b>Deliver "+(i+1)+"</b> "+esc(j.code)+" - "+esc(j.destState)+" by "+esc(fmtMDY(j.fad))); pts.push(d); prev=d; itin+='<div class="itrow"><span class="ist d">D'+(i+1)+'</span>Deliver '+esc(j.code)+' &middot; '+esc(j.destState)+' &middot; by '+fmtMDY(j.fad)+'</div>'; });
-  trail(prev,base,"#6C5CE0",{w:2.5,dash:"3 9",scale:1.3,arrow:false});
-  L.marker(base,{icon:L.divIcon({className:"",html:'<div class="bmark2">'+esc((jobs[0]&&jobs[0].pickupState)||"NJ")+'</div>',iconSize:[36,36],iconAnchor:[18,18]}),zIndexOffset:600}).addTo(LLAYER2).bindPopup("Base &middot; pack the truck here");
-  const mc=$("#mvcount"); if(mc) mc.innerHTML="Route &middot; "+esc(s.region)+" &middot; "+jobs.length+" deliveries &middot; "+Math.round(s.cf).toLocaleString()+" CF";
-  const card=$("#mvcard"); if(card){ card.style.display=""; card.innerHTML='<div class="ith">'+esc(s.region)+' route</div><div class="itsub">pack '+jobs.length+', then deliver one by one &middot; Truck '+esc(s.truck.n)+' &middot; depart by '+fmtMDY(s.depart)+'</div>'+itin+'<div class="itrow"><span class="ist r">&#8617;</span>Return to base</div><button class="abtn" id="mvall">&#8592; Back to all trips</button>'; const ab=$("#mvall"); if(ab) ab.onclick=()=>{ MAPROUTE=null; renderMap(); }; }
-  if(pts.length) try{ LMAP2.fitBounds(pts,{padding:[60,60]}); }catch(e){}
-}
-function routeJourney(s){ if(!s) return; MAPROUTE=s; setView("map"); }
-/* ===== routing (consolidation) + backhaul ===== */
-function sumCF(js){ return js.reduce((s,x)=>s+(x.cf||0),0); }
-function maxTruckCF(){ return Math.max.apply(null,DATA.trucks.map(t=>t.cf)); }
-function fitTruck(cf){ const ts=DATA.trucks.slice().sort((a,b)=>a.cf-b.cf); return ts.find(t=>t.cf>=cf)||ts[ts.length-1]; }
-function mkSug(js,region){ const cf=sumCF(js), fads=js.map(x=>midnight(x.fad).getTime()), dmin=Math.min.apply(null,fads); return {codes:js.map(x=>x.code),jobs:js,region,cf,truck:fitTruck(cf),deliver:new Date(dmin),depart:new Date(dmin-2*86400000)}; }
-function suggestRoutes(){
-  const cand=filtered().filter(j=>!ROUTED.has(j.code)&&j.fad&&j.destState);
-  const byReg={}; cand.forEach(j=>{ const r=regionOf(j.destState); (byReg[r]=byReg[r]||[]).push(j); });
-  const mx=maxTruckCF(), out=[];
-  Object.keys(byReg).forEach(r=>{
-    const js=byReg[r].slice().sort((a,b)=>midnight(a.fad)-midnight(b.fad));
-    let cur=[];
-    js.forEach(j=>{
-      if(!cur.length){ cur=[j]; return; }
-      const within=Math.abs(daysFromToday(j.fad)-daysFromToday(cur[0].fad))<=ROUTE_WINDOW;
-      if(within && (sumCF(cur)+(j.cf||0))<=mx) cur.push(j);
-      else { if(cur.length>1) out.push(mkSug(cur,r)); cur=[j]; }
-    });
-    if(cur.length>1) out.push(mkSug(cur,r));
-  });
-  return out.sort((a,b)=>a.deliver-b.deliver);
-}
-function renderSuggest(){
-  const host=$("#suggwrap"); if(!host) return;
-  let html="";
-  if(ROUTES.length){
-    html+='<div class="suggsec"><h3>Active routes</h3><span class="meta">accepted &mdash; you deliver these yourself</span></div>'+
-      ROUTES.map((r,i)=>'<div class="suggcard active"><div class="suggtop"><span class="suggreg ok">'+esc(r.region||"Route")+'</span><span class="suggmeta"><b>'+r.codes.length+'</b> jobs'+(r.cf?' &middot; <b>'+Math.round(r.cf).toLocaleString()+'</b> CF':'')+' &middot; Truck '+esc(r.truck||"?")+(r.foreman?' &middot; '+esc(r.foreman):'')+(r.depart?' &middot; depart '+esc(r.depart):'')+'</span><button class="abtn" data-rjourney="'+i+'">Journey &#9656;</button></div><div class="suggjobs">'+r.codes.map(c=>'<span class="suggjob done">&#10003; '+esc(c)+'</span>').join("")+'</div></div>').join("");
-  }
-  const sug=suggestRoutes(); window._SUG=sug;
-  if(sug.length){
-    html+='<div class="suggsec"><h3>Suggested routes</h3><span class="meta">consolidate &amp; deliver yourself &mdash; one truck instead of separate carriers</span></div>'+
-      sug.map((s,i)=>'<div class="suggcard"><div class="suggtop"><span class="suggreg">'+esc(s.region)+'</span><span class="suggmeta"><b>'+s.codes.length+'</b> trips &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; depart by '+fmtMDY(s.depart)+'</span><button class="abtn" data-journey="'+i+'">Journey</button><button class="abtn dark" data-route="'+i+'">Accept &amp; route</button></div><div class="suggjobs">'+s.jobs.map(j=>'<span class="suggjob">'+esc(j.code)+' <i>'+esc(j.destState)+'</i> '+fmtMDY(j.fad)+'</span>').join("")+'</div></div>').join("");
-  }
-  host.innerHTML=html;
-  host.querySelectorAll("[data-route]").forEach(el=>el.onclick=()=>openRoute(window._SUG[+el.getAttribute("data-route")]));
-  host.querySelectorAll("[data-journey]").forEach(el=>el.onclick=()=>routeJourney(window._SUG[+el.getAttribute("data-journey")]));
-  host.querySelectorAll("[data-rjourney]").forEach(el=>el.onclick=()=>{ const r=ROUTES[+el.getAttribute("data-rjourney")]; const jobs=r.codes.map(c=>JOBS.find(j=>j.code===c)).filter(Boolean); if(jobs.length) routeJourney({region:r.region,jobs,cf:r.cf||0,truck:{n:r.truck},depart:parseDate(r.depart)||today0(),codes:r.codes}); });
-}
-function openRoute(s){ if(!s) return;
-  modal("Create route &middot; "+esc(s.region),
-    '<div class="mrow"><b>'+s.codes.length+'</b> trips &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; deliver by '+fmtMDY(s.deliver)+'</div>'+
-    '<div class="mfield"><label>Truck</label><select class="rtruck">'+DATA.trucks.map(t=>'<option value="'+esc(t.n)+'"'+(t.n===s.truck.n?" selected":"")+'>'+esc(t.n)+' &middot; '+t.cf.toLocaleString()+' CF</option>').join("")+'</select></div>'+
-    '<div class="mfield"><label>Foreman &mdash; we deliver this route</label><select class="rfore"><option value="">- pick foreman -</option>'+DATA.foremen.map(f=>'<option>'+esc(f)+'</option>').join("")+'</select></div>'+
-    '<div class="mrow" style="color:var(--dim);font-size:13px">Jobs: '+esc(s.codes.join(", "))+' &middot; depart by '+fmtMDY(s.depart)+'</div>',
-    '<button class="abtn" onclick="closeModal()">Cancel</button><button class="abtn dark" id="rsave">Create route</button>');
-  $("#rsave").onclick=()=>createRoute(s,($(".rtruck")&&$(".rtruck").value)||"",($(".rfore")&&$(".rfore").value)||"");
-}
-function createRoute(s,truckN,fore){
-  const id="R"+Date.now().toString(36).toUpperCase();
-  const route={id,region:s.region,truck:truckN,foreman:fore,depart:fmtMDY(s.depart),deliver:fmtMDY(s.deliver),cf:Math.round(s.cf),codes:s.codes};
-  const apply=()=>{ s.codes.forEach(c=>{ ROUTED.add(c); if(fore) ASSIGN[c]={foreman:fore,carrier:""}; }); ROUTES.push(route); closeModal(); toast("Route created - "+s.codes.length+" trips."); renderView(); };
-  if(LOCAL){ apply(); return; }
-  const obj={"Route ID":id,"Region":s.region,"Job Codes":s.codes.join(", "),"Truck":truckN,"Foreman":fore,"Depart":route.depart,"Deliver By":route.deliver,"Total CF":route.cf,"Created":new Date().toISOString()};
-  ensureToken(()=>shAppend(ROUTES_TAB,obj).then(apply).catch(e=>modal("Couldn't save",'<div class="mrow">'+esc(e.message)+'</div><div class="mrow" style="color:var(--dim)">Open on the hosted URL and sign in to save routes.</div>')));
-}
-function openBackhaul(code){
-  const j=JOBS.find(x=>x.code===code); if(!j) return;
-  const spare=spareCF(j), t=suggestTruck(j), org=j.pickupState||"NJ";
-  const msg="Zip To Zip - truck returning "+(j.destState||"?")+" to "+org+" around "+(j.fad?fmtMDY(j.fad):"soon")+". ~"+spare+" CF space free on the way back. Any cargo on this lane? Reply here.";
-  modal("Backhaul broadcast &middot; "+esc(j.code),
-    '<div class="mrow"><span class="k">Empty return</span><br>'+esc(j.destState||"?")+' &#8594; '+esc(org)+' &middot; ~'+spare+' CF free on Truck '+esc(t.n)+'</div>'+
-    '<div class="mfield"><label>WhatsApp message (edit if needed)</label><textarea id="bhmsg" rows="4">'+esc(msg)+'</textarea></div>',
-    '<button class="abtn" id="bhsend">Open WhatsApp</button><button class="abtn dark" id="bhfound">Mark cargo found</button>');
-  $("#bhsend").onclick=()=>{ const m=($("#bhmsg")&&$("#bhmsg").value)||msg; window.open("https://wa.me/?text="+encodeURIComponent(m),"_blank","noopener"); };
-  $("#bhfound").onclick=()=>{ const obj={"Job Code":code,"Lane":(j.destState||"?")+" -> "+org,"Spare CF":spare,"Found At":new Date().toISOString()}; ensureToken(()=>shAppend(BACKHAUL_TAB,obj).then(()=>{ BACKHAUL[code]=1; closeModal(); toast("Backhaul recorded."); renderView(); }).catch(e=>modal("Couldn't save",'<div class="mrow">'+esc(e.message)+'</div>'))); };
-}
-/* ===== timeline (gantt) ===== */
-function tlStart(){ return TLSTART || weekStart(today0()); }
-function tlShift(w){ const s=new Date(tlStart()); s.setDate(s.getDate()+w*7); TLSTART=midnight(s); renderTimeline(); }
-function tlToday(){ TLSTART=null; renderTimeline(); }
-function dIndex(d,start){ return d? Math.round((midnight(d).getTime()-start.getTime())/86400000) : null; }
-function tlLegend(){
-  return '<span><i style="background:#2E333A;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff"></i>pickup</span>'+
-    '<span><i style="background:#B26B0B"></i>we deliver</span>'+
-    '<span><i style="background:#3E7CB1"></i>carrier</span>'+
-    '<span><i style="background:repeating-linear-gradient(45deg,rgba(108,92,224,.4) 0 4px,rgba(108,92,224,.08) 4px 8px);border:1px solid rgba(108,92,224,.28)"></i>storage</span>';
-}
+/* ===== timeline (Straight fixed date vs Regular window) ===== */
+function tlStart(){ const x=TLSTART||midnight(new Date()); const d=new Date(x); d.setDate(d.getDate()-d.getDay()); return d; }
+function dIdx(d,st){ return d?Math.round((midnight(d).getTime()-st.getTime())/86400000):null; }
 function renderTimeline(){
-  const host=$("#timelinewrap"); if(!host) return;
-  const start=tlStart(), days=TLDAYS, dp=100/days;
-  const end=new Date(start.getTime()+(days-1)*86400000);
-  const jobs=filtered().sort((a,b)=>tlSortKey(a)-tlSortKey(b));
-  const need=jobs.filter(j=>status(j).lvl==="hazard").length;
-  let wk="";
-  for(let w=0; w*7<days; w++){ const ws=new Date(start.getTime()+w*7*86400000); wk+='<span class="tlwk" style="left:'+(w*7*dp)+'%">'+MON[ws.getMonth()]+" "+ws.getDate()+'</span>'; }
-  const tdi=dIndex(today0(),start);
-  const todayLine=(tdi>=0&&tdi<days)?'<i class="tltoday" style="left:'+((tdi+0.5)*dp)+'%"></i><span class="tlnow" style="left:'+((tdi+0.5)*dp)+'%"></span>':"";
-  const body=jobs.length? jobs.map(j=>tlRow(j,start,days,dp)).join("") : '<div class="empty" style="margin:34px auto"><b>No long-distance trips</b>Nothing not-delivered with an upcoming deadline.</div>';
-  host.innerHTML=
-    '<div class="tlbar"><div class="tlnav"><button data-tl="prev">&#8249;</button><button class="tltodaybtn" data-tl="today">Today</button><button data-tl="next">&#8250;</button></div><span class="tlrange">'+MON[start.getMonth()]+" "+start.getDate()+" &ndash; "+MON[end.getMonth()]+" "+end.getDate()+'</span><span class="tlsub">'+jobs.length+" trips"+(need?' &middot; <b>'+need+" need action</b>":"")+'</span><div class="tllegend">'+tlLegend()+'</div></div>'+
-    '<div class="tlgrid"><div class="tlhead"><div class="tllab tlhlab">Job &middot; owner</div><div class="tltrack tlhtrack">'+wk+todayLine+'</div></div><div class="tlbody">'+body+'</div></div>';
-  host.querySelectorAll("[data-tl]").forEach(el=>el.onclick=()=>{ const a=el.dataset.tl; a==="prev"?tlShift(-2):a==="next"?tlShift(2):tlToday(); });
-  host.querySelectorAll("[data-ev]").forEach(el=>el.onclick=()=>openEvent(el.getAttribute("data-ev"), el.getAttribute("data-evk")));
+  const host=$("#timelinewrap"); const start=tlStart(),days=TLDAYS,dp=100/days,end=new Date(start.getTime()+(days-1)*86400000);
+  const jobs=JOBS.filter(j=>!j.carrier).map(j=>({j,c:computeJob(j)})).sort((a,b)=>((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
+  let wk=""; for(let w=0;w*7<days;w++){ const ws=new Date(start.getTime()+w*7*86400000); wk+='<span class="tlwk" style="left:'+(w*7*dp)+'%">'+MON[ws.getMonth()]+" "+ws.getDate()+'</span>'; }
+  const tdi=dIdx(midnight(new Date()),start), tline=(tdi>=0&&tdi<days)?'<i class="tltoday" style="left:'+((tdi+.5)*dp)+'%"></i>':"";
+  const body=jobs.map(x=>tlRow(x.j,x.c,start,days,dp)).join("")||'<div class="empty" style="margin:30px"><b>No jobs</b></div>';
+  host.innerHTML='<div class="tlbar"><div class="tlnav"><button data-tl="prev">&#8249;</button><button data-tl="today">Today</button><button data-tl="next">&#8250;</button></div><span class="tlrange">'+MON[start.getMonth()]+" "+start.getDate()+" &ndash; "+MON[end.getMonth()]+" "+end.getDate()+'</span><div class="tllg"><span><i class="lg-pk"></i>pickup</span><span><i class="lg-dep"></i>depart</span><span><i class="lg-s"></i>straight deadline</span><span><i class="lg-r"></i>regular window</span></div></div>'+
+    '<div class="tlgrid"><div class="tlhead"><div class="tllab">Job</div><div class="tltrk">'+wk+tline+'</div></div><div class="tlbody">'+body+'</div></div>';
+  host.querySelectorAll("[data-tl]").forEach(el=>el.onclick=()=>{ const a=el.dataset.tl; if(a==="today")TLSTART=null; else{ const s=new Date(tlStart()); s.setDate(s.getDate()+(a==="next"?14:-14)); TLSTART=s; } renderTimeline(); });
 }
-function tlRow(j,start,days,dp){
-  const s=status(j), isS=j.type==="straight";
-  const alert=s.lvl==="hazard", warn=s.lvl==="rental";
-  const who=isS?foremanOf(j):carrierOf(j);
-  const pdi=dIndex(j.pickupDate,start);
-  const fadDi=dIndex(j.fad,start);
-  const dep=isS?leaveBy(j):null, depDi=dep?dIndex(dep,start):null;
-  const tw=tfWindow(j), wend=tw.end?dIndex(tw.end,start):null;
-  const tripStart=(isS&&depDi!=null&&fadDi!=null&&depDi<fadDi)?depDi:fadDi;
-  const tdi=dIndex(today0(),start), inStor=(j.inStorage||STORAGE[j.code]);
-  let bars=tdi>0?'<span class="tlpast" style="width:'+(Math.min(tdi,days)*dp)+'%"></span>':"";
-  if(tdi>=0&&tdi<days) bars+='<i class="tltoday" style="left:'+((tdi+0.5)*dp)+'%"></i>';
-  if(inStor && pdi!=null && tripStart!=null){ const a=Math.min(pdi,tripStart), b=Math.max(pdi,tripStart)+1; bars+='<span class="tlbar-stor" style="left:'+(a*dp)+'%;width:'+((b-a)*dp)+'%" title="In storage'+(j.storLabel?" - "+esc(j.storLabel):"")+'">'+esc(j.storLabel||"in storage")+'</span>'; }
-  else if(pdi!=null && tripStart!=null && tripStart>pdi){ bars+='<span class="tlconn" style="left:'+(pdi*dp)+'%;width:'+((tripStart-pdi)*dp)+'%"></span>'; }
-  if(fadDi!=null){
-    if(isS){
-      const a=(depDi!=null&&depDi<fadDi)?depDi:fadDi, w=Math.max(1,(fadDi-a)+1);
-      bars+='<span class="tlb deliv" data-ev="'+esc(j.code)+'" data-evk="delivery" style="left:'+(a*dp)+'%;width:'+(w*dp)+'%" title="Depart '+esc(fmtMDY(dep))+' &middot; deliver by '+esc(fmtMDY(j.fad))+' ('+(j.tripDays||1)+'-day trip)">'+esc(fmtMDY(j.fad))+'</span>';
-      if(depDi!=null && depDi<fadDi) bars+='<span class="tldep" style="left:'+(depDi*dp)+'%" title="Truck should depart '+esc(fmtMDY(dep))+'"></span>';
-    } else {
-      const b=(wend!=null&&wend>fadDi)?wend:fadDi, w=Math.max(1,(b-fadDi)+1);
-      const ghost=!who, cls="tlb deliv carrier"+(ghost?" ghost":"");
-      bars+='<span class="'+cls+'" data-ev="'+esc(j.code)+'" data-evk="delivery" style="left:'+(fadDi*dp)+'%;width:'+(w*dp)+'%" title="'+(ghost?"Carrier not assigned, ":"Carrier delivers by ")+esc(fmtMDY(j.fad))+'">'+esc(ghost?"no carrier":fmtMDY(j.fad))+'</span>';
-    }
-  }
-  if(pdi!=null){ const hasEv=!!(j.pickupEv&&j.pickupEv.id); bars+='<span class="tlb pick'+(hasEv?'':' noev')+'"'+(hasEv?' data-ev="'+esc(j.code)+'" data-evk="pickup"':'')+' style="left:'+(pdi*dp)+'%" title="Pickup '+esc(fmtMDY(j.pickupDate))+'"></span>'; }
-  const av=who?'<div class="tlav'+(isS?'':' car')+'">'+esc(initials(who))+'</div>':'<div class="tlav none">+</div>';
-  const third=(alert||warn)?'<span class="tlchip '+(alert?'al':'wn')+'"><i></i>'+esc(s.txt)+'</span>':'<div class="tlroute">'+esc(j.pickupState||"?")+' <b>&#8594;</b> '+esc(j.destState||"?")+(inStor?' <span class="stp">&middot; storage</span>':'')+'</div>';
-  return '<div class="tlrow'+(alert?' act':warn?' wn':'')+'"><div class="tllab">'+av+'<div class="tlinfo"><div class="tll1"><span class="code">'+esc(j.code)+'</span><span class="tlcf">'+Math.round(j.cf||0).toLocaleString()+' CF</span></div><div class="tlcust">'+esc(j.customer||"(no name)")+'</div>'+third+'</div></div><div class="tltrack">'+bars+'</div></div>';
+function tlRow(j,c,start,days,dp){
+  const isS=j.type==="straight", pdi=dIdx(j.eventDate,start), tdi=dIdx(midnight(new Date()),start);
+  let bars=(tdi>=0&&tdi<days)?'<i class="tltoday" style="left:'+((tdi+.5)*dp)+'%"></i>':"";
+  if(isS){ const fdi=dIdx(j.fad,start), dep=j.fad?addDays(j.fad,-(j.tripDays||1)):null, ddi=dIdx(dep,start);
+    if(fdi!=null&&ddi!=null&&ddi<fdi) bars+='<span class="tlb trip" style="left:'+(ddi*dp)+'%;width:'+((fdi-ddi)*dp)+'%" title="depart '+esc(fmt(dep))+'"></span>';
+    if(ddi!=null) bars+='<span class="tldep" style="left:'+(ddi*dp)+'%" title="depart '+esc(fmt(dep))+'"></span>';
+    if(fdi!=null) bars+='<span class="tlb deadline" style="left:'+(fdi*dp)+'%" title="deliver '+esc(fmt(j.fad))+'">'+fmt(j.fad)+'</span>';
+  } else { const w=delWindow(j); if(w){ const a=dIdx(w.s,start),b=dIdx(w.e,start); if(a!=null&&b!=null) bars+='<span class="tlb window" style="left:'+(a*dp)+'%;width:'+((b-a+1)*dp)+'%" title="window '+esc(fmt(w.s))+' - '+esc(fmt(w.e))+'">'+fmt(w.s)+' &#8211; '+fmt(w.e)+'</span>'; } }
+  if(pdi!=null) bars+='<span class="tlpk" style="left:'+(pdi*dp)+'%" title="pickup '+esc(fmt(j.eventDate))+'"></span>';
+  return '<div class="tlrow u-'+c.urg.lvl+'"><div class="tllab"><b>'+esc(j.code)+'</b><span>'+esc(j.customer||"").slice(0,16)+'</span><i class="ty '+j.type+'">'+(isS?"S":"R")+'</i></div><div class="tltrk">'+bars+'</div></div>';
 }
-function fmtFull(d){ return d? (DOW[d.getDay()]+", "+MON[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear()) : "(no date)"; }
-function calLink(ev,j){ return "https://calendar.google.com/calendar/u/0/r/search?q="+encodeURIComponent((ev&&ev.title)||(j&&j.code)||""); }
-function openEvent(code,kind){
-  const j=JOBS.find(x=>x.code===code); if(!j) return;
-  const ev = kind==="delivery"? j.deliverEv : j.pickupEv; if(!ev) return;
-  const who=(j.type==="straight"?foremanOf(j):carrierOf(j))||"- unassigned -";
-  modal((kind==="delivery"?"Delivery event":"Pickup event")+" &middot; "+esc(j.code),
-    '<div class="mrow"><span class="k">Customer</span><br><b>'+esc(j.customer||"(no name)")+'</b></div>'+
-    '<div class="mrow"><span class="k">Event</span><br>'+esc(ev.title||"(untitled event)")+'</div>'+
-    '<div class="mrow"><span class="k">When</span><br>'+esc(fmtFull(ev.date))+'</div>'+
-    '<div class="mrow"><span class="k">Route</span><br>'+esc(j.pickupState)+' '+esc(j.pickupZip)+' &#8594; '+esc(j.destState)+' '+esc(j.deliveryZip)+'</div>'+
-    '<div class="mrow"><span class="k">'+(j.type==="straight"?"Foreman":"Carrier")+'</span><br>'+esc(who)+'</div>',
-    '<a class="abtn" href="'+calLink(ev,j)+'" target="_blank" rel="noopener">Open in Google Calendar</a><button class="abtn dark" onclick="closeModal()">Close</button>');
+/* ===== map (road trails + stops + detour) ===== */
+function curveP(a,b,sg,sc){ sg=sg||1;sc=sc||1;const n=24,p=[],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,dx=b[0]-a[0],dy=b[1]-a[1],ln=Math.hypot(dx,dy)||1e-9,bw=Math.min(ln*0.18*sc,0.10*sc)*sg,cx=mx-dy/ln*bw,cy=my+dx/ln*bw;for(let i=0;i<=n;i++){const u=i/n;p.push([(1-u)*(1-u)*a[0]+2*(1-u)*u*cx+u*u*b[0],(1-u)*(1-u)*a[1]+2*(1-u)*u*cy+u*u*b[1]]);}return p; }
+function decodeFlex(e){const D="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",ix={};[...D].forEach((c,i)=>ix[c]=i);let i=0;function v(){let r=0,s=0,b;do{b=ix[e[i++]];r|=(b&31)<<s;s+=5;}while(b>=32);return r;}function sv(){const r=v();return(r&1)?~(r>>>1):(r>>>1);}v();const m=v(),td=(m>>4)&7,f=Math.pow(10,m&15);let la=0,lo=0;const p=[];while(i<e.length){la+=sv();lo+=sv();if(td)sv();p.push([la/f,lo/f]);}return p;}
+function truckRoute(a,b){const ck=a.join()+"|"+b.join();if(_rc[ck]!==undefined)return Promise.resolve(_rc[ck]);const pr=(async()=>{try{const u="https://router.hereapi.com/v8/routes?transportMode=truck&routingMode=fast&origin="+a[0]+","+a[1]+"&destination="+b[0]+","+b[1]+"&return=polyline&apikey="+encodeURIComponent(HERE_KEY);const r=await fetch(u);if(!r.ok)throw 0;const j=await r.json();const sec=(j.routes&&j.routes[0]&&j.routes[0].sections)||[];if(!sec.length)throw 0;let p=[];for(const s of sec)p=p.concat(decodeFlex(s.polyline));_rc[ck]=p;return p;}catch(e){_rc[ck]=null;return null;}})();_rc[ck]=pr;return pr;}
+function initMap2(){ if(LMAP||typeof L==="undefined")return; const el=$("#map"); if(!el)return; try{ LMAP=L.map("map",{zoomControl:true}); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(LMAP); LMAP.setView([39.5,-83],5); LLAYER=L.layerGroup().addTo(LMAP);}catch(e){LMAP=null;} }
+function trail(a,b,col,dash){ const cp=curveP(a,b,1,1); L.polyline(cp,{color:"#fff",weight:6,opacity:.85}).addTo(LLAYER); const ln=L.polyline(cp,{color:col,weight:3.5,opacity:.95,dashArray:dash||null}).addTo(LLAYER); const sq=drawSeq; truckRoute(a,b).then(p=>{ if(sq===drawSeq&&p){try{ln.setLatLngs(p);}catch(e){}} }); }
+function smark(pt,lab,kind,col){ return L.marker(pt,{icon:L.divIcon({className:"",iconSize:[28,28],iconAnchor:[14,14],html:'<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px Barlow Condensed;'+(kind==="P"?"background:#2E333A;color:#fff;border:2px solid #fff":"background:#fff;color:"+col+";border:2.5px solid "+col)+';box-shadow:0 1px 4px rgba(0,0,0,.3)">'+lab+'</div>'})}).addTo(LLAYER); }
+function renderMap(){ initMap2(); if(!LMAP||!LLAYER)return; try{LLAYER.clearLayers();}catch(e){} drawSeq++; const pts=[]; const back=$("#mapback");
+  if(MAPROUTE){ back.style.display=""; let prev=[BASE.lat,BASE.lon]; pts.push(prev); MAPROUTE.stops.forEach((st,k)=>{ const d=[st.g.lat,st.g.lon]; trail(prev,d,"#B26B0B"); smark(d,"D"+(k+1),"D","#B26B0B"); pts.push(d); prev=d; }); trail(prev,[BASE.lat,BASE.lon],"#6C5CE0","4 8"); L.marker([BASE.lat,BASE.lon],{icon:L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:'<div style="width:30px;height:30px;border-radius:50%;background:#1F2329;color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font:700 12px Barlow Condensed">NJ</div>'})}).addTo(LLAYER); }
+  else { back.style.display="none"; JOBS.filter(j=>!j.carrier).forEach(j=>{ const p=geo(j.pickupZip),d=geo(j.deliveryZip); if(!d)return; const c=computeJob(j); const col=c.urg.lvl==="red"?"#C0392B":(j.type==="straight"?"#B26B0B":"#3E7CB1"); const a=p?[p.lat,p.lon]:[BASE.lat,BASE.lon],b=[d.lat,d.lon]; trail(a,b,col,j.type==="straight"?null:"8 6"); L.marker(b,{icon:L.divIcon({className:"",iconSize:[24,24],iconAnchor:[12,12],html:'<div style="min-width:24px;height:24px;padding:0 5px;border-radius:12px;background:#fff;border:2.5px solid '+col+';display:flex;align-items:center;justify-content:center;font:600 12px Barlow Condensed;color:#1F2329">'+esc(j.destState||"")+'</div>'})}).addTo(LLAYER); pts.push(a,b); }); }
+  if(pts.length) try{ LMAP.fitBounds(pts,{padding:[50,50]}); }catch(e){}
+  setTimeout(()=>{ try{ LMAP&&LMAP.invalidateSize(); }catch(e){} },200);
 }
-function setView(v){
-  VIEW=v;
-  document.querySelectorAll(".vbtn").forEach(b=>b.classList.toggle("on", b.getAttribute("data-view")===v));
-  const lay=$(".layout"); if(lay) lay.style.display=(v==="board")?"":"none";
-  const tw=$("#timelinewrap"); if(tw) tw.style.display=(v==="timeline")?"":"none";
-  const mv=$("#mapviewwrap"); if(mv) mv.style.display=(v==="map")?"":"none";
-  renderView();
-}
-function renderView(){ if(VIEW==="timeline") renderTimeline(); else if(VIEW==="map") renderMap(); else render(); }
-/* ===== boot ===== */
-function pull(){
-  $("#rfstamp").textContent="Loading...";
-  return Promise.all([loadJobs(),loadStorage(),loadRoutes(),loadAssign(),loadBackhaul()]).then(()=>{
-    renderView();
-    $("#rfstamp").textContent=JOBS.length+" trips";
-  }).catch(e=>{ $("#rfstamp").textContent="load error"; });
-}
+/* ===== tabs + boot ===== */
+function setTab(t){ TAB=t; document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.getAttribute("data-tab")===t));
+  $("#boardwrap").style.display=t==="board"?"":"none"; $("#routeswrap").style.display=t==="routes"?"":"none"; $("#timelinewrap").style.display=t==="timeline"?"":"none"; $("#mapwrap").style.display=t==="map"?"":"none"; $("#carrierwrap").style.display=t==="carrier"?"":"none";
+  if(t==="routes") renderRoutes(); else if(t==="timeline") renderTimeline(); else if(t==="map") renderMap(); else if(t==="carrier") renderCarrier(); else renderBoard(); }
+function pull(){ $("#rfstamp").textContent="Loading...";
+  return Promise.all([loadJobs(),loadStorage(),loadRoutes()]).then(()=>{ renderBoard(); try{$("#rcount").textContent=buildSuggestions().length;}catch(e){} setTab(TAB); $("#rfstamp").textContent=JOBS.length+" jobs"+(LOCAL?" (local test data)":""); })
+  .catch(e=>{ $("#rfstamp").textContent="load error"; }); }
 $("#refreshbtn").addEventListener("click",pull);
-document.querySelectorAll(".vbtn").forEach(b=>b.onclick=()=>setView(b.getAttribute("data-view")));
-(function(){ const set=(id,fn)=>{ const e=$(id); if(e) e.onchange=()=>{ fn(e.value); renderView(); }; }; set("#ldfilter",v=>FILTER=v); set("#ldfreg",v=>FILTERREG=v); set("#ldfst",v=>FILTERST=v); set("#ldfty",v=>FILTERTY=v); })();
-(function(){ const mf=$("#mapfull"); if(mf) mf.onclick=()=>{ const mw=$("#mapwrap"); if(mw&&mw.requestFullscreen) mw.requestFullscreen().catch(()=>{}); setTimeout(()=>{ try{ LMAP&&LMAP.invalidateSize(); }catch(e){} },300); }; })();
-window.closeModal=closeModal;
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setTab(b.getAttribute("data-tab")));
+(function(){ const mb=$("#mapback"); if(mb) mb.onclick=()=>{ MAPROUTE=null; renderMap(); }; })();
 pull();
 </script>
 </body>
