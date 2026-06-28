@@ -621,6 +621,7 @@ function dateIssues(j,c){ const out=[]; const CF=Math.round(j.cf||0);
   if(!c.isS && j.fad && c.winEnd && midnight(c.winEnd)<midnight(j.fad)) out.push("Delivery window ends "+fmt(c.winEnd)+" before it starts "+fmt(j.fad));
   return out;
 }
+function openEvent(code){ setTab("timeline"); setTimeout(function(){ openJobMap(code); },40); }
 function renderMissing(){
   const host=$("#missingwrap");
   const rows=[];
@@ -634,8 +635,8 @@ function renderMissing(){
   rows.sort((a,b)=>(a.sev-b.sev)||((a.fad?midnight(a.fad).getTime():9e15)-(b.fad?midnight(b.fad).getTime():9e15)));
   const body=rows.map(r=>'<tr data-job="'+esc(r.code)+'"><td class="c-code">'+esc(r.code)+'</td><td>'+esc(r.cust)+'</td><td>'+esc(r.type)+'</td><td><span class="iss '+r.cls+'">'+esc(r.cat)+'</span></td><td>'+esc(r.details)+'</td><td style="text-align:right"><button class="iss-open" data-open="'+esc(r.code)+'">Open &rsaquo;</button></td></tr>').join("");
   host.innerHTML='<p class="cwnote">Everything that needs a fix, in one place &mdash; correct the source in the sheet, or click <b>Open</b> to view the job. <span class="iss de">Data error</span> impossible date / over-capacity / bad CF &nbsp; <span class="iss mf">Missing field</span> &nbsp; <span class="iss du">Duplicate?</span> &nbsp; <span class="iss gr">Grouped</span></p><div class="cwwrap"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Issue</th><th>Details</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>';
-  host.querySelectorAll("[data-open]").forEach(el=>el.onclick=e=>{ e.stopPropagation(); openDrawer(el.getAttribute("data-open")); });
-  host.querySelectorAll("tr[data-job]").forEach(el=>el.onclick=()=>openDrawer(el.dataset.job));
+  host.querySelectorAll("[data-open]").forEach(el=>el.onclick=e=>{ e.stopPropagation(); openEvent(el.getAttribute("data-open")); });
+  host.querySelectorAll("tr[data-job]").forEach(el=>el.onclick=()=>openEvent(el.dataset.job));
 }
 function renderStats(carrier){
   let red=0,amber=0,gap=0,poss=0;
@@ -757,7 +758,7 @@ function openRouteJourney(i){ const s=(window._SUG||[])[i]; if(!s)return; SELRT=
 function closeRouteJourney(){ SELRT=null; const s=$("#rtside"); if(s)s.classList.remove("show"); document.querySelectorAll("#rtlist .sug.sel").forEach(c=>c.classList.remove("sel")); }
 /* ===== distance + route-suggestion engine (spec sec 8) ===== */
 const TRUCKS=[{n:"#7",cf:1622},{n:"#9",cf:1741},{n:"#15",cf:1741},{n:"#33",cf:1741},{n:"#77",cf:1809},{n:"#10",cf:1741},{n:"#11",cf:1848},{n:"#27",cf:1741}];
-const BASE={lat:40.23,lon:-74.30}, TRUCK_MAX=1500, DETOUR_MAX=180, ROUTE_SPAN=5, MAX_PAIR_MI=450, MAX_MI_PER_CF=2.5;
+const BASE={lat:40.23,lon:-74.30}, TRUCK_MAX=1500, DETOUR_MAX=180, ROUTE_SPAN=5, MAX_PAIR_MI=100, MAX_MI_PER_CF=2.5;
 const HERE_KEY="0IGXB_hGz84InzFmhfCygxp27_54NI-LkjL6N5RSYT8";
 let LMAP=null,LLAYER=null,MAPROUTE=null,MAPFOCUS=null,TLSTART=null,drawSeq=0,SMAP=null,SLAYER=null,sSeq=0,RMAP=null,RLAYER=null,rSeq=0,SELRT=null; const _rc={}; const TLDAYS=42;
 function hav(a,b){ if(!a||!b||a.lat==null) return 0; const R=3959,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180,h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
