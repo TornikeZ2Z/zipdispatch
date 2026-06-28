@@ -207,6 +207,13 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 .tlmain.grabbing,.tlmain.grabbing .tlgrid,.tlmain.grabbing .tlrow,.tlmain.grabbing .tlcal{cursor:grabbing}
 #bhmodal{position:fixed;inset:0;background:rgba(31,34,38,.32);display:none;align-items:center;justify-content:center;z-index:6000}
 #bhmodal.show{display:flex}
+#pickmodal{position:fixed;inset:0;background:rgba(31,34,38,.32);display:none;align-items:center;justify-content:center;z-index:6000}
+#pickmodal.show{display:flex}
+#pickmodal .bhbox{width:580px}
+#pickmap{width:100%}
+.pkft{display:flex;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--line)}
+.pkll{font-size:12.5px;color:var(--dim);font-family:'IBM Plex Mono'}
+.pkft .save{margin-left:auto}
 .bhbox{background:var(--card);border:1px solid var(--line2);border-radius:16px;width:480px;max-width:94vw;box-shadow:0 24px 60px -16px rgba(31,34,38,.5);overflow:hidden}
 .bhhd{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line)}
 .bhhd b{font-family:'Barlow Condensed';font-weight:600;font-size:20px}
@@ -317,16 +324,17 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 <div id="dwbg"></div>
 <aside id="drawer"><div id="dwbody"></div></aside>
 <div id="bhmodal"><div class="bhbox"></div></div>
+<div id="pickmodal"><div class="bhbox"></div></div>
 <div id="toast"></div>
 <script>
 "use strict";
 /* ===== config ===== */
 const SHEET_ID="1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs";
-const JOBS_TAB="Long Distance Data", STORAGE_TAB="Storage Management", ROUTES_TAB="Routes", LOCATIONS_TAB="LD Locations";
+const JOBS_TAB="Long Distance Data", STORAGE_TAB="Storage Management", ROUTES_TAB="Routes", LOCATIONS_TAB="LD Locations", BASES_TAB="List of Bases";
 const TRIP_FALLBACK=1, LEAVE_SOON=2, PICKUP_SOON=7, KEEP_PAST_DAYS=60;
 const OUR_STATES=["NJ","PA","NY","DE","CT","MA"];
 const ZIPDB=window.ZIPDB||{};
-let JOBS=[], STORAGE={}, ROUTED=new Set(), LOCS={}, TAB="timeline", TLVIEW="timeline", SELJOB=null, BACKHAUL_FOUND=new Set();
+let JOBS=[], STORAGE={}, ROUTED=new Set(), LOCS={}, BASES=[], TAB="timeline", TLVIEW="timeline", SELJOB=null, BACKHAUL_FOUND=new Set();
 const LOCAL = location.hostname===""||location.hostname==="localhost"||location.hostname.indexOf("127.")===0||location.protocol==="file:";
 function b64csv(b){ try{ return decodeURIComponent(escape(atob(b))); }catch(e){ try{ return atob(b); }catch(_){ return ""; } } }
 
@@ -396,20 +404,43 @@ function loadStorage(){ return loadKV(STORAGE_TAB,(s,g,r)=>{ const code=g(r,"job
 function loadRoutes(){ return loadKV(ROUTES_TAB,(s,g,r)=>{ String(g(r,"job codes")||"").split(/[,;]+/).forEach(x=>{ x=x.trim(); if(x)s[x]=1; }); }).then(s=>{ ROUTED=new Set(Object.keys(s)); }).catch(()=>{}); }
 /* ===== current-location override (editable, persisted, last-write-wins) ===== */
 function loadLocations(){ return loadKV(LOCATIONS_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]=g(r,"location"); }).then(s=>{ LOCS=s; }).catch(()=>{}); }
-function curLocGeo(j,c){ const o=j.locOverride;
-  if(o==="BASE") return {lat:BASE.lat,lon:BASE.lon,base:true};
-  if(o==="PICKUP"){ const p=geo(j.pickupZip); return p?{lat:p.lat,lon:p.lon,base:false}:{lat:BASE.lat,lon:BASE.lon,base:true}; }
+function loadBases(){ return loadKV(BASES_TAB,(s,g,r)=>{ const nm=g(r,"storage name")||g(r,"name")||g(r,"base"); const z=g(r,"storage zip code")||g(r,"zip code")||g(r,"zip"); if(z){ const gg=geo(z); if(gg){ (s._list=s._list||[]).push({name:nm||z,zip:z,lat:gg.lat,lon:gg.lon}); } } }).then(s=>{ BASES=s._list||[]; }).catch(()=>{}); }
+function closestBase(pt){ if(!pt||!BASES.length) return {lat:BASE.lat,lon:BASE.lon,name:"NJ"}; let best=BASES[0],bd=1e18; BASES.forEach(b=>{ const d=hav(pt,b); if(d<bd){bd=d;best=b;} }); return best; }
+function baseFor(j){ const p=geo(j.pickupZip); return closestBase(p?{lat:p.lat,lon:p.lon}:null); }
+function curLocGeo(j,c){ const o=j.locOverride; const bf=baseFor(j);
+  if(o==="BASE") return {lat:bf.lat,lon:bf.lon,base:true,name:bf.name};
+  if(o==="PICKUP"){ const p=geo(j.pickupZip); return p?{lat:p.lat,lon:p.lon,base:false}:{lat:bf.lat,lon:bf.lon,base:true,name:bf.name}; }
   if(o&&/^\d{5}$/.test(o)){ const g2=geo(o); if(g2) return {lat:g2.lat,lon:g2.lon,base:false,zip:o}; }
-  if(atBaseNow(c)) return {lat:BASE.lat,lon:BASE.lon,base:true};
-  const p=geo(j.pickupZip); return p?{lat:p.lat,lon:p.lon,base:false}:{lat:BASE.lat,lon:BASE.lon,base:true};
+  if(o&&/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(o)){ const pp=o.split(","); return {lat:+pp[0],lon:+pp[1],base:false,pin:true}; }
+  if(atBaseNow(c)) return {lat:bf.lat,lon:bf.lon,base:true,name:bf.name};
+  const p=geo(j.pickupZip); return p?{lat:p.lat,lon:p.lon,base:false}:{lat:bf.lat,lon:bf.lon,base:true,name:bf.name};
 }
-function curLocLabel(j,c){ const o=j.locOverride;
-  if(o==="BASE") return "Base (NJ) (set)";
+function curLocLabel(j,c){ const o=j.locOverride; const bf=baseFor(j);
+  if(o==="BASE") return "Base "+bf.name+" (set)";
   if(o==="PICKUP") return "Pickup origin (set)";
   if(o&&/^\d{5}$/.test(o)) return "Storage "+o+" (set)";
-  if(atBaseNow(c)) return "Base (NJ)";
+  if(o&&o.indexOf(",")>0) return "Pinned location (set)";
+  if(atBaseNow(c)) return "Base "+bf.name;
   return "Pickup origin"+(j.pickupState?(" ("+j.pickupState+")"):"");
 }
+let PMAP=null,PMARK=null,PICKLL=null,PICKCODE=null;
+function openPicker(code){ const j=jobByCode(code); if(!j||typeof L==="undefined") return; PICKCODE=code; PICKLL=null;
+  const m=$("#pickmodal"); if(!m) return;
+  m.querySelector(".bhbox").innerHTML='<div class="bhhd"><b>Pick current location</b><span>'+esc(code)+'</span><button class="bhx" id="pkx">&times;</button></div><div id="pickmap" style="height:440px"></div><div class="pkft"><span id="pkll" class="pkll">Click the map to drop a pin where the load is</span><button class="dw-loc-b save" id="pksave" disabled>Save location</button></div>';
+  m.classList.add("show");
+  const c=j._c||computeJob(j); const cur=curLocGeo(j,c);
+  setTimeout(function(){ try{
+    if(PMAP){ try{PMAP.remove();}catch(e){} PMAP=null; }
+    PMAP=L.map("pickmap").setView([cur.lat,cur.lon],8);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,subdomains:"abcd"}).addTo(PMAP);
+    PMARK=null;
+    PMAP.on("click",function(ev){ PICKLL={lat:ev.latlng.lat,lon:ev.latlng.lng}; if(PMARK){PMAP.removeLayer(PMARK);} PMARK=L.marker(ev.latlng).addTo(PMAP); const ll=$("#pkll"); if(ll) ll.textContent="Pinned at "+PICKLL.lat.toFixed(3)+", "+PICKLL.lon.toFixed(3); const sv=$("#pksave"); if(sv) sv.disabled=false; });
+    PMAP.invalidateSize();
+  }catch(e){} },180);
+  const x=$("#pkx"); if(x) x.onclick=closePicker;
+  const sv=$("#pksave"); if(sv) sv.onclick=function(){ if(!PICKLL) return; setLocation(PICKCODE, PICKLL.lat.toFixed(4)+","+PICKLL.lon.toFixed(4)); closePicker(); };
+}
+function closePicker(){ const m=$("#pickmodal"); if(m) m.classList.remove("show"); if(PMAP){ try{PMAP.remove();}catch(e){} PMAP=null; } PMARK=null; PICKLL=null; }
 function setLocation(code,val){ const j=jobByCode(code); if(!j) return; toast("Saving location to the sheet..."); ensureGToken(()=>{ shAppendRow(LOCATIONS_TAB,{"Job Code":code,"Location":val,"Updated":new Date().toISOString()}).then(()=>{ j.locOverride=val; toast("Location updated for "+code); computeAll(); if(TAB==="timeline") renderTimeline(); if(SELJOB===code){ const c=j._c||computeJob(j); fillJobCard(j,c); showJobMap(j); } }).catch(e=>{ toast("Save failed: "+((e&&e.message)||e)); }); }); }
 /* ===== Google sign-in + Sheets write (persist accepted routes) ===== */
 const G_CLIENT_ID="712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com", G_SCOPE_VER="ld-sheets-1";
@@ -574,9 +605,12 @@ function groupEvents(){
   });
 }
 /* logically-impossible dates the dispatcher should fix in the sheet */
-function dateIssues(j,c){ const out=[]; const pick=j.eventDate; if(!pick) return out; const P=midnight(pick);
-  const delv=c.isS?j.fad:c.winEnd;
-  if(delv && P>midnight(delv)) out.push("Pickup "+fmt(pick)+" is AFTER the delivery "+(c.isS?"date":"window end")+" ("+fmt(delv)+")");
+function dateIssues(j,c){ const out=[]; const CF=Math.round(j.cf||0);
+  if(CF>1848) out.push(CF.toLocaleString()+" CF is over single-truck capacity (~1,848) - too big to self-deliver, route to a carrier");
+  else if(CF>0&&CF<50) out.push("CF is only "+CF+" - likely a data-entry error, please verify");
+  const pick=j.eventDate;
+  if(pick){ const P=midnight(pick); const delv=c.isS?j.fad:c.winEnd;
+    if(delv && P>midnight(delv)) out.push("Pickup "+fmt(pick)+" is AFTER the delivery "+(c.isS?"date":"window end")+" ("+fmt(delv)+")"); }
   if(!c.isS && j.fad && c.winEnd && midnight(c.winEnd)<midnight(j.fad)) out.push("Delivery window ends "+fmt(c.winEnd)+" before it starts "+fmt(j.fad));
   return out;
 }
@@ -591,7 +625,7 @@ function renderMissing(){
   let html="";
   if(dateErr.length){
     const db=dateErr.map(x=>{ const j=x.j; return '<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td>'+(x.c.isS?"Straight":"Regular")+'</td><td>'+(j.eventDate?fmt(j.eventDate):"&mdash;")+'</td><td style="color:var(--hazard);font-weight:600">'+esc(x.issues.join("; "))+'</td></tr>'; }).join("");
-    html+='<p class="cwnote"><b style="color:var(--hazard)">&#9888; Impossible dates &mdash; fix in the sheet.</b> The pickup falls after the delivery date/window (or after the trip must depart), so these can&#39;t be delivered as entered.</p>'+
+    html+='<p class="cwnote"><b style="color:var(--hazard)">&#9888; Data errors &mdash; fix in the sheet.</b> Impossible dates (pickup after the delivery date/window), over-capacity loads that must go to a carrier, or suspicious CF values.</p>'+
       '<div class="cwwrap" style="margin-bottom:26px"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Pickup</th><th>Problem</th></tr></thead><tbody>'+db+'</tbody></table></div>';
   }
   if(hidden.length){
@@ -679,7 +713,7 @@ function jobDetailHTML(j,c,withMap){
   const mapbtn=(withMap&&geo(j.deliveryZip))?'<button class="dw-mapbtn" id="dwmap">&#128205; Show route on map</button>':"";
   let bh=""; if(c.isS && j.destState && OUR_STATES.indexOf(j.destState)<0){ bh=BACKHAUL_FOUND.has(j.code)?'<div class="dw-bh found">&#9989; Backhaul: cargo found</div>':'<button class="dw-bh" data-bh="'+esc(j.code)+'">&#128666; Find backhaul &mdash; truck returns empty</button>'; }
   let lk=""; if(j._linked&&j._linked.length){ lk='<div class="dw-linked">&#128279; Groups '+j._linked.map(l=>esc(l.role)+' event <b>'+esc(l.code)+'</b>').join(", ")+' (hidden from the board)</div>'; }
-  const locSec='<div class="dw-loc"><span class="dw-loc-l">Currently at</span> <span class="dw-loc-v">'+esc(curLocLabel(j,c))+'</span> <button class="dw-loc-edit" data-locedit="'+esc(j.code)+'">change</button><div class="dw-loc-form" data-locform="'+esc(j.code)+'" style="display:none"><button class="dw-loc-b" data-locset="'+esc(j.code)+'|BASE">Base</button><button class="dw-loc-b" data-locset="'+esc(j.code)+'|PICKUP">Pickup</button><input class="dw-loc-zip" data-loczip="'+esc(j.code)+'" placeholder="storage ZIP" maxlength="5" inputmode="numeric"><button class="dw-loc-b save" data-locsave="'+esc(j.code)+'">Save</button></div></div>';
+  const locSec='<div class="dw-loc"><span class="dw-loc-l">Currently at</span> <span class="dw-loc-v">'+esc(curLocLabel(j,c))+'</span> <button class="dw-loc-edit" data-locedit="'+esc(j.code)+'">change</button><div class="dw-loc-form" data-locform="'+esc(j.code)+'" style="display:none"><button class="dw-loc-b" data-locset="'+esc(j.code)+'|BASE">Base</button><button class="dw-loc-b" data-locset="'+esc(j.code)+'|PICKUP">Pickup</button><input class="dw-loc-zip" data-loczip="'+esc(j.code)+'" placeholder="storage ZIP" maxlength="5" inputmode="numeric"><button class="dw-loc-b save" data-locsave="'+esc(j.code)+'">Save</button><button class="dw-loc-b" data-locpick="'+esc(j.code)+'">&#128205; Map</button></div></div>';
   return '<div class="dw-do '+u+'"><span class="k">Do</span><span>'+esc(c.action)+'</span></div>'+lk+'<div class="dw-sec"><h4>Route</h4>'+legs+locSec+mapbtn+bh+'</div><div class="dw-sec"><h4>Details</h4><div class="dw-grid">'+fields+'</div></div><div class="dw-sec"><h4>Status</h4><div class="dw-dims">'+chips+'</div></div>'+gaps;
 }
 function initSideMap(){ if(SMAP||typeof L==="undefined")return; const el=$("#tlsmap"); if(!el)return; try{ SMAP=L.map("tlsmap",{zoomControl:false}); L.control.zoom({position:"bottomright"}).addTo(SMAP); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(SMAP); SMAP.setView([40.5,-77],6); SLAYER=L.layerGroup().addTo(SMAP);}catch(e){SMAP=null;} }
@@ -689,10 +723,10 @@ function sMark(pt,lab,kind,col){ return L.marker(pt,{icon:L.divIcon({className:"
 function atBaseNow(c){ return c.state==="Picked Up"||c.state==="In Storage"; }
 function showJobMap(j){ initSideMap(); if(!SMAP)return; try{SLAYER.clearLayers();}catch(e){} sSeq++;
   const c=j._c||computeJob(j); const d=geo(j.deliveryZip); const col=c.urg.lvl==="red"?"#C0392B":(j.type==="straight"?"#B26B0B":"#3E7CB1");
-  const base=[BASE.lat,BASE.lon]; const loc=curLocGeo(j,c); const start=[loc.lat,loc.lon]; const pts=[];
+  const bf=baseFor(j); const base=[bf.lat,bf.lon]; const loc=curLocGeo(j,c); const start=[loc.lat,loc.lon]; const pts=[];
   const pickupLoc=(j.locOverride==="PICKUP")||(!j.locOverride&&!atBaseNow(c)&&!!geo(j.pickupZip));
-  if(pickupLoc){ sTrail(start,base,"#A8AEB5","5 7"); sMark(start,"P","P","#2E333A"); sMark(base,"NJ","P","#1F2329"); pts.push(start,base); if(d){ const b=[d.lat,d.lon]; sTrail(base,b,col,j.type==="straight"?null:"8 6"); sMark(b,esc(j.destState||"D"),"D",col); pts.push(b); } }
-  else { sMark(start,loc.base?"NJ":"S","P",loc.base?"#1F2329":"#5A4FB8"); pts.push(start); if(d){ const b=[d.lat,d.lon]; sTrail(start,b,col,j.type==="straight"?null:"8 6"); sMark(b,esc(j.destState||"D"),"D",col); pts.push(b); } }
+  if(pickupLoc){ sTrail(start,base,"#A8AEB5","5 7"); sMark(start,"P","P","#2E333A"); sMark(base,esc(bf.name),"P","#1F2329"); pts.push(start,base); if(d){ const b=[d.lat,d.lon]; sTrail(base,b,col,j.type==="straight"?null:"8 6"); sMark(b,esc(j.destState||"D"),"D",col); pts.push(b); } }
+  else { sMark(start,loc.base?esc(loc.name||"B"):"S","P",loc.base?"#1F2329":"#5A4FB8"); pts.push(start); if(d){ const b=[d.lat,d.lon]; sTrail(start,b,col,j.type==="straight"?null:"8 6"); sMark(b,esc(j.destState||"D"),"D",col); pts.push(b); } }
   setTimeout(()=>{ try{ SMAP.invalidateSize(); if(pts.length>1)SMAP.fitBounds(pts,{padding:[70,70]}); else SMAP.setView(start,7);}catch(e){} },240);
 }
 function fillJobCard(j,c){ const card=$("#tlcard"); card.className="";
@@ -855,15 +889,16 @@ function setTab(t){ TAB=t; document.querySelectorAll(".tab").forEach(b=>b.classL
   $("#timelinewrap").style.display=t==="timeline"?"":"none"; $("#routeswrap").style.display=t==="routes"?"":"none"; $("#mapwrap").style.display=t==="map"?"":"none"; $("#missingwrap").style.display=t==="missing"?"":"none"; $("#carrierwrap").style.display=t==="carrier"?"":"none";
   if(t==="routes") renderRoutes(); else if(t==="map") renderMap(); else if(t==="missing") renderMissing(); else if(t==="carrier") renderCarrier(); else renderTimeline(); }
 function pull(){ $("#rfstamp").textContent="Loading...";
-  return Promise.all([loadJobs(),loadStorage(),loadRoutes(),loadLocations()]).then(()=>{ computeAll(); try{$("#rcount").textContent=buildSuggestions().length;}catch(e){} setTab(TAB); $("#rfstamp").textContent=JOBS.length+" jobs"+(LOCAL?" (local test data)":""); })
+  return Promise.all([loadJobs(),loadStorage(),loadRoutes(),loadLocations(),loadBases()]).then(()=>{ computeAll(); try{$("#rcount").textContent=buildSuggestions().length;}catch(e){} setTab(TAB); $("#rfstamp").textContent=JOBS.length+" jobs"+(LOCAL?" (local test data)":""); })
   .catch(e=>{ $("#rfstamp").textContent="load error"; }); }
 $("#refreshbtn").addEventListener("click",pull);
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setTab(b.getAttribute("data-tab")));
-(function(){ const bm=$("#bhmodal"); if(bm) bm.onclick=e=>{ if(e.target===bm) bm.classList.remove("show"); }; document.addEventListener("click",e=>{ const b=e.target.closest?e.target.closest("[data-bh]"):null; if(b){ e.preventDefault(); openBackhaul(b.getAttribute("data-bh")); } }); })();
+(function(){ const bm=$("#bhmodal"); if(bm) bm.onclick=e=>{ if(e.target===bm) bm.classList.remove("show"); }; const pm=$("#pickmodal"); if(pm) pm.onclick=e=>{ if(e.target===pm) closePicker(); }; document.addEventListener("click",e=>{ const b=e.target.closest?e.target.closest("[data-bh]"):null; if(b){ e.preventDefault(); openBackhaul(b.getAttribute("data-bh")); } }); })();
 (function(){ document.addEventListener("click",e=>{ if(!e.target.closest) return;
   const ed=e.target.closest("[data-locedit]"); if(ed){ const f=document.querySelector('[data-locform="'+ed.getAttribute("data-locedit")+'"]'); if(f) f.style.display=f.style.display==="none"?"":"none"; return; }
   const st=e.target.closest("[data-locset]"); if(st){ const parts=st.getAttribute("data-locset").split("|"); setLocation(parts[0],parts[1]); return; }
   const sv=e.target.closest("[data-locsave]"); if(sv){ const code=sv.getAttribute("data-locsave"); const inp=document.querySelector('[data-loczip="'+code+'"]'); const z=((inp&&inp.value)||"").replace(/\D/g,"").slice(0,5); if(z.length===5) setLocation(code,z); else toast("Enter a 5-digit ZIP"); return; }
+  const pk=e.target.closest("[data-locpick]"); if(pk){ openPicker(pk.getAttribute("data-locpick")); return; }
 }); })();
 $("#dwbg").onclick=closeDrawer; (function(){ const tb=$("#tlsback"); if(tb) tb.onclick=closeJobMap; const rb=$("#rtsback"); if(rb) rb.onclick=closeRouteJourney; })(); document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeDrawer(); closeJobMap(); closeRouteJourney(); } });
 (function(){ const mb=$("#mapback"); if(mb) mb.onclick=()=>{ MAPROUTE=null; MAPFOCUS=null; renderMap(); }; })();
