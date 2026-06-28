@@ -739,6 +739,10 @@ function buildSuggestions(){
   const used=new Set(), out=[];
   cand.forEach(seed=>{ if(used.has(seed.j.code))return; let stops=[seed]; used.add(seed.j.code); let cf=seed.j.cf,cur=routeDrive(stops);
     while(true){ let best=null,bi=1e9; const baseMi=routeMi(stops); cand.forEach(x=>{ if(used.has(x.j.code)||cf+x.j.cf>TRUCK_MAX||!compatible(stops,x)||stops.some(s=>hav(s.g,x.g)>MAX_PAIR_MI))return; const incMi=routeMi(orderStops(stops.concat([x])))-baseMi; if(incMi/(x.j.cf||1)>MAX_MI_PER_CF)return; const inc=routeDrive(orderStops(stops.concat([x])))-cur; if(inc<=DETOUR_MAX&&inc<bi){best=x;bi=inc;} }); if(!best)break; stops.push(best); used.add(best.j.code); cf+=best.j.cf; cur=routeDrive(orderStops(stops)); }
+    let changed=true;
+    while(changed && stops.length>1){ changed=false; const full=routeMi(orderStops(stops)); let worst=-1,worstVal=MAX_MI_PER_CF;
+      stops.forEach((x,k)=>{ const v=(full-routeMi(orderStops(stops.filter((_,i)=>i!==k))))/(x.j.cf||1); if(v>worstVal){ worstVal=v; worst=k; } });
+      if(worst>=0){ stops.splice(worst,1); changed=true; } }
     if(stops.length>=2) out.push(mkSug(orderStops(stops))); });
   return out;
 }
