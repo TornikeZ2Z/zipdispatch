@@ -177,7 +177,7 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 #tlsmap{position:absolute;inset:0}
 #tlsback{position:absolute;top:12px;right:12px;z-index:600;width:34px;height:34px;border:1px solid var(--line2);background:var(--card);border-radius:9px;font-size:18px;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
 #tlsback:hover{border-color:var(--ink);color:var(--ink)}
-#tlcard{position:absolute;top:12px;left:12px;width:330px;max-width:calc(100% - 64px);max-height:calc(100% - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:13px;box-shadow:0 14px 40px -12px rgba(31,34,38,.45);z-index:550}
+#tlcard{position:absolute;top:12px;left:12px;width:410px;max-width:calc(100% - 64px);max-height:calc(100% - 24px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:13px;box-shadow:0 14px 40px -12px rgba(31,34,38,.45);z-index:550}
 .tlc-hd{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:2}
 .tlc-hd .code{font-family:'IBM Plex Mono';font-weight:600;font-size:14px}
 .tlc-min{margin-left:auto;width:27px;height:27px;border:1px solid var(--line);background:var(--card);border-radius:7px;cursor:pointer;font-size:15px;color:var(--dim);display:flex;align-items:center;justify-content:center;line-height:1}
@@ -203,7 +203,7 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 #mapinner{position:relative}
 #mapwrap.full{position:fixed;inset:0;z-index:5000;background:var(--paper);margin:0;padding:14px 20px;overflow:auto}
 #mapwrap.full #map{height:calc(100vh - 96px)}
-#tlmain .tlgrid{cursor:grab}
+#tlmain .tlgrid{cursor:grab;user-select:none;-webkit-user-select:none}
 .tlmain.grabbing,.tlmain.grabbing .tlgrid,.tlmain.grabbing .tlrow,.tlmain.grabbing .tlcal{cursor:grabbing}
 #bhmodal{position:fixed;inset:0;background:rgba(31,34,38,.32);display:none;align-items:center;justify-content:center;z-index:6000}
 #bhmodal.show{display:flex}
@@ -221,6 +221,7 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 .dw-bh{margin-top:14px;width:100%;border:1.5px solid var(--rental-bd);background:var(--rental-bg);color:var(--rental);font:600 14px Inter;padding:10px;border-radius:10px;cursor:pointer;text-align:center}
 .dw-bh:hover{border-color:var(--rental)}
 .dw-bh.found{background:var(--fleet-bg);color:var(--fleet);border-color:var(--fleet-bd);cursor:default}
+.dw-linked{padding:10px 16px;background:var(--travel-bg);border-bottom:1px solid var(--line);font-size:12.5px;color:#5A4FB8;font-weight:600;line-height:1.45}
 #mapwrap{position:relative}
 #map{width:100%;height:calc(100vh - 210px);min-height:440px;border:1px solid var(--line);border-radius:14px;background:#E9F0F1}
 #mapback{position:absolute;top:14px;left:14px;z-index:600;font:600 14px Inter;border:1.5px solid var(--line2);background:var(--card);border-radius:9px;padding:8px 12px;cursor:pointer}
@@ -499,37 +500,46 @@ function jobCard(j,c){
   '</div>';
 }
 function computeAll(){
-  let carrier=0,gap=0;
-  JOBS.forEach(j=>{ const c=computeJob(j); j._c=c; if(c.state==="At Carrier")carrier++; if(c.gaps.length)gap++; });
-  $("#cwcount").textContent=carrier; const md=$("#mdcount"); if(md) md.textContent=gap+deliverySuspects().length;
+  groupEvents();
+  let carrier=0,gap=0,hid=0; const revSeen={};
+  JOBS.forEach(j=>{ if(j._hiddenBy){ hid++; return; } if(j._reviewReq) revSeen[j._reviewReq]=1; const c=computeJob(j); j._c=c; if(c.state==="At Carrier")carrier++; if(c.gaps.length)gap++; });
+  $("#cwcount").textContent=carrier; const md=$("#mdcount"); if(md) md.textContent=gap+hid+Object.keys(revSeen).length;
   renderStats(carrier);
 }
-function deliverySuspects(){
+/* group a Request #'s events into ONE job: keep the pickup/move, hide its delivery/packing/duplicate events from the planning views */
+function groupEvents(){
+  const LAND=String.fromCodePoint(0x1F6EC);
+  JOBS.forEach(j=>{ j._hiddenBy=null; j._role=null; j._linked=null; j._reviewReq=null; const t=j.eventTitle||""; j._isDel=/^\s*(true|yes)/i.test(j.isDelivery||"")||!!j.pickupJobCode||/delivery/i.test(t)||t.indexOf(LAND)>=0; j._isPack=/packing/i.test(t); });
   const byReq={}; JOBS.forEach(j=>{ if(j.requestNo){ (byReq[j.requestNo]=byReq[j.requestNo]||[]).push(j); } });
-  const LAND=String.fromCodePoint(0x1F6EC); const out=[];
-  JOBS.forEach(j=>{
-    const t=j.eventTitle||"", isd=j.isDelivery||"", reasons=[];
-    if(/^\s*(true|yes)/i.test(isd)) reasons.push("Is-Delivery flag = TRUE");
-    if(j.pickupJobCode) reasons.push("has Pickup Job Code "+j.pickupJobCode);
-    if(/delivery/i.test(t)||t.indexOf(LAND)>=0) reasons.push("event title says delivery");
-    if(/packing/i.test(t)) reasons.push("PACKING-day event (not the move)");
-    const grp=j.requestNo?byReq[j.requestNo]:null;
-    if(grp&&grp.length>1&&!/packing/i.test(t)&&!j.pickupJobCode&&!/^\s*(true|yes)/i.test(isd)) reasons.push("shares Request #"+j.requestNo+" with "+(grp.length-1)+" other job(s)");
-    if(reasons.length){ let link=j.pickupJobCode||""; if(!link&&grp){ const o=grp.find(x=>x.code!==j.code); if(o)link=o.code; } out.push({j:j,reasons:reasons,link:link}); }
+  Object.keys(byReq).forEach(req=>{ const grp=byReq[req]; if(grp.length<2) return;
+    grp.sort((a,b)=>((a.eventDate?midnight(a.eventDate).getTime():9e15)-(b.eventDate?midnight(b.eventDate).getTime():9e15)));
+    const delivs=grp.filter(j=>j._isDel), packs=grp.filter(j=>j._isPack&&!j._isDel), moves=grp.filter(j=>!j._isDel&&!j._isPack);
+    const cfs=grp.map(j=>Math.round(j.cf||0)), sameCF=cfs.every(c=>c===cfs[0]);
+    const combinable = delivs.length>0 || packs.length>0 || (moves.length===grp.length && sameCF);
+    if(!combinable){ grp.forEach(j=>{ j._reviewReq=req; }); return; }
+    const primary = moves[0] || grp.find(j=>!j._isDel) || grp[0];
+    const linked=[];
+    grp.forEach(j=>{ if(j===primary) return; j._hiddenBy=primary.code; j._role=j._isDel?"delivery":(j._isPack?"packing":"duplicate"); linked.push({code:j.code,role:j._role}); if(j._isDel&&j.fad&&!primary.fad) primary.fad=j.fad; });
+    if(linked.length) primary._linked=linked;
   });
-  return out;
 }
 function renderMissing(){
   const host=$("#missingwrap");
-  const sus=deliverySuspects();
-  const gapRows=JOBS.filter(j=>{const c=j._c||computeJob(j);return c.gaps.length;}).map(j=>({j,c:j._c||computeJob(j)}));
+  const hidden=JOBS.filter(j=>j._hiddenBy);
+  const revSeen={}, review=[]; JOBS.forEach(j=>{ if(j._reviewReq&&!revSeen[j._reviewReq]){ revSeen[j._reviewReq]=1; review.push(JOBS.filter(x=>x._reviewReq===j._reviewReq)); } });
+  const gapRows=JOBS.filter(j=>!j._hiddenBy && (j._c||computeJob(j)).gaps.length).map(j=>({j,c:j._c||computeJob(j)}));
   gapRows.sort((a,b)=>((a.c.critGap?0:1)-(b.c.critGap?0:1))||((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
-  if(!sus.length && !gapRows.length){ host.innerHTML='<div class="empty"><b>No missing data</b>Every job has its planning fields, and no suspected delivery/duplicate events.</div>'; return; }
+  if(!hidden.length && !review.length && !gapRows.length){ host.innerHTML='<div class="empty"><b>All clean</b>No grouped events, duplicates to review, or missing fields.</div>'; return; }
   let html="";
-  if(sus.length){
-    const sb=sus.map(x=>{ const j=x.j; return '<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td>'+(j.type==="straight"?"Straight":"Regular")+'</td><td>'+x.reasons.map(r=>esc(r)).join("; ")+'</td><td>'+(x.link?('<span class="c-code">'+esc(x.link)+'</span>'):'<span style="color:var(--faint)">unknown</span>')+'</td></tr>'; }).join("");
-    html+='<p class="cwnote">Events that look like a <b>delivery or a duplicate</b> of another job but aren&#39;t flagged (the Is-Delivery column may be wrong). Verify each and fix the flag / Pickup Job Code in the sheet so it stops showing as its own job.</p>'+
-      '<div class="cwwrap" style="margin-bottom:26px"><table class="cw"><thead><tr><th>Job (event)</th><th>Customer</th><th>Type</th><th>Why it looks like a delivery/duplicate</th><th>Likely belongs to</th></tr></thead><tbody>'+sb+'</tbody></table></div>';
+  if(hidden.length){
+    const hb=hidden.map(j=>'<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td><span class="miss">'+esc(j._role)+'</span></td><td>'+(j.eventDate?fmt(j.eventDate):"&mdash;")+'</td><td><span class="c-code">'+esc(j._hiddenBy)+'</span></td></tr>').join("");
+    html+='<p class="cwnote"><b>Grouped &mdash; hidden from the planning views.</b> Each event was auto-matched to another job with the same Request # (its delivery / packing / duplicate event), so it no longer shows as its own job. Set <b>Is Delivery</b> or <b>Pickup Job Code</b> in the sheet to make it explicit.</p>'+
+      '<div class="cwwrap" style="margin-bottom:26px"><table class="cw"><thead><tr><th>Hidden event</th><th>Customer</th><th>Detected as</th><th>Event date</th><th>Folded into job</th></tr></thead><tbody>'+hb+'</tbody></table></div>';
+  }
+  if(review.length){
+    const rb=review.map(grp=>'<tr data-job="'+esc(grp[0].code)+'"><td>'+grp.map(j=>'<span class="c-code">'+esc(j.code)+'</span>').join(" + ")+'</td><td>'+esc(grp[0].customer||"")+'</td><td>Req #'+esc(grp[0].requestNo)+'</td><td>'+grp.map(j=>Math.round(j.cf||0)).join(" / ")+' cf</td></tr>').join("");
+    html+='<p class="cwnote"><b>Possible duplicates &mdash; please review.</b> These share a Request # but their CFs differ, so I kept them separate (could be two trucks, or a duplicate to merge). Decide and fix the sheet.</p>'+
+      '<div class="cwwrap" style="margin-bottom:26px"><table class="cw"><thead><tr><th>Jobs (same request)</th><th>Customer</th><th>Request</th><th>CF each</th></tr></thead><tbody>'+rb+'</tbody></table></div>';
   }
   html+='<p class="cwnote">Jobs missing fields needed to plan them &mdash; <span class="miss crit">red</span> blocks planning entirely.</p>';
   if(!gapRows.length){ html+='<div class="empty"><b>No missing fields</b>Every job has the fields needed to plan it.</div>'; }
@@ -542,7 +552,7 @@ function renderMissing(){
 }
 function renderStats(carrier){
   let red=0,amber=0,gap=0,poss=0;
-  JOBS.forEach(j=>{ const c=j._c||computeJob(j); if(c.state==="At Carrier")return; if(c.urg.lvl==="red")red++; else if(c.urg.lvl==="amber")amber++; if(c.critGap)gap++; if(c.state==="Picked Up"||c.state==="In Storage")poss++; });
+  JOBS.forEach(j=>{ if(j._hiddenBy)return; const c=j._c||computeJob(j); if(c.state==="At Carrier")return; if(c.urg.lvl==="red")red++; else if(c.urg.lvl==="amber")amber++; if(c.critGap)gap++; if(c.state==="Picked Up"||c.state==="In Storage")poss++; });
   $("#stats").innerHTML=
     '<div class="stat"><div class="v red">'+red+'</div><div class="l">Act now</div></div>'+
     '<div class="stat"><div class="v amber">'+amber+'</div><div class="l">Act soon</div></div>'+
@@ -551,7 +561,7 @@ function renderStats(carrier){
 }
 function renderCarrier(){
   const host=$("#carrierwrap");
-  const rows=JOBS.filter(j=>j.carrier).map(j=>{ const c=j._c||computeJob(j); return {j,c}; });
+  const rows=JOBS.filter(j=>j.carrier&&!j._hiddenBy).map(j=>{ const c=j._c||computeJob(j); return {j,c}; });
   rows.sort((a,b)=>(a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15));
   let body=rows.map(x=>{ const j=x.j,c=x.c; const dl=c.isS?("Deliver "+fmt(j.fad)):(c.winEnd?("by "+fmt(c.winEnd)):"window?"); return '<tr data-job="'+esc(j.code)+'" style="cursor:pointer">'+
     '<td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td>'+(c.isS?"Straight":"Regular")+'</td>'+
@@ -605,7 +615,8 @@ function jobDetailHTML(j,c,withMap){
   const gaps=c.gaps.length?('<div class="dw-sec"><div class="dw-gap"><span>&#9888;</span><span>Missing data: '+esc(c.gaps.join(", "))+" &mdash; fix in the sheet to plan this job.</span></div></div>"):"";
   const mapbtn=(withMap&&geo(j.deliveryZip))?'<button class="dw-mapbtn" id="dwmap">&#128205; Show route on map</button>':"";
   let bh=""; if(c.isS && j.destState && OUR_STATES.indexOf(j.destState)<0){ bh=BACKHAUL_FOUND.has(j.code)?'<div class="dw-bh found">&#9989; Backhaul: cargo found</div>':'<button class="dw-bh" data-bh="'+esc(j.code)+'">&#128666; Find backhaul &mdash; truck returns empty</button>'; }
-  return '<div class="dw-do '+u+'"><span class="k">Do</span><span>'+esc(c.action)+'</span></div><div class="dw-sec"><h4>Route</h4>'+legs+mapbtn+bh+'</div><div class="dw-sec"><h4>Details</h4><div class="dw-grid">'+fields+'</div></div><div class="dw-sec"><h4>Status</h4><div class="dw-dims">'+chips+'</div></div>'+gaps;
+  let lk=""; if(j._linked&&j._linked.length){ lk='<div class="dw-linked">&#128279; Groups '+j._linked.map(l=>esc(l.role)+' event <b>'+esc(l.code)+'</b>').join(", ")+' (hidden from the board)</div>'; }
+  return '<div class="dw-do '+u+'"><span class="k">Do</span><span>'+esc(c.action)+'</span></div>'+lk+'<div class="dw-sec"><h4>Route</h4>'+legs+mapbtn+bh+'</div><div class="dw-sec"><h4>Details</h4><div class="dw-grid">'+fields+'</div></div><div class="dw-sec"><h4>Status</h4><div class="dw-dims">'+chips+'</div></div>'+gaps;
 }
 function initSideMap(){ if(SMAP||typeof L==="undefined")return; const el=$("#tlsmap"); if(!el)return; try{ SMAP=L.map("tlsmap",{zoomControl:false}); L.control.zoom({position:"bottomright"}).addTo(SMAP); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(SMAP); SMAP.setView([40.5,-77],6); SLAYER=L.layerGroup().addTo(SMAP);}catch(e){SMAP=null;} }
 function sTrail(a,b,col,dash){ const ln=L.polyline([a,b],{color:col,weight:4,opacity:.95,dashArray:dash||null}).addTo(SLAYER); const sq=sSeq; truckRoute(a,b).then(p=>{ if(sq===sSeq&&p){try{ln.setLatLngs(p);}catch(e){}} }); }
@@ -633,7 +644,7 @@ function openJobMap(code){ const j=jobByCode(code); if(!j) return; const c=j._c|
 function closeJobMap(){ SELJOB=null; const s=$("#tlside"); if(s)s.classList.remove("show"); document.querySelectorAll("#tlmain .sel").forEach(e=>e.classList.remove("sel")); }
 /* ===== distance + route-suggestion engine (spec sec 8) ===== */
 const TRUCKS=[{n:"#7",cf:1622},{n:"#9",cf:1741},{n:"#15",cf:1741},{n:"#33",cf:1741},{n:"#77",cf:1809},{n:"#10",cf:1741},{n:"#11",cf:1848},{n:"#27",cf:1741}];
-const BASE={lat:40.23,lon:-74.30}, TRUCK_MAX=1848, DETOUR_MAX=180, ROUTE_SPAN=5;
+const BASE={lat:40.23,lon:-74.30}, TRUCK_MAX=1500, DETOUR_MAX=180, ROUTE_SPAN=5, MAX_PAIR_MI=450;
 const HERE_KEY="0IGXB_hGz84InzFmhfCygxp27_54NI-LkjL6N5RSYT8";
 let LMAP=null,LLAYER=null,MAPROUTE=null,MAPFOCUS=null,TLSTART=null,drawSeq=0,SMAP=null,SLAYER=null,sSeq=0; const _rc={}; const TLDAYS=42;
 function hav(a,b){ if(!a||!b||a.lat==null) return 0; const R=3959,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180,h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
@@ -646,11 +657,11 @@ function routeDrive(stops){ let m=0,prev=BASE; stops.forEach(s=>{ m+=dMin(prev,s
 function orderStops(stops){ const S=stops.filter(s=>s.j.type==="straight").sort((a,b)=>midnight(a.w.s)-midnight(b.w.s)); const R=stops.filter(s=>s.j.type!=="straight").sort((a,b)=>midnight(a.w.s)-midnight(b.w.s)); return S.concat(R); }
 function compatible(stops,x){ const all=stops.concat([x]); const ls=Math.max.apply(null,all.map(s=>midnight(s.w.s).getTime())); const ee=Math.min.apply(null,all.map(s=>midnight(s.w.e).getTime())); return ls<=ee+ROUTE_SPAN*86400000; }
 function buildSuggestions(){
-  const cand=JOBS.filter(j=>!j.carrier&&!ROUTED.has(j.code)).map(j=>({j,g:geo(j.deliveryZip),w:delWindow(j)})).filter(x=>x.g&&x.w&&x.j.cf);
+  const cand=JOBS.filter(j=>!j.carrier&&!ROUTED.has(j.code)&&!j._hiddenBy).map(j=>({j,g:geo(j.deliveryZip),w:delWindow(j)})).filter(x=>x.g&&x.w&&x.j.cf);
   cand.sort((a,b)=>midnight(a.w.s)-midnight(b.w.s));
   const used=new Set(), out=[];
   cand.forEach(seed=>{ if(used.has(seed.j.code))return; let stops=[seed]; used.add(seed.j.code); let cf=seed.j.cf,cur=routeDrive(stops);
-    while(true){ let best=null,bi=1e9; cand.forEach(x=>{ if(used.has(x.j.code)||cf+x.j.cf>TRUCK_MAX||!compatible(stops,x))return; const inc=routeDrive(orderStops(stops.concat([x])))-cur; if(inc<=DETOUR_MAX&&inc<bi){best=x;bi=inc;} }); if(!best)break; stops.push(best); used.add(best.j.code); cf+=best.j.cf; cur=routeDrive(orderStops(stops)); }
+    while(true){ let best=null,bi=1e9; cand.forEach(x=>{ if(used.has(x.j.code)||cf+x.j.cf>TRUCK_MAX||!compatible(stops,x)||stops.some(s=>hav(s.g,x.g)>MAX_PAIR_MI))return; const inc=routeDrive(orderStops(stops.concat([x])))-cur; if(inc<=DETOUR_MAX&&inc<bi){best=x;bi=inc;} }); if(!best)break; stops.push(best); used.add(best.j.code); cf+=best.j.cf; cur=routeDrive(orderStops(stops)); }
     if(stops.length>=2) out.push(mkSug(orderStops(stops))); });
   return out;
 }
@@ -675,7 +686,7 @@ function tlStart(){ return new Date(TLSTART||midnight(new Date())); }
 function dIdx(d,st){ return d?Math.round((midnight(d).getTime()-st.getTime())/86400000):null; }
 function renderTimeline(){
   const start=tlStart(),days=TLDAYS,dp=100/days,end=new Date(start.getTime()+(days-1)*86400000);
-  const jobs=JOBS.filter(j=>!j.carrier).map(j=>({j,c:j._c||computeJob(j)})).sort((a,b)=>((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
+  const jobs=JOBS.filter(j=>!j.carrier&&!j._hiddenBy).map(j=>({j,c:j._c||computeJob(j)})).sort((a,b)=>((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
   const toggle='<div class="tlview"><button data-tlv="timeline"'+(TLVIEW==="timeline"?' class="on"':'')+'>Timeline</button><button data-tlv="table"'+(TLVIEW==="table"?' class="on"':'')+'>Table</button></div>';
   const legend=(TLVIEW==="timeline")?'<div class="tllg"><span><i class="lg-pk"></i>pickup</span><span><i class="lg-s"></i>straight deadline</span><span><i class="lg-r"></i>regular window</span></div>':"";
   $("#tlbarwrap").innerHTML='<div class="tlbar"><div class="tlnav"><button data-tl="prev" title="Earlier">&#8249;</button><button data-tl="today">Today</button><button data-tl="next" title="Later">&#8250;</button></div>'+
@@ -730,7 +741,7 @@ function mapPass(j){ const ty=($("#mfType")||{}).value||"all"; if(ty!=="all"&&j.
 function renderMap(){ initMap2(); if(!LMAP||!LLAYER)return; try{LLAYER.clearLayers();}catch(e){} drawSeq++; const pts=[]; const back=$("#mapback"); const mc0=$("#mfcount"); if(mc0)mc0.textContent="";
   if(MAPFOCUS){ back.style.display=""; const fj=MAPFOCUS, fp=geo(fj.pickupZip), fd=geo(fj.deliveryZip); const fa=fp?[fp.lat,fp.lon]:[BASE.lat,BASE.lon]; if(fd){ const fc=fj._c||computeJob(fj); const fcol=fc.urg.lvl==="red"?"#C0392B":(fj.type==="straight"?"#B26B0B":"#3E7CB1"); const fb=[fd.lat,fd.lon]; trail(fa,fb,fcol,fj.type==="straight"?null:"8 6"); smark(fa,"P","P",fcol); smark(fb,esc(fj.destState||"D"),"D",fcol); pts.push(fa,fb); } }
   else if(MAPROUTE){ back.style.display=""; let prev=[BASE.lat,BASE.lon]; pts.push(prev); MAPROUTE.stops.forEach((st,k)=>{ const d=[st.g.lat,st.g.lon]; trail(prev,d,"#B26B0B"); smark(d,"D"+(k+1),"D","#B26B0B"); pts.push(d); prev=d; }); trail(prev,[BASE.lat,BASE.lon],"#6C5CE0","4 8"); L.marker([BASE.lat,BASE.lon],{icon:L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:'<div style="width:30px;height:30px;border-radius:50%;background:#1F2329;color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font:700 12px Barlow Condensed">NJ</div>'})}).addTo(LLAYER); }
-  else { back.style.display="none"; let shown=0,total=0; JOBS.filter(j=>!j.carrier).forEach(j=>{ total++; if(!mapPass(j))return; const p=geo(j.pickupZip),d=geo(j.deliveryZip); if(!d)return; shown++; const c=computeJob(j); const col=c.urg.lvl==="red"?"#C0392B":(j.type==="straight"?"#B26B0B":"#3E7CB1"); const a=p?[p.lat,p.lon]:[BASE.lat,BASE.lon],b=[d.lat,d.lon]; trail(a,b,col,j.type==="straight"?null:"8 6"); L.marker(b,{icon:L.divIcon({className:"",iconSize:[24,24],iconAnchor:[12,12],html:'<div style="min-width:24px;height:24px;padding:0 5px;border-radius:12px;background:#fff;border:2.5px solid '+col+';display:flex;align-items:center;justify-content:center;font:600 12px Barlow Condensed;color:#1F2329">'+esc(j.destState||"")+'</div>'})}).addTo(LLAYER); pts.push(a,b); }); const mc=$("#mfcount"); if(mc) mc.textContent=shown+" of "+total+" jobs shown"; }
+  else { back.style.display="none"; let shown=0,total=0; JOBS.filter(j=>!j.carrier&&!j._hiddenBy).forEach(j=>{ total++; if(!mapPass(j))return; const p=geo(j.pickupZip),d=geo(j.deliveryZip); if(!d)return; shown++; const c=computeJob(j); const col=c.urg.lvl==="red"?"#C0392B":(j.type==="straight"?"#B26B0B":"#3E7CB1"); const a=p?[p.lat,p.lon]:[BASE.lat,BASE.lon],b=[d.lat,d.lon]; trail(a,b,col,j.type==="straight"?null:"8 6"); L.marker(b,{icon:L.divIcon({className:"",iconSize:[24,24],iconAnchor:[12,12],html:'<div style="min-width:24px;height:24px;padding:0 5px;border-radius:12px;background:#fff;border:2.5px solid '+col+';display:flex;align-items:center;justify-content:center;font:600 12px Barlow Condensed;color:#1F2329">'+esc(j.destState||"")+'</div>'})}).addTo(LLAYER); pts.push(a,b); }); const mc=$("#mfcount"); if(mc) mc.textContent=shown+" of "+total+" jobs shown"; }
   if(pts.length) try{ LMAP.fitBounds(pts,{padding:[50,50]}); }catch(e){}
   setTimeout(()=>{ try{ LMAP&&LMAP.invalidateSize(); }catch(e){} },200);
 }
