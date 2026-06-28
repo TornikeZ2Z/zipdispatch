@@ -553,7 +553,7 @@ function computeAll(){
   JOBS.forEach(j=>{ j.locOverride=LOCS[j.code]||""; });
   let carrier=0,gap=0,hid=0; const revSeen={};
   JOBS.forEach(j=>{ if(j._hiddenBy){ hid++; return; } if(j._reviewReq) revSeen[j._reviewReq]=1; const c=computeJob(j); j._c=c; if(c.state==="At Carrier")carrier++; if(c.gaps.length)gap++; });
-  $("#cwcount").textContent=carrier; const md=$("#mdcount"); if(md) md.textContent=gap+hid+Object.keys(revSeen).length;
+  $("#cwcount").textContent=carrier; const de=JOBS.filter(j=>!j._hiddenBy&&dateIssues(j,j._c||computeJob(j)).length).length; const md=$("#mdcount"); if(md) md.textContent=gap+hid+Object.keys(revSeen).length+de;
   renderStats(carrier);
 }
 /* group a Request #'s events into ONE job: keep the pickup/move, hide its delivery/packing/duplicate events from the planning views */
@@ -573,14 +573,27 @@ function groupEvents(){
     if(linked.length) primary._linked=linked;
   });
 }
+/* logically-impossible dates the dispatcher should fix in the sheet */
+function dateIssues(j,c){ const out=[]; const pick=j.eventDate; if(!pick) return out; const P=midnight(pick);
+  const delv=c.isS?j.fad:c.winEnd;
+  if(delv && P>midnight(delv)) out.push("Pickup "+fmt(pick)+" is AFTER the delivery "+(c.isS?"date":"window end")+" ("+fmt(delv)+")");
+  if(!c.isS && j.fad && c.winEnd && midnight(c.winEnd)<midnight(j.fad)) out.push("Delivery window ends "+fmt(c.winEnd)+" before it starts "+fmt(j.fad));
+  return out;
+}
 function renderMissing(){
   const host=$("#missingwrap");
   const hidden=JOBS.filter(j=>j._hiddenBy);
   const revSeen={}, review=[]; JOBS.forEach(j=>{ if(j._reviewReq&&!revSeen[j._reviewReq]){ revSeen[j._reviewReq]=1; review.push(JOBS.filter(x=>x._reviewReq===j._reviewReq)); } });
   const gapRows=JOBS.filter(j=>!j._hiddenBy && (j._c||computeJob(j)).gaps.length).map(j=>({j,c:j._c||computeJob(j)}));
   gapRows.sort((a,b)=>((a.c.critGap?0:1)-(b.c.critGap?0:1))||((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
-  if(!hidden.length && !review.length && !gapRows.length){ host.innerHTML='<div class="empty"><b>All clean</b>No grouped events, duplicates to review, or missing fields.</div>'; return; }
+  const dateErr=JOBS.filter(j=>!j._hiddenBy).map(j=>{const c=j._c||computeJob(j);return {j,c,issues:dateIssues(j,c)};}).filter(x=>x.issues.length);
+  if(!hidden.length && !review.length && !gapRows.length && !dateErr.length){ host.innerHTML='<div class="empty"><b>All clean</b>No date errors, grouped events, duplicates, or missing fields.</div>'; return; }
   let html="";
+  if(dateErr.length){
+    const db=dateErr.map(x=>{ const j=x.j; return '<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td>'+(x.c.isS?"Straight":"Regular")+'</td><td>'+(j.eventDate?fmt(j.eventDate):"&mdash;")+'</td><td style="color:var(--hazard);font-weight:600">'+esc(x.issues.join("; "))+'</td></tr>'; }).join("");
+    html+='<p class="cwnote"><b style="color:var(--hazard)">&#9888; Impossible dates &mdash; fix in the sheet.</b> The pickup falls after the delivery date/window (or after the trip must depart), so these can&#39;t be delivered as entered.</p>'+
+      '<div class="cwwrap" style="margin-bottom:26px"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Pickup</th><th>Problem</th></tr></thead><tbody>'+db+'</tbody></table></div>';
+  }
   if(hidden.length){
     const hb=hidden.map(j=>'<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td><span class="miss">'+esc(j._role)+'</span></td><td>'+(j.eventDate?fmt(j.eventDate):"&mdash;")+'</td><td><span class="c-code">'+esc(j._hiddenBy)+'</span></td></tr>').join("");
     html+='<p class="cwnote"><b>Grouped &mdash; hidden from the planning views.</b> Each event was auto-matched to another job with the same Request # (its delivery / packing / duplicate event), so it no longer shows as its own job. Set <b>Is Delivery</b> or <b>Pickup Job Code</b> in the sheet to make it explicit.</p>'+
