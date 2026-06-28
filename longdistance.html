@@ -214,6 +214,13 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 .pkft{display:flex;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--line)}
 .pkll{font-size:12.5px;color:var(--dim);font-family:'IBM Plex Mono'}
 .pkft .save{margin-left:auto}
+.iss{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;font-family:'IBM Plex Mono';white-space:nowrap}
+.iss.de{background:var(--hazard-bg);color:var(--hazard);border:1px solid var(--hazard-bd)}
+.iss.mf{background:var(--rental-bg);color:var(--rental);border:1px solid var(--rental-bd)}
+.iss.du{background:var(--travel-bg);color:var(--travel);border:1px solid var(--travel-bd)}
+.iss.gr{background:var(--paper);color:var(--dim);border:1px solid var(--line2)}
+.iss-open{border:1px solid var(--line2);background:var(--card);border-radius:7px;padding:4px 12px;font-size:12px;color:var(--ink);cursor:pointer;font-weight:600;white-space:nowrap}
+.iss-open:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .bhbox{background:var(--card);border:1px solid var(--line2);border-radius:16px;width:480px;max-width:94vw;box-shadow:0 24px 60px -16px rgba(31,34,38,.5);overflow:hidden}
 .bhhd{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line)}
 .bhhd b{font-family:'Barlow Condensed';font-weight:600;font-size:20px}
@@ -309,7 +316,7 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
   <a class="back" href="index.html" title="Back to all tools">&#8249;</a>
   <img id="brandlogo" src="logo.png" alt="Zip To Zip" onerror="this.style.display='none'">
   <div><h1>Long Distance Planning</h1><div class="hsub">Operations planning &middot; what should dispatch do with each job</div></div>
-  <div class="tabs"><button class="tab on" data-tab="timeline">Timeline</button><button class="tab" data-tab="routes">Routes<span class="b" id="rcount">0</span></button><button class="tab" data-tab="map">Map</button><button class="tab" data-tab="missing">Missing Data<span class="b" id="mdcount">0</span></button><button class="tab" data-tab="carrier">Carrier Watch<span class="b" id="cwcount">0</span></button></div>
+  <div class="tabs"><button class="tab on" data-tab="timeline">Timeline</button><button class="tab" data-tab="routes">Routes<span class="b" id="rcount">0</span></button><button class="tab" data-tab="map">Map</button><button class="tab" data-tab="missing">Data Issues<span class="b" id="mdcount">0</span></button><button class="tab" data-tab="carrier">Carrier Watch<span class="b" id="cwcount">0</span></button></div>
   <div class="stats" id="stats"></div>
   <button id="refreshbtn">&#8635; Refresh</button>
   <span id="rfstamp"></span>
@@ -616,35 +623,18 @@ function dateIssues(j,c){ const out=[]; const CF=Math.round(j.cf||0);
 }
 function renderMissing(){
   const host=$("#missingwrap");
-  const hidden=JOBS.filter(j=>j._hiddenBy);
-  const revSeen={}, review=[]; JOBS.forEach(j=>{ if(j._reviewReq&&!revSeen[j._reviewReq]){ revSeen[j._reviewReq]=1; review.push(JOBS.filter(x=>x._reviewReq===j._reviewReq)); } });
-  const gapRows=JOBS.filter(j=>!j._hiddenBy && (j._c||computeJob(j)).gaps.length).map(j=>({j,c:j._c||computeJob(j)}));
-  gapRows.sort((a,b)=>((a.c.critGap?0:1)-(b.c.critGap?0:1))||((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
-  const dateErr=JOBS.filter(j=>!j._hiddenBy).map(j=>{const c=j._c||computeJob(j);return {j,c,issues:dateIssues(j,c)};}).filter(x=>x.issues.length);
-  if(!hidden.length && !review.length && !gapRows.length && !dateErr.length){ host.innerHTML='<div class="empty"><b>All clean</b>No date errors, grouped events, duplicates, or missing fields.</div>'; return; }
-  let html="";
-  if(dateErr.length){
-    const db=dateErr.map(x=>{ const j=x.j; return '<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td>'+(x.c.isS?"Straight":"Regular")+'</td><td>'+(j.eventDate?fmt(j.eventDate):"&mdash;")+'</td><td style="color:var(--hazard);font-weight:600">'+esc(x.issues.join("; "))+'</td></tr>'; }).join("");
-    html+='<p class="cwnote"><b style="color:var(--hazard)">&#9888; Data errors &mdash; fix in the sheet.</b> Impossible dates (pickup after the delivery date/window), over-capacity loads that must go to a carrier, or suspicious CF values.</p>'+
-      '<div class="cwwrap" style="margin-bottom:26px"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Pickup</th><th>Problem</th></tr></thead><tbody>'+db+'</tbody></table></div>';
-  }
-  if(hidden.length){
-    const hb=hidden.map(j=>'<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td><span class="miss">'+esc(j._role)+'</span></td><td>'+(j.eventDate?fmt(j.eventDate):"&mdash;")+'</td><td><span class="c-code">'+esc(j._hiddenBy)+'</span></td></tr>').join("");
-    html+='<p class="cwnote"><b>Grouped &mdash; hidden from the planning views.</b> Each event was auto-matched to another job with the same Request # (its delivery / packing / duplicate event), so it no longer shows as its own job. Set <b>Is Delivery</b> or <b>Pickup Job Code</b> in the sheet to make it explicit.</p>'+
-      '<div class="cwwrap" style="margin-bottom:26px"><table class="cw"><thead><tr><th>Hidden event</th><th>Customer</th><th>Detected as</th><th>Event date</th><th>Folded into job</th></tr></thead><tbody>'+hb+'</tbody></table></div>';
-  }
-  if(review.length){
-    const rb=review.map(grp=>'<tr data-job="'+esc(grp[0].code)+'"><td>'+grp.map(j=>'<span class="c-code">'+esc(j.code)+'</span>').join(" + ")+'</td><td>'+esc(grp[0].customer||"")+'</td><td>Req #'+esc(grp[0].requestNo)+'</td><td>'+grp.map(j=>Math.round(j.cf||0)).join(" / ")+' cf</td></tr>').join("");
-    html+='<p class="cwnote"><b>Possible duplicates &mdash; please review.</b> These share a Request # but their CFs differ, so I kept them separate (could be two trucks, or a duplicate to merge). Decide and fix the sheet.</p>'+
-      '<div class="cwwrap" style="margin-bottom:26px"><table class="cw"><thead><tr><th>Jobs (same request)</th><th>Customer</th><th>Request</th><th>CF each</th></tr></thead><tbody>'+rb+'</tbody></table></div>';
-  }
-  html+='<p class="cwnote">Jobs missing fields needed to plan them &mdash; <span class="miss crit">red</span> blocks planning entirely.</p>';
-  if(!gapRows.length){ html+='<div class="empty"><b>No missing fields</b>Every job has the fields needed to plan it.</div>'; }
-  else {
-    const gb=gapRows.map(x=>{ const j=x.j,c=x.c; const miss=c.gaps.map(g=>'<span class="miss'+((g==="FAD"||g==="Delivery timeframe")?" crit":"")+'">'+esc(g)+'</span>').join(" "); return '<tr data-job="'+esc(j.code)+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td>'+(c.isS?"Straight":"Regular")+'</td><td>'+miss+'</td><td>'+(j.fad?fmt(j.fad):"&mdash;")+'</td><td>'+Math.round(j.cf||0).toLocaleString()+'</td><td>'+(j.eventDate?fmt(j.eventDate):"&mdash;")+'</td></tr>'; }).join("");
-    html+='<div class="cwwrap"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Missing</th><th>FAD</th><th>CF</th><th>Pickup</th></tr></thead><tbody>'+gb+'</tbody></table></div>';
-  }
-  host.innerHTML=html;
+  const rows=[];
+  JOBS.filter(j=>!j._hiddenBy).forEach(j=>{ const c=j._c||computeJob(j);
+    const de=dateIssues(j,c); if(de.length) rows.push({code:j.code,cust:j.customer||"",type:c.isS?"Straight":"Regular",cat:"Data error",cls:"de",sev:0,fad:j.fad,details:de.join("; ")});
+    if(c.gaps.length){ const crit=c.critGap; rows.push({code:j.code,cust:j.customer||"",type:c.isS?"Straight":"Regular",cat:crit?"Blocking gap":"Missing field",cls:crit?"de":"mf",sev:crit?1:2,fad:j.fad,details:"Missing: "+c.gaps.join(", ")}); }
+  });
+  const revSeen={}; JOBS.forEach(j=>{ if(j._reviewReq&&!revSeen[j._reviewReq]){ revSeen[j._reviewReq]=1; const grp=JOBS.filter(x=>x._reviewReq===j._reviewReq); rows.push({code:grp[0].code,cust:grp[0].customer||"",type:"",cat:"Duplicate?",cls:"du",sev:3,fad:grp[0].fad,details:"Shares Request #"+j._reviewReq+" with "+grp.map(g=>g.code).join(" + ")+" ("+grp.map(g=>Math.round(g.cf||0)).join(" / ")+" cf) - two trucks, or a duplicate to merge?"}); } });
+  JOBS.filter(j=>j._hiddenBy).forEach(j=>{ rows.push({code:j.code,cust:j.customer||"",type:"",cat:"Grouped",cls:"gr",sev:4,fad:j.fad,details:(j._role||"event")+(j.eventDate?(" "+fmt(j.eventDate)):"")+" - auto-folded into "+j._hiddenBy+" (same Request #)"}); });
+  if(!rows.length){ host.innerHTML='<div class="empty"><b>All clean</b>No data errors, missing fields, duplicates, or grouped events.</div>'; return; }
+  rows.sort((a,b)=>(a.sev-b.sev)||((a.fad?midnight(a.fad).getTime():9e15)-(b.fad?midnight(b.fad).getTime():9e15)));
+  const body=rows.map(r=>'<tr data-job="'+esc(r.code)+'"><td class="c-code">'+esc(r.code)+'</td><td>'+esc(r.cust)+'</td><td>'+esc(r.type)+'</td><td><span class="iss '+r.cls+'">'+esc(r.cat)+'</span></td><td>'+esc(r.details)+'</td><td style="text-align:right"><button class="iss-open" data-open="'+esc(r.code)+'">Open &rsaquo;</button></td></tr>').join("");
+  host.innerHTML='<p class="cwnote">Everything that needs a fix, in one place &mdash; correct the source in the sheet, or click <b>Open</b> to view the job. <span class="iss de">Data error</span> impossible date / over-capacity / bad CF &nbsp; <span class="iss mf">Missing field</span> &nbsp; <span class="iss du">Duplicate?</span> &nbsp; <span class="iss gr">Grouped</span></p><div class="cwwrap"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Issue</th><th>Details</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  host.querySelectorAll("[data-open]").forEach(el=>el.onclick=e=>{ e.stopPropagation(); openDrawer(el.getAttribute("data-open")); });
   host.querySelectorAll("tr[data-job]").forEach(el=>el.onclick=()=>openDrawer(el.dataset.job));
 }
 function renderStats(carrier){
