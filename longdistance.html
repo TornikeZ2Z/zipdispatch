@@ -749,10 +749,10 @@ function buildSuggestions(){
 /* can the truck physically reach each stop by its delivery date? (~11h driving/day + 1d unload between stops) */
 function routeFeasible(stops){
   const dl=st=>{ const j=st.j; if(j.type==="straight") return j.fad?midnight(j.fad):null; return (st.w&&st.w.e)?midnight(st.w.e):null; };
-  const ss=stops.filter(st=>dl(st)).sort((a,b)=>dl(a)-dl(b)); const issues=[]; const HPD=11; const today=today0(); let prev=null;
-  ss.forEach((st)=>{ const from=prev?prev.g:BASE; const driveD=Math.ceil((dMin(from,st.g)||0)/(60*HPD));
-    if(prev){ const gap=Math.round((dl(st)-dl(prev))/86400000); const need=driveD+1; if(need>gap) issues.push(st.j.code+" "+(st.j.destState||"")+": needs ~"+need+"d after "+prev.j.code+", but their dates are "+gap+"d apart"); }
-    else { const lead=Math.round((dl(st)-today)/86400000); if(driveD>lead) issues.push(st.j.code+": ~"+driveD+"d drive from base, only "+lead+"d until "+fmt(dl(st))); }
+  const ss=stops.filter(st=>dl(st)).sort((a,b)=>dl(a)-dl(b)); const issues=[]; const HPD=11, TOL=0.4; const today=today0(); let prev=null;
+  ss.forEach((st)=>{ const from=prev?prev.g:BASE; const needD=(dMin(from,st.g)||0)/(60*HPD); const nd=Math.round(needD*10)/10;
+    if(prev){ const gap=Math.round((dl(st)-dl(prev))/86400000); if(needD>gap+TOL) issues.push(st.j.code+" "+(st.j.destState||"")+": ~"+nd+"d drive after "+prev.j.code+", but only "+gap+"d between their dates"); }
+    else { const lead=Math.round((dl(st)-today)/86400000); if(needD>lead+TOL) issues.push(st.j.code+": ~"+nd+"d drive from base, only "+lead+"d until "+fmt(dl(st))); }
     prev=st; });
   return {ok:issues.length===0, issues:issues};
 }
