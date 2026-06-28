@@ -222,6 +222,15 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 .dw-bh:hover{border-color:var(--rental)}
 .dw-bh.found{background:var(--fleet-bg);color:var(--fleet);border-color:var(--fleet-bd);cursor:default}
 .dw-linked{padding:10px 16px;background:var(--travel-bg);border-bottom:1px solid var(--line);font-size:12.5px;color:#5A4FB8;font-weight:600;line-height:1.45}
+.dw-loc{margin-top:13px;padding:11px 13px;background:var(--paper);border:1px solid var(--line);border-radius:10px;font-size:13px}
+.dw-loc-l{font:700 10px Inter;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+.dw-loc-v{font-weight:600;color:var(--ink)}
+.dw-loc-edit{border:0;background:none;color:var(--travel);font:600 12px Inter;cursor:pointer;text-decoration:underline;margin-left:5px}
+.dw-loc-form{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.dw-loc-b{border:1px solid var(--line2);background:var(--card);border-radius:8px;font:600 12px Inter;padding:6px 10px;cursor:pointer}
+.dw-loc-b:hover{border-color:var(--ink)}
+.dw-loc-b.save{background:var(--ink);color:#fff;border-color:var(--ink)}
+.dw-loc-zip{border:1px solid var(--line2);border-radius:8px;padding:6px 8px;font:600 12px Inter;width:96px}
 #rtside{flex:0 0 50%;position:sticky;top:80px;height:calc(100vh - 165px);min-height:460px;display:none;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#E9F0F1;box-shadow:0 1px 2px rgba(31,34,38,.04),0 22px 46px -30px rgba(31,34,38,.26)}
 #rtside.show{display:block}
 #rtsmap{position:absolute;inset:0}
@@ -238,6 +247,13 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 .rtsub{font-size:12px;color:var(--dim);margin-top:2px;line-height:1.4}
 .rtgap{margin:5px 0 5px 11px;padding:3px 0 3px 14px;border-left:2px dashed var(--line2);font-size:11.5px;color:var(--faint);font-weight:600}
 .sug.sel{border-color:var(--travel);box-shadow:0 0 0 2px var(--travel-bd)}
+.rtok{color:var(--fleet);font-weight:700}
+.rtwarn{color:var(--hazard);font-weight:700}
+.sugwarn{margin:9px 0 0;padding:9px 12px;background:var(--hazard-bg);border:1px solid var(--hazard-bd);border-radius:9px;font-size:12.5px;color:var(--hazard);font-weight:600;line-height:1.45}
+.sug.risk{border-color:var(--hazard-bd)}
+.rtfeas{padding:11px 16px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:600;line-height:1.45}
+.rtfeas.ok{color:var(--fleet);background:var(--fleet-bg)}
+.rtfeas.warn{color:var(--hazard);background:var(--hazard-bg)}
 #mapwrap{position:relative}
 #map{width:100%;height:calc(100vh - 210px);min-height:440px;border:1px solid var(--line);border-radius:14px;background:#E9F0F1}
 #mapback{position:absolute;top:14px;left:14px;z-index:600;font:600 14px Inter;border:1.5px solid var(--line2);background:var(--card);border-radius:9px;padding:8px 12px;cursor:pointer}
@@ -306,11 +322,11 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 "use strict";
 /* ===== config ===== */
 const SHEET_ID="1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs";
-const JOBS_TAB="Long Distance Data", STORAGE_TAB="Storage Management", ROUTES_TAB="Routes";
+const JOBS_TAB="Long Distance Data", STORAGE_TAB="Storage Management", ROUTES_TAB="Routes", LOCATIONS_TAB="LD Locations";
 const TRIP_FALLBACK=1, LEAVE_SOON=2, PICKUP_SOON=7, KEEP_PAST_DAYS=60;
 const OUR_STATES=["NJ","PA","NY","DE","CT","MA"];
 const ZIPDB=window.ZIPDB||{};
-let JOBS=[], STORAGE={}, ROUTED=new Set(), TAB="timeline", TLVIEW="timeline", SELJOB=null, BACKHAUL_FOUND=new Set();
+let JOBS=[], STORAGE={}, ROUTED=new Set(), LOCS={}, TAB="timeline", TLVIEW="timeline", SELJOB=null, BACKHAUL_FOUND=new Set();
 const LOCAL = location.hostname===""||location.hostname==="localhost"||location.hostname.indexOf("127.")===0||location.protocol==="file:";
 function b64csv(b){ try{ return decodeURIComponent(escape(atob(b))); }catch(e){ try{ return atob(b); }catch(_){ return ""; } } }
 
@@ -378,6 +394,23 @@ function loadKV(tab, build, localB64){
 }
 function loadStorage(){ return loadKV(STORAGE_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]={ address:g(r,"storage address")||g(r,"address"), location:g(r,"storage location")||g(r,"storage location label"), unit:g(r,"storage unit")||g(r,"unit number"), cf:g(r,"storage cf")||g(r,"chargeable cf") }; }, window.LD_LOCAL_STORAGE_B64).then(s=>{STORAGE=s;}); }
 function loadRoutes(){ return loadKV(ROUTES_TAB,(s,g,r)=>{ String(g(r,"job codes")||"").split(/[,;]+/).forEach(x=>{ x=x.trim(); if(x)s[x]=1; }); }).then(s=>{ ROUTED=new Set(Object.keys(s)); }).catch(()=>{}); }
+/* ===== current-location override (editable, persisted, last-write-wins) ===== */
+function loadLocations(){ return loadKV(LOCATIONS_TAB,(s,g,r)=>{ const code=g(r,"job code"); if(code) s[code]=g(r,"location"); }).then(s=>{ LOCS=s; }).catch(()=>{}); }
+function curLocGeo(j,c){ const o=j.locOverride;
+  if(o==="BASE") return {lat:BASE.lat,lon:BASE.lon,base:true};
+  if(o==="PICKUP"){ const p=geo(j.pickupZip); return p?{lat:p.lat,lon:p.lon,base:false}:{lat:BASE.lat,lon:BASE.lon,base:true}; }
+  if(o&&/^\d{5}$/.test(o)){ const g2=geo(o); if(g2) return {lat:g2.lat,lon:g2.lon,base:false,zip:o}; }
+  if(atBaseNow(c)) return {lat:BASE.lat,lon:BASE.lon,base:true};
+  const p=geo(j.pickupZip); return p?{lat:p.lat,lon:p.lon,base:false}:{lat:BASE.lat,lon:BASE.lon,base:true};
+}
+function curLocLabel(j,c){ const o=j.locOverride;
+  if(o==="BASE") return "Base (NJ) (set)";
+  if(o==="PICKUP") return "Pickup origin (set)";
+  if(o&&/^\d{5}$/.test(o)) return "Storage "+o+" (set)";
+  if(atBaseNow(c)) return "Base (NJ)";
+  return "Pickup origin"+(j.pickupState?(" ("+j.pickupState+")"):"");
+}
+function setLocation(code,val){ const j=jobByCode(code); if(!j) return; toast("Saving location to the sheet..."); ensureGToken(()=>{ shAppendRow(LOCATIONS_TAB,{"Job Code":code,"Location":val,"Updated":new Date().toISOString()}).then(()=>{ j.locOverride=val; toast("Location updated for "+code); computeAll(); if(TAB==="timeline") renderTimeline(); if(SELJOB===code){ const c=j._c||computeJob(j); fillJobCard(j,c); showJobMap(j); } }).catch(e=>{ toast("Save failed: "+((e&&e.message)||e)); }); }); }
 /* ===== Google sign-in + Sheets write (persist accepted routes) ===== */
 const G_CLIENT_ID="712386117874-epqesoppk5fftq0j2gpp7becbk7cu72q.apps.googleusercontent.com", G_SCOPE_VER="ld-sheets-1";
 let GTOKEN=null,GTOKEXP=0,_gtc=null;
@@ -517,6 +550,7 @@ function jobCard(j,c){
 }
 function computeAll(){
   groupEvents();
+  JOBS.forEach(j=>{ j.locOverride=LOCS[j.code]||""; });
   let carrier=0,gap=0,hid=0; const revSeen={};
   JOBS.forEach(j=>{ if(j._hiddenBy){ hid++; return; } if(j._reviewReq) revSeen[j._reviewReq]=1; const c=computeJob(j); j._c=c; if(c.state==="At Carrier")carrier++; if(c.gaps.length)gap++; });
   $("#cwcount").textContent=carrier; const md=$("#mdcount"); if(md) md.textContent=gap+hid+Object.keys(revSeen).length;
@@ -632,12 +666,22 @@ function jobDetailHTML(j,c,withMap){
   const mapbtn=(withMap&&geo(j.deliveryZip))?'<button class="dw-mapbtn" id="dwmap">&#128205; Show route on map</button>':"";
   let bh=""; if(c.isS && j.destState && OUR_STATES.indexOf(j.destState)<0){ bh=BACKHAUL_FOUND.has(j.code)?'<div class="dw-bh found">&#9989; Backhaul: cargo found</div>':'<button class="dw-bh" data-bh="'+esc(j.code)+'">&#128666; Find backhaul &mdash; truck returns empty</button>'; }
   let lk=""; if(j._linked&&j._linked.length){ lk='<div class="dw-linked">&#128279; Groups '+j._linked.map(l=>esc(l.role)+' event <b>'+esc(l.code)+'</b>').join(", ")+' (hidden from the board)</div>'; }
-  return '<div class="dw-do '+u+'"><span class="k">Do</span><span>'+esc(c.action)+'</span></div>'+lk+'<div class="dw-sec"><h4>Route</h4>'+legs+mapbtn+bh+'</div><div class="dw-sec"><h4>Details</h4><div class="dw-grid">'+fields+'</div></div><div class="dw-sec"><h4>Status</h4><div class="dw-dims">'+chips+'</div></div>'+gaps;
+  const locSec='<div class="dw-loc"><span class="dw-loc-l">Currently at</span> <span class="dw-loc-v">'+esc(curLocLabel(j,c))+'</span> <button class="dw-loc-edit" data-locedit="'+esc(j.code)+'">change</button><div class="dw-loc-form" data-locform="'+esc(j.code)+'" style="display:none"><button class="dw-loc-b" data-locset="'+esc(j.code)+'|BASE">Base</button><button class="dw-loc-b" data-locset="'+esc(j.code)+'|PICKUP">Pickup</button><input class="dw-loc-zip" data-loczip="'+esc(j.code)+'" placeholder="storage ZIP" maxlength="5" inputmode="numeric"><button class="dw-loc-b save" data-locsave="'+esc(j.code)+'">Save</button></div></div>';
+  return '<div class="dw-do '+u+'"><span class="k">Do</span><span>'+esc(c.action)+'</span></div>'+lk+'<div class="dw-sec"><h4>Route</h4>'+legs+locSec+mapbtn+bh+'</div><div class="dw-sec"><h4>Details</h4><div class="dw-grid">'+fields+'</div></div><div class="dw-sec"><h4>Status</h4><div class="dw-dims">'+chips+'</div></div>'+gaps;
 }
 function initSideMap(){ if(SMAP||typeof L==="undefined")return; const el=$("#tlsmap"); if(!el)return; try{ SMAP=L.map("tlsmap",{zoomControl:false}); L.control.zoom({position:"bottomright"}).addTo(SMAP); L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"OpenStreetMap, CARTO"}).addTo(SMAP); SMAP.setView([40.5,-77],6); SLAYER=L.layerGroup().addTo(SMAP);}catch(e){SMAP=null;} }
 function sTrail(a,b,col,dash){ const ln=L.polyline([a,b],{color:col,weight:4,opacity:.95,dashArray:dash||null}).addTo(SLAYER); const sq=sSeq; truckRoute(a,b).then(p=>{ if(sq===sSeq&&p){try{ln.setLatLngs(p);}catch(e){}} }); }
 function sMark(pt,lab,kind,col){ return L.marker(pt,{icon:L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:'<div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px Barlow Condensed;'+(kind==="P"?"background:#2E333A;color:#fff;border:2px solid #fff":"background:#fff;color:"+col+";border:2.5px solid "+col)+';box-shadow:0 1px 5px rgba(0,0,0,.35)">'+lab+'</div>'})}).addTo(SLAYER); }
-function showJobMap(j){ initSideMap(); if(!SMAP)return; try{SLAYER.clearLayers();}catch(e){} sSeq++; const p=geo(j.pickupZip),d=geo(j.deliveryZip); const a=p?[p.lat,p.lon]:[BASE.lat,BASE.lon]; const c=j._c||computeJob(j); const col=c.urg.lvl==="red"?"#C0392B":(j.type==="straight"?"#B26B0B":"#3E7CB1"); const pts=[a]; sMark(a,"P","P",col); if(d){ const b=[d.lat,d.lon]; sTrail(a,b,col,j.type==="straight"?null:"8 6"); sMark(b,esc(j.destState||"D"),"D",col); pts.push(b);} setTimeout(()=>{ try{ SMAP.invalidateSize(); if(pts.length>1)SMAP.fitBounds(pts,{padding:[70,70]}); else SMAP.setView(a,7);}catch(e){} },240); }
+/* goods are at BASE once picked up / in storage; otherwise still at the pickup origin */
+function atBaseNow(c){ return c.state==="Picked Up"||c.state==="In Storage"; }
+function showJobMap(j){ initSideMap(); if(!SMAP)return; try{SLAYER.clearLayers();}catch(e){} sSeq++;
+  const c=j._c||computeJob(j); const d=geo(j.deliveryZip); const col=c.urg.lvl==="red"?"#C0392B":(j.type==="straight"?"#B26B0B":"#3E7CB1");
+  const base=[BASE.lat,BASE.lon]; const loc=curLocGeo(j,c); const start=[loc.lat,loc.lon]; const pts=[];
+  const pickupLoc=(j.locOverride==="PICKUP")||(!j.locOverride&&!atBaseNow(c)&&!!geo(j.pickupZip));
+  if(pickupLoc){ sTrail(start,base,"#A8AEB5","5 7"); sMark(start,"P","P","#2E333A"); sMark(base,"NJ","P","#1F2329"); pts.push(start,base); if(d){ const b=[d.lat,d.lon]; sTrail(base,b,col,j.type==="straight"?null:"8 6"); sMark(b,esc(j.destState||"D"),"D",col); pts.push(b); } }
+  else { sMark(start,loc.base?"NJ":"S","P",loc.base?"#1F2329":"#5A4FB8"); pts.push(start); if(d){ const b=[d.lat,d.lon]; sTrail(start,b,col,j.type==="straight"?null:"8 6"); sMark(b,esc(j.destState||"D"),"D",col); pts.push(b); } }
+  setTimeout(()=>{ try{ SMAP.invalidateSize(); if(pts.length>1)SMAP.fitBounds(pts,{padding:[70,70]}); else SMAP.setView(start,7);}catch(e){} },240);
+}
 function fillJobCard(j,c){ const card=$("#tlcard"); card.className="";
   card.innerHTML='<div class="tlc-hd"><span class="code">'+esc(j.code)+'</span><span class="ty '+j.type+'">'+(c.isS?"Straight":"Regular")+'</span><button class="tlc-min" id="tlcmin" title="Minimize">&#8211;</button></div><div class="tlc-body"><div class="dw-hd"><div class="dw-cust">'+esc(j.customer||"(no name)")+'</div></div>'+jobDetailHTML(j,c,false)+'</div>';
   $("#tlcmin").onclick=()=>card.classList.toggle("min");
@@ -668,7 +712,7 @@ function fillRouteCard(s){ const card=$("#rtcard"); card.className="";
   s.stops.forEach((st,k)=>{ const mi=Math.round(hav(prev,st.g)*1.15); const j=st.j; const when=j.type==="straight"?("deliver "+fmt(j.fad)):("by "+fmt(st.w.e)+" (window)"); legs+='<div class="rtgap">&#8595; '+mi.toLocaleString()+' mi</div><div class="rtstop"><span class="rn">'+(k+1)+'</span><div class="rtsi"><b>'+esc(j.code)+'</b> '+esc(j.destCity||j.destState||"")+' '+esc(j.deliveryZip||"")+'<div class="rtsub">'+(j.type==="straight"?"Straight":"Regular &#8594; Straight")+' &middot; '+when+' &middot; '+Math.round(j.cf||0).toLocaleString()+' cf</div></div></div>'; prev=st.g; });
   const back=Math.round(hav(prev,{lat:BASE.lat,lon:BASE.lon})*1.15);
   card.innerHTML='<div class="tlc-hd"><span class="code">Route '+(SELRT+1)+'</span><span class="ty straight">'+s.stops.length+' stops</span><button class="tlc-min" id="rtcmin" title="Minimize">&#8211;</button></div>'+
-    '<div class="tlc-body"><div class="rtmeta">'+Math.round(s.cf||0).toLocaleString()+' cf &middot; Truck '+esc(s.truck.n)+' &middot; ~'+s.miles.toLocaleString()+' mi &middot; '+fmtHrs(s.driveMin)+' drive &middot; +'+fmtHrs(s.detourMin)+' detour</div>'+
+    '<div class="tlc-body"><div class="rtmeta">'+Math.round(s.cf||0).toLocaleString()+' cf &middot; Truck '+esc(s.truck.n)+' &middot; ~'+s.miles.toLocaleString()+' mi &middot; <b>'+(s.miles/Math.max(1,s.cf)).toFixed(1)+' mi/cf</b> &middot; '+fmtHrs(s.driveMin)+' drive &middot; +'+fmtHrs(s.detourMin)+' detour</div>'+(s.feasible.ok?'<div class="rtfeas ok">&#10003; Schedule works for these dates</div>':'<div class="rtfeas warn">&#9888; '+s.feasible.issues.map(esc).join("; ")+'</div>')+
     '<div class="rtitin"><div class="rtstop"><span class="rn base">NJ</span><div class="rtsi"><b>Base</b><div class="rtsub">depart</div></div></div>'+legs+'<div class="rtgap">&#8595; '+back.toLocaleString()+' mi (empty return)</div><div class="rtstop"><span class="rn base">NJ</span><div class="rtsi"><b>Return to base</b><div class="rtsub">empty</div></div></div></div></div>';
   $("#rtcmin").onclick=()=>card.classList.toggle("min");
 }
@@ -676,7 +720,7 @@ function openRouteJourney(i){ const s=(window._SUG||[])[i]; if(!s)return; SELRT=
 function closeRouteJourney(){ SELRT=null; const s=$("#rtside"); if(s)s.classList.remove("show"); document.querySelectorAll("#rtlist .sug.sel").forEach(c=>c.classList.remove("sel")); }
 /* ===== distance + route-suggestion engine (spec sec 8) ===== */
 const TRUCKS=[{n:"#7",cf:1622},{n:"#9",cf:1741},{n:"#15",cf:1741},{n:"#33",cf:1741},{n:"#77",cf:1809},{n:"#10",cf:1741},{n:"#11",cf:1848},{n:"#27",cf:1741}];
-const BASE={lat:40.23,lon:-74.30}, TRUCK_MAX=1500, DETOUR_MAX=180, ROUTE_SPAN=5, MAX_PAIR_MI=450;
+const BASE={lat:40.23,lon:-74.30}, TRUCK_MAX=1500, DETOUR_MAX=180, ROUTE_SPAN=5, MAX_PAIR_MI=450, MAX_MI_PER_CF=2.5;
 const HERE_KEY="0IGXB_hGz84InzFmhfCygxp27_54NI-LkjL6N5RSYT8";
 let LMAP=null,LLAYER=null,MAPROUTE=null,MAPFOCUS=null,TLSTART=null,drawSeq=0,SMAP=null,SLAYER=null,sSeq=0,RMAP=null,RLAYER=null,rSeq=0,SELRT=null; const _rc={}; const TLDAYS=42;
 function hav(a,b){ if(!a||!b||a.lat==null) return 0; const R=3959,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180,h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
@@ -686,6 +730,7 @@ function fitTruck(cf){ const ts=TRUCKS.slice().sort((a,b)=>a.cf-b.cf); return ts
 function fmtHrs(m){ m=Math.round(m); const h=Math.floor(m/60),r=m%60; return h?(h+"h"+(r?" "+r+"m":"")):(r+"m"); }
 function delWindow(j){ const tf=parseTimeframe(j.timeframeRaw,j.fad); if(j.type==="straight") return j.fad?{s:j.fad,e:j.fad}:null; return (j.fad&&tf)?{s:j.fad,e:tf.end}:null; }
 function routeDrive(stops){ let m=0,prev=BASE; stops.forEach(s=>{ m+=dMin(prev,s.g); prev=s.g; }); return m+dMin(prev,BASE); }
+function routeMi(stops){ let m=0,prev=BASE; stops.forEach(s=>{ m+=hav(prev,s.g); prev=s.g; }); return (m+hav(prev,BASE))*1.15; }
 function orderStops(stops){ const S=stops.filter(s=>s.j.type==="straight").sort((a,b)=>midnight(a.w.s)-midnight(b.w.s)); const R=stops.filter(s=>s.j.type!=="straight").sort((a,b)=>midnight(a.w.s)-midnight(b.w.s)); return S.concat(R); }
 function compatible(stops,x){ const all=stops.concat([x]); const ls=Math.max.apply(null,all.map(s=>midnight(s.w.s).getTime())); const ee=Math.min.apply(null,all.map(s=>midnight(s.w.e).getTime())); return ls<=ee+ROUTE_SPAN*86400000; }
 function buildSuggestions(){
@@ -693,11 +738,21 @@ function buildSuggestions(){
   cand.sort((a,b)=>midnight(a.w.s)-midnight(b.w.s));
   const used=new Set(), out=[];
   cand.forEach(seed=>{ if(used.has(seed.j.code))return; let stops=[seed]; used.add(seed.j.code); let cf=seed.j.cf,cur=routeDrive(stops);
-    while(true){ let best=null,bi=1e9; cand.forEach(x=>{ if(used.has(x.j.code)||cf+x.j.cf>TRUCK_MAX||!compatible(stops,x)||stops.some(s=>hav(s.g,x.g)>MAX_PAIR_MI))return; const inc=routeDrive(orderStops(stops.concat([x])))-cur; if(inc<=DETOUR_MAX&&inc<bi){best=x;bi=inc;} }); if(!best)break; stops.push(best); used.add(best.j.code); cf+=best.j.cf; cur=routeDrive(orderStops(stops)); }
+    while(true){ let best=null,bi=1e9; const baseMi=routeMi(stops); cand.forEach(x=>{ if(used.has(x.j.code)||cf+x.j.cf>TRUCK_MAX||!compatible(stops,x)||stops.some(s=>hav(s.g,x.g)>MAX_PAIR_MI))return; const incMi=routeMi(orderStops(stops.concat([x])))-baseMi; if(incMi/(x.j.cf||1)>MAX_MI_PER_CF)return; const inc=routeDrive(orderStops(stops.concat([x])))-cur; if(inc<=DETOUR_MAX&&inc<bi){best=x;bi=inc;} }); if(!best)break; stops.push(best); used.add(best.j.code); cf+=best.j.cf; cur=routeDrive(orderStops(stops)); }
     if(stops.length>=2) out.push(mkSug(orderStops(stops))); });
   return out;
 }
-function mkSug(stops){ const cf=stops.reduce((s,x)=>s+x.j.cf,0); const drive=routeDrive(stops); let mi=0,prev=BASE; stops.forEach(s=>{mi+=hav(prev,s.g);prev=s.g;}); mi+=hav(prev,BASE); const baseline=Math.max.apply(null,stops.map(s=>routeDrive([s]))); return {stops,cf,truck:fitTruck(cf),miles:Math.round(mi*1.15),driveMin:Math.round(drive),detourMin:Math.max(0,Math.round(drive-baseline)),converts:stops.filter(s=>s.j.type!=="straight").map(s=>s.j.code),jobs:stops.map(s=>s.j),codes:stops.map(s=>s.j.code)}; }
+/* can the truck physically reach each stop by its delivery date? (~11h driving/day + 1d unload between stops) */
+function routeFeasible(stops){
+  const dl=st=>{ const j=st.j; if(j.type==="straight") return j.fad?midnight(j.fad):null; return (st.w&&st.w.e)?midnight(st.w.e):null; };
+  const ss=stops.filter(st=>dl(st)).sort((a,b)=>dl(a)-dl(b)); const issues=[]; const HPD=11; const today=today0(); let prev=null;
+  ss.forEach((st)=>{ const from=prev?prev.g:BASE; const driveD=Math.ceil((dMin(from,st.g)||0)/(60*HPD));
+    if(prev){ const gap=Math.round((dl(st)-dl(prev))/86400000); const need=driveD+1; if(need>gap) issues.push(st.j.code+" "+(st.j.destState||"")+": needs ~"+need+"d after "+prev.j.code+", but their dates are "+gap+"d apart"); }
+    else { const lead=Math.round((dl(st)-today)/86400000); if(driveD>lead) issues.push(st.j.code+": ~"+driveD+"d drive from base, only "+lead+"d until "+fmt(dl(st))); }
+    prev=st; });
+  return {ok:issues.length===0, issues:issues};
+}
+function mkSug(stops){ const cf=stops.reduce((s,x)=>s+x.j.cf,0); const drive=routeDrive(stops); let mi=0,prev=BASE; stops.forEach(s=>{mi+=hav(prev,s.g);prev=s.g;}); mi+=hav(prev,BASE); const baseline=Math.max.apply(null,stops.map(s=>routeDrive([s]))); return {stops,cf,truck:fitTruck(cf),miles:Math.round(mi*1.15),driveMin:Math.round(drive),detourMin:Math.max(0,Math.round(drive-baseline)),converts:stops.filter(s=>s.j.type!=="straight").map(s=>s.j.code),jobs:stops.map(s=>s.j),codes:stops.map(s=>s.j.code),feasible:routeFeasible(stops)}; }
 function renderRoutes(){
   const host=$("#rtlist"); const sug=buildSuggestions(); window._SUG=sug;
   let html='<p class="cwnote">Distance-based suggestions &mdash; combine jobs (converting Regular &#8594; Straight where the window allows) when the extra detour stays under 3 hours and the load fits one truck.</p>';
@@ -707,7 +762,7 @@ function renderRoutes(){
     if(nR) exp+="Convert "+nR+" Regular &#8594; Straight &mdash; their windows allow delivery on this run. ";
     exp+=Math.round(s.cf).toLocaleString()+" CF fits Truck "+s.truck.n+". ~"+s.miles.toLocaleString()+" mi / "+fmtHrs(s.driveMin)+" drive, +"+fmtHrs(s.detourMin)+" extra detour (under 3h).";
     const stopsH=s.stops.map((st,k)=>{ const j=st.j; const dl=j.type==="straight"?("deliver "+fmt(j.fad)+" (fixed)"):("by "+fmt(st.w.e)+" (window)"); return '<div class="rstop"><span class="rn">'+(k+1)+'</span><b>'+esc(j.code)+'</b> '+esc(j.destState)+' '+(j.type==="straight"?'<span class="ty straight">S</span>':'<span class="ty regular">R&#8594;S</span>')+' &middot; '+dl+'</div>'; }).join("");
-    return '<div class="sug"><div class="sugtop"><span class="sugid">Route '+(i+1)+'</span><span class="sugmeta"><b>'+s.jobs.length+'</b> jobs &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; +'+fmtHrs(s.detourMin)+' detour</span><button class="rbtn" data-rj="'+i+'">Journey</button><button class="rbtn acc" data-acc="'+i+'">Accept route</button></div><div class="sugexp">'+exp+'</div><div class="rstops">'+stopsH+'</div></div>';
+    return '<div class="sug'+(s.feasible.ok?'':' risk')+'"><div class="sugtop"><span class="sugid">Route '+(i+1)+'</span><span class="sugmeta"><b>'+s.jobs.length+'</b> jobs &middot; <b>'+Math.round(s.cf).toLocaleString()+'</b> CF &middot; Truck '+esc(s.truck.n)+' &middot; +'+fmtHrs(s.detourMin)+' detour'+(s.feasible.ok?' &middot; <span class="rtok">&#10003; schedule ok</span>':' &middot; <span class="rtwarn">&#9888; tight schedule</span>')+'</span><button class="rbtn" data-rj="'+i+'">Journey</button><button class="rbtn acc" data-acc="'+i+'">Accept route</button></div><div class="sugexp">'+exp+'</div>'+(s.feasible.ok?'':'<div class="sugwarn">&#9888; '+s.feasible.issues.map(esc).join("; ")+'</div>')+'<div class="rstops">'+stopsH+'</div></div>';
   }).join("");
   host.innerHTML=html;
   host.querySelectorAll("[data-acc]").forEach(el=>el.onclick=()=>{ persistRoute(window._SUG[+el.dataset.acc]); });
@@ -772,7 +827,7 @@ function trail(a,b,col,dash){ const ln=L.polyline([a,b],{color:col,weight:4,opac
 function smark(pt,lab,kind,col){ return L.marker(pt,{icon:L.divIcon({className:"",iconSize:[28,28],iconAnchor:[14,14],html:'<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px Barlow Condensed;'+(kind==="P"?"background:#2E333A;color:#fff;border:2px solid #fff":"background:#fff;color:"+col+";border:2.5px solid "+col)+';box-shadow:0 1px 4px rgba(0,0,0,.3)">'+lab+'</div>'})}).addTo(LLAYER); }
 function mapPass(j){ const ty=($("#mfType")||{}).value||"all"; if(ty!=="all"&&j.type!==ty) return false; const fromV=($("#mfFrom")||{}).value||"", toV=($("#mfTo")||{}).value||""; if(fromV||toV){ const w=delWindow(j); if(!w) return false; if(fromV){ const f=new Date(fromV+"T00:00:00"); if(w.e&&midnight(w.e)<f) return false; } if(toV){ const t2=new Date(toV+"T00:00:00"); if(w.s&&midnight(w.s)>t2) return false; } } return true; }
 function renderMap(){ initMap2(); if(!LMAP||!LLAYER)return; try{LLAYER.clearLayers();}catch(e){} drawSeq++; const pts=[]; const back=$("#mapback"); const mc0=$("#mfcount"); if(mc0)mc0.textContent="";
-  if(MAPFOCUS){ back.style.display=""; const fj=MAPFOCUS, fp=geo(fj.pickupZip), fd=geo(fj.deliveryZip); const fa=fp?[fp.lat,fp.lon]:[BASE.lat,BASE.lon]; if(fd){ const fc=fj._c||computeJob(fj); const fcol=fc.urg.lvl==="red"?"#C0392B":(fj.type==="straight"?"#B26B0B":"#3E7CB1"); const fb=[fd.lat,fd.lon]; trail(fa,fb,fcol,fj.type==="straight"?null:"8 6"); smark(fa,"P","P",fcol); smark(fb,esc(fj.destState||"D"),"D",fcol); pts.push(fa,fb); } }
+  if(MAPFOCUS){ back.style.display=""; const fj=MAPFOCUS, fc=fj._c||computeJob(fj), fp=geo(fj.pickupZip), fd=geo(fj.deliveryZip); const fcol=fc.urg.lvl==="red"?"#C0392B":(fj.type==="straight"?"#B26B0B":"#3E7CB1"); const fbase=[BASE.lat,BASE.lon]; const fAtBase=atBaseNow(fc)||!fp; if(!fAtBase&&fp){ const fpp=[fp.lat,fp.lon]; trail(fpp,fbase,"#A8AEB5","5 7"); smark(fpp,"P","P","#2E333A"); pts.push(fpp); } smark(fbase,"NJ","P","#1F2329"); pts.push(fbase); if(fd){ const fb=[fd.lat,fd.lon]; trail(fbase,fb,fcol,fj.type==="straight"?null:"8 6"); smark(fb,esc(fj.destState||"D"),"D",fcol); pts.push(fb); } }
   else if(MAPROUTE){ back.style.display=""; let prev=[BASE.lat,BASE.lon]; pts.push(prev); MAPROUTE.stops.forEach((st,k)=>{ const d=[st.g.lat,st.g.lon]; trail(prev,d,"#B26B0B"); smark(d,"D"+(k+1),"D","#B26B0B"); pts.push(d); prev=d; }); trail(prev,[BASE.lat,BASE.lon],"#6C5CE0","4 8"); L.marker([BASE.lat,BASE.lon],{icon:L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:'<div style="width:30px;height:30px;border-radius:50%;background:#1F2329;color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font:700 12px Barlow Condensed">NJ</div>'})}).addTo(LLAYER); }
   else { back.style.display="none"; let shown=0,total=0; JOBS.filter(j=>!j.carrier&&!j._hiddenBy).forEach(j=>{ total++; if(!mapPass(j))return; const p=geo(j.pickupZip),d=geo(j.deliveryZip); if(!d)return; shown++; const c=computeJob(j); const col=c.urg.lvl==="red"?"#C0392B":(j.type==="straight"?"#B26B0B":"#3E7CB1"); const a=p?[p.lat,p.lon]:[BASE.lat,BASE.lon],b=[d.lat,d.lon]; trail(a,b,col,j.type==="straight"?null:"8 6"); L.marker(b,{icon:L.divIcon({className:"",iconSize:[24,24],iconAnchor:[12,12],html:'<div style="min-width:24px;height:24px;padding:0 5px;border-radius:12px;background:#fff;border:2.5px solid '+col+';display:flex;align-items:center;justify-content:center;font:600 12px Barlow Condensed;color:#1F2329">'+esc(j.destState||"")+'</div>'})}).addTo(LLAYER); pts.push(a,b); }); const mc=$("#mfcount"); if(mc) mc.textContent=shown+" of "+total+" jobs shown"; }
   if(pts.length) try{ LMAP.fitBounds(pts,{padding:[50,50]}); }catch(e){}
@@ -783,11 +838,16 @@ function setTab(t){ TAB=t; document.querySelectorAll(".tab").forEach(b=>b.classL
   $("#timelinewrap").style.display=t==="timeline"?"":"none"; $("#routeswrap").style.display=t==="routes"?"":"none"; $("#mapwrap").style.display=t==="map"?"":"none"; $("#missingwrap").style.display=t==="missing"?"":"none"; $("#carrierwrap").style.display=t==="carrier"?"":"none";
   if(t==="routes") renderRoutes(); else if(t==="map") renderMap(); else if(t==="missing") renderMissing(); else if(t==="carrier") renderCarrier(); else renderTimeline(); }
 function pull(){ $("#rfstamp").textContent="Loading...";
-  return Promise.all([loadJobs(),loadStorage(),loadRoutes()]).then(()=>{ computeAll(); try{$("#rcount").textContent=buildSuggestions().length;}catch(e){} setTab(TAB); $("#rfstamp").textContent=JOBS.length+" jobs"+(LOCAL?" (local test data)":""); })
+  return Promise.all([loadJobs(),loadStorage(),loadRoutes(),loadLocations()]).then(()=>{ computeAll(); try{$("#rcount").textContent=buildSuggestions().length;}catch(e){} setTab(TAB); $("#rfstamp").textContent=JOBS.length+" jobs"+(LOCAL?" (local test data)":""); })
   .catch(e=>{ $("#rfstamp").textContent="load error"; }); }
 $("#refreshbtn").addEventListener("click",pull);
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setTab(b.getAttribute("data-tab")));
 (function(){ const bm=$("#bhmodal"); if(bm) bm.onclick=e=>{ if(e.target===bm) bm.classList.remove("show"); }; document.addEventListener("click",e=>{ const b=e.target.closest?e.target.closest("[data-bh]"):null; if(b){ e.preventDefault(); openBackhaul(b.getAttribute("data-bh")); } }); })();
+(function(){ document.addEventListener("click",e=>{ if(!e.target.closest) return;
+  const ed=e.target.closest("[data-locedit]"); if(ed){ const f=document.querySelector('[data-locform="'+ed.getAttribute("data-locedit")+'"]'); if(f) f.style.display=f.style.display==="none"?"":"none"; return; }
+  const st=e.target.closest("[data-locset]"); if(st){ const parts=st.getAttribute("data-locset").split("|"); setLocation(parts[0],parts[1]); return; }
+  const sv=e.target.closest("[data-locsave]"); if(sv){ const code=sv.getAttribute("data-locsave"); const inp=document.querySelector('[data-loczip="'+code+'"]'); const z=((inp&&inp.value)||"").replace(/\D/g,"").slice(0,5); if(z.length===5) setLocation(code,z); else toast("Enter a 5-digit ZIP"); return; }
+}); })();
 $("#dwbg").onclick=closeDrawer; (function(){ const tb=$("#tlsback"); if(tb) tb.onclick=closeJobMap; const rb=$("#rtsback"); if(rb) rb.onclick=closeRouteJourney; })(); document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeDrawer(); closeJobMap(); closeRouteJourney(); } });
 (function(){ const mb=$("#mapback"); if(mb) mb.onclick=()=>{ MAPROUTE=null; MAPFOCUS=null; renderMap(); }; })();
 (function(){ ["mfType","mfFrom","mfTo"].forEach(id=>{ const el=$("#"+id); if(el) el.onchange=renderMap; }); const c=$("#mfClear"); if(c) c.onclick=()=>{ $("#mfType").value="all"; $("#mfFrom").value=""; $("#mfTo").value=""; renderMap(); }; const f=$("#mfFull"); if(f) f.onclick=()=>{ $("#mapwrap").classList.toggle("full"); setTimeout(()=>{try{LMAP&&LMAP.invalidateSize();}catch(e){}},140); }; })();
