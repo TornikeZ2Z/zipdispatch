@@ -24,7 +24,7 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:14px;line-height:1.45;
     -webkit-font-smoothing:antialiased}
-  .wrap{max-width:1320px;margin:0 auto;padding:34px 26px 90px}
+  .wrap{max-width:1860px;margin:0 auto;padding:30px 34px 90px}
 
   .eyebrow{font-family:var(--fm);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:500}
   header h1{font-family:var(--fd);font-weight:700;font-size:clamp(26px,3.4vw,38px);line-height:1.05;margin:.16em 0 .3em;letter-spacing:.01em;text-transform:uppercase}
@@ -255,6 +255,16 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
 #hist{margin:6px 2px 2px}
 .axis-ends{margin:12px 4px 0;display:flex;justify-content:space-between;font-family:var(--fm);font-size:11px;color:var(--muted)}
 .hist-legend{margin-top:16px;display:flex;flex-wrap:wrap;gap:20px}
+/* wide layout + polish */
+section{margin-top:32px}
+.panel{padding:20px}
+.bandbar{height:44px}
+.scs .v{font-size:23px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:32px;align-items:stretch}
+.row2.top{grid-template-columns:1.45fr 1fr}
+.row2 > section{margin-top:0}
+.row2 .panel{height:100%}
+@media (max-width:1180px){.row2,.row2.top{grid-template-columns:1fr;gap:0}.row2 > section + section{margin-top:32px}}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 </head>
@@ -310,6 +320,7 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
     </div>
   </div>
 
+  <div class="row2 top">
   <section>
     <div class="shead"><h2 class="t" id="sc-title">Inventory</h2><span class="sub" id="sc-sub"></span></div>
     <div class="panel">
@@ -329,6 +340,7 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
       <span class="sub">Okay / Normal / Problem split and the typical miss for Time, Inventory and Cubic feet under the current filters.</span></div>
     <div class="panel"><div id="ov-panel"></div></div>
   </section>
+  </div>
 
   <section>
     <div class="shead"><h2 class="t">Where the error lives</h2>
@@ -344,6 +356,7 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
     </div>
   </section>
 
+  <div class="row2">
   <section>
     <div class="shead"><h2 class="t">Accuracy by sales person</h2>
       <div class="gswitch" data-for="sp"><button data-gv="mix" aria-pressed="true">Mix</button><button data-gv="prob">Problem %</button><button data-gv="miss">Avg miss</button><button data-gv="bias">Bias</button></div>
@@ -357,6 +370,7 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
       <span class="sub">Lead foreman (Foreman 1), full names from Crew Members — switch the chart view above.</span></div>
     <div class="panel" id="fm-chart"></div>
   </section>
+  </div>
 
   <section>
     <div class="shead"><h2 class="t">Accuracy by job type</h2>
