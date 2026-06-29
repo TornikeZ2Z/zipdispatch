@@ -6,33 +6,33 @@
 <title>What Sales Person Estimated vs What Foreman Sold · Zip To Zip</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#15233f; --ink-2:#3a4a6b; --paper:#eaeef4; --card:#ffffff;
-    --line:#d4dce8; --line-2:#e6ecf3; --muted:#697b97;
-    --ok:#0f9b78;      --ok-soft:#d9f1ea;
-    --normal:#cf8a1c;  --normal-soft:#f8eccf;
-    --problem:#df3a40; --problem-soft:#fbe1e2;
-    --over:#2c7fb8;    --over-soft:#dcebf5;
-    --under:#c2410c;   --under-soft:#f6e2d7;
-    --fd:'Space Grotesk',system-ui,sans-serif;
+    --ink:#1F2329; --ink-2:#454B52; --paper:#F7F6F2; --card:#ffffff;
+    --line:#E6E4DC; --line-2:#EFEDE6; --muted:#837E74;
+    --ok:#5E8A1E;      --ok-soft:#EFF6E0;
+    --normal:#B26B0B;  --normal-soft:#FBF0DC;
+    --problem:#C0392B; --problem-soft:#FBE9E6;
+    --over:#6C5CE0;    --over-soft:#EFECFB;
+    --under:#1E8E7E;   --under-soft:#DDEFEA;
+    --fd:'Barlow Condensed',system-ui,sans-serif;
     --fb:'Inter',system-ui,sans-serif;
-    --fm:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-    --r:9px;
+    --fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r:10px;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:14px;line-height:1.45;
-    -webkit-font-smoothing:antialiased;background-image:radial-gradient(circle at 1px 1px,#dde3ec 1px,transparent 0);background-size:26px 26px}
+    -webkit-font-smoothing:antialiased}
   .wrap{max-width:1320px;margin:0 auto;padding:34px 26px 90px}
 
   .eyebrow{font-family:var(--fm);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:500}
-  header h1{font-family:var(--fd);font-weight:700;font-size:clamp(30px,5vw,52px);line-height:1.02;margin:.28em 0 .35em;letter-spacing:-.015em}
+  header h1{font-family:var(--fd);font-weight:700;font-size:clamp(26px,3.4vw,38px);line-height:1.05;margin:.16em 0 .3em;letter-spacing:.01em;text-transform:uppercase}
   header h1 em{font-style:normal;color:var(--problem)}
 
   .filters{position:sticky;top:0;z-index:40;margin:0;padding:11px 14px;background:rgba(255,255,255,.92);
     backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:var(--r);display:flex;gap:12px;align-items:center;flex-wrap:wrap;
-    box-shadow:0 1px 0 rgba(21,35,63,.04)}
+    box-shadow:0 1px 0 rgba(31,34,38,.04)}
   .fgroup{display:flex;align-items:center;gap:7px;position:relative}
   .flabel{font-family:var(--fm);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
   select,input[type=search]{font-family:var(--fb);font-size:13px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
@@ -52,7 +52,7 @@
   .ms-trigger .ms-sum{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
   .ms-trigger svg{width:13px;height:13px;color:var(--muted);flex:0 0 auto;transition:transform .15s}
   .ms-trigger.on svg{transform:rotate(180deg)}
-  .ms-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:60;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(21,35,63,.16);padding:8px;min-width:208px;max-width:300px;display:none}
+  .ms-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:60;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(31,34,38,.16);padding:8px;min-width:208px;max-width:300px;display:none}
   .ms-pop.show{display:block}
   .ms-tools{display:flex;justify-content:space-between;align-items:center;padding:2px 6px 7px;border-bottom:1px solid var(--line-2);margin-bottom:5px}
   .ms-tools .ttl{font-family:var(--fm);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -74,7 +74,7 @@
   .dp-trigger svg{width:15px;height:15px;color:var(--ink-2);flex:0 0 auto}
   #dp-label{flex:1 1 auto;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dp-pop{position:absolute;top:calc(100% + 8px);left:0;z-index:60;background:#fff;border:1px solid var(--line);border-radius:14px;
-    box-shadow:0 14px 40px rgba(21,35,63,.18);padding:16px;display:none;gap:18px}
+    box-shadow:0 14px 40px rgba(31,34,38,.18);padding:16px;display:none;gap:18px}
   .dp-pop.show{display:flex}
   .dp-presets{display:flex;flex-direction:column;gap:6px;border-right:1px solid var(--line-2);padding-right:16px;min-width:120px}
   .dp-presets button{font-family:var(--fb);font-size:13px;text-align:left;background:none;border:none;color:var(--ink-2);border-radius:7px;padding:8px 10px;cursor:pointer}
@@ -112,7 +112,7 @@
   .shead .sub{font-size:13px;color:var(--muted)}
   .badge{font-family:var(--fm);font-size:11px;font-weight:700;background:var(--problem-soft);color:var(--problem);border-radius:100px;padding:2px 9px}
   .badge.zero{background:var(--line-2);color:var(--muted)}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:0 1px 2px rgba(21,35,63,.04)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:0 1px 2px rgba(31,34,38,.04)}
 
   /* scorecard */
   .scorecard{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;align-items:center}
@@ -160,14 +160,14 @@
   th .arr{opacity:.4;margin-left:3px}
   th.sorted .arr{opacity:1}
   td{padding:8px 12px;border-top:1px solid var(--line-2);white-space:nowrap}
-  tbody tr:hover{background:#f6f9fd}
+  tbody tr:hover{background:var(--paper)}
   .num{font-family:var(--fm);text-align:right;font-variant-numeric:tabular-nums}
   .gap{font-family:var(--fm);text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
   .jc{font-family:var(--fm);font-weight:700;font-size:12.5px}
   .chip{font-family:var(--fm);font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:2px 9px;border-radius:100px;text-transform:uppercase}
   .chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.normal{background:var(--normal-soft);color:var(--normal)}
-  .chip.problem{background:var(--problem-soft);color:var(--problem)} .chip.na{background:#eef2f7;color:var(--muted)}
-  .chip.type{background:#eef2f7;color:var(--ink-2);font-weight:500}
+  .chip.problem{background:var(--problem-soft);color:var(--problem)} .chip.na{background:var(--line-2);color:var(--muted)}
+  .chip.type{background:var(--line-2);color:var(--ink-2);font-weight:500}
   .ig-btn{font-family:var(--fm);font-size:11px;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:6px;padding:4px 9px;cursor:pointer;transition:all .15s}
   .ig-btn:hover{border-color:var(--problem);color:var(--problem)}
   .pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px;font-family:var(--fm);font-size:12px;color:var(--ink-2)}
@@ -188,11 +188,11 @@
   .exc-edit{font-family:var(--fm);font-size:10.5px;background:none;border:none;color:var(--muted);cursor:pointer;text-decoration:underline;margin-left:8px}
 
   /* tooltip */
-  #tip{position:fixed;z-index:200;background:#15233f;color:#fff;font-family:var(--fm);font-size:12px;line-height:1.45;padding:8px 11px;border-radius:8px;pointer-events:none;display:none;box-shadow:0 8px 22px rgba(0,0,0,.28);max-width:250px}
+  #tip{position:fixed;z-index:200;background:#1F2329;color:#fff;font-family:var(--fm);font-size:12px;line-height:1.45;padding:8px 11px;border-radius:8px;pointer-events:none;display:none;box-shadow:0 8px 22px rgba(0,0,0,.28);max-width:250px}
   #tip b{color:#fff;font-weight:700}
 
   /* modal */
-  .modal-bg{position:fixed;inset:0;background:rgba(21,35,63,.45);display:none;align-items:center;justify-content:center;z-index:150;padding:20px}
+  .modal-bg{position:fixed;inset:0;background:rgba(31,34,38,.45);display:none;align-items:center;justify-content:center;z-index:150;padding:20px}
   .modal-bg.show{display:flex}
   .modal{background:#fff;border-radius:14px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)}
   .modal h3{font-family:var(--fd);font-size:19px;margin:0 0 6px}
@@ -244,12 +244,12 @@
 section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{display:none}
 .gswitch{display:inline-flex;gap:4px;margin-left:10px;background:var(--line-2);border-radius:8px;padding:3px;vertical-align:middle}
 .gswitch button{font-family:var(--fm);font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;border:none;background:none;color:var(--muted);padding:5px 9px;border-radius:6px;cursor:pointer}
-.gswitch button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(21,35,63,.12)}
+.gswitch button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(31,34,38,.12)}
 .sp-diverge{position:relative;height:18px;background:var(--line-2);border-radius:5px;overflow:hidden;flex:1}
 .sp-diverge .dv-mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--muted);z-index:1}
 .sp-diverge .dv-bar{position:absolute;top:0;bottom:0}
 .sp-diverge .dv-bar.pos{background:var(--problem)}
-.sp-diverge .dv-bar.neg{background:#2c7fb8}
+.sp-diverge .dv-bar.neg{background:var(--over)}
 .bias-leg{display:flex;gap:14px;font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap}
 .bias-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
 #hist{margin:6px 2px 2px}
@@ -261,6 +261,7 @@ section.collapsed .panel,section.collapsed .tbl-wrap,section.collapsed .pager{di
 <body>
 <div class="wrap">
   <header>
+    <span class="eyebrow">Zip To Zip &middot; Operations Analytics</span>
     <h1>What Sales Person Estimated <em>vs</em> What Foreman Sold</h1>
   </header>
 
@@ -439,7 +440,7 @@ let GTOKEN=null,GTOKEXP=0,_tc=null;
 try{const _g=JSON.parse(localStorage.getItem('zd_gtok')||'null');if(_g&&_g.scope===GSCOPE_VER&&_g.exp>Date.now()+60000){GTOKEN=_g.t;GTOKEXP=_g.exp;}}catch(e){}
 function gReady(){return !!(window.google&&google.accounts&&google.accounts.oauth2);}
 function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function toast(m){let t=document.getElementById('svr-toast');if(!t){t=document.createElement('div');t.id='svr-toast';t.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#15233f;color:#fff;padding:10px 16px;border-radius:9px;font:13px Inter,sans-serif;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90%;transition:opacity .25s';document.body.appendChild(t);}t.textContent=m;t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>{t.style.opacity='0';},4000);}
+function toast(m){let t=document.getElementById('svr-toast');if(!t){t=document.createElement('div');t.id='svr-toast';t.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1F2329;color:#fff;padding:10px 16px;border-radius:9px;font:13px Inter,sans-serif;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90%;transition:opacity .25s';document.body.appendChild(t);}t.textContent=m;t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>{t.style.opacity='0';},4000);}
 function ensureToken(cb){
   if(GTOKEN&&Date.now()<GTOKEXP-60000)return cb();
   if(window._gsiFail||!gReady()){toast('Google sign-in unavailable here \u2014 open on the hosted (GitHub Pages) URL.');return;}
@@ -568,11 +569,11 @@ function renderHist(rows){
   for(let i=0;i<NB;i++){const h=(counts[i]/maxC)*(H-padB-padT),x=i*bw,y=H-padB-h,e0=lo+span*i/NB,e1=lo+span*(i+1)/NB,mid=(e0+e1)/2;
     const info=`<b>${counts[i]} job${counts[i]===1?'':'s'}</b><br>${sgn(e0)} to ${sgn(e1)} vs ${D.basis}`;
     bars+=`<rect x="${x+1}" y="${y}" width="${bw-2}" height="${h}" rx="2" fill="${BANDCOL[band(Math.abs(mid)/100)]}" opacity="${counts[i]?0.92:0}" data-tip="${info}"></rect>`;}
-  let guides='';[-50,-20,20,50].forEach(g=>{if(g>lo&&g<hi){const x=xOf(g);guides+=`<line x1="${x}" y1="${padT}" x2="${x}" y2="${H-padB}" stroke="#9aa8bf" stroke-width="1" stroke-dasharray="2 3"/><text x="${x}" y="${H-9}" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#697b97">${g>0?'+':''}${g}%</text>`;}});
+  let guides='';[-50,-20,20,50].forEach(g=>{if(g>lo&&g<hi){const x=xOf(g);guides+=`<line x1="${x}" y1="${padT}" x2="${x}" y2="${H-padB}" stroke="#C9C6BC" stroke-width="1" stroke-dasharray="2 3"/><text x="${x}" y="${H-9}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#837E74">${g>0?'+':''}${g}%</text>`;}});
   const zx=xOf(0);
   host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:224px" role="img" aria-label="Distribution of percentage difference">
-    ${bars}${guides}<line x1="${zx}" y1="${padT}" x2="${zx}" y2="${H-padB}" stroke="#15233f" stroke-width="1.6"/>
-    <text x="${zx}" y="${H-9}" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#15233f" font-weight="700">0</text></svg>`;
+    ${bars}${guides}<line x1="${zx}" y1="${padT}" x2="${zx}" y2="${H-padB}" stroke="#1F2329" stroke-width="1.6"/>
+    <text x="${zx}" y="${H-9}" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#1F2329" font-weight="700">0</text></svg>`;
   document.getElementById('hist-n').textContent=`n = ${vals.length} jobs · x-axis: % difference from the ${D.basis}`;
 }
 
