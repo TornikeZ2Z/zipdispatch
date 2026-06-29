@@ -530,7 +530,7 @@ function computeJob(j){
   let route;
   if(ROUTED.has(j.code)) route="Accepted Route";
   else if(state==="At Carrier") route="—";
-  else if(isS && Math.round(j.cf||0)>TRUCK_MAX) route="Over truck (carrier)";
+  else if(Math.round(j.cf||0)>TRUCK_MAX) route="Over truck (carrier)";
   else if(isS || winEnd) route="Route Candidate";
   else route="Not Routed";
   /* recommended action, plain language */
@@ -540,6 +540,7 @@ function computeJob(j){
 function recAction(j,c){
   if(c.gaps.length) return "Fix data: "+c.gaps.join(", ");
   if(c.state==="At Carrier") return "Track delivery in Carrier Watch";
+  if(Math.round(j.cf||0)>TRUCK_MAX) return "Too big for one truck ("+Math.round(j.cf||0).toLocaleString()+" CF) — assign a carrier";
   if(c.isS && c.urg.txt==="Delivery date passed") return "Deliver now — "+fmt(c.deliverDate)+" deadline is overdue";
   if(!c.isS && c.urg.txt==="Delivery window expired") return "Deliver now — delivery window has closed";
   if(c.isS && c.dDepart!=null && c.dDepart<=0) return "Start moving now — deliver "+fmt(c.deliverDate);
