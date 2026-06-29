@@ -260,11 +260,6 @@ section{margin-top:32px}
 .panel{padding:20px}
 .bandbar{height:44px}
 .scs .v{font-size:23px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:32px;align-items:stretch}
-.row2.top{grid-template-columns:1.45fr 1fr}
-.row2 > section{margin-top:0}
-.row2 .panel{height:100%}
-@media (max-width:1180px){.row2,.row2.top{grid-template-columns:1fr;gap:0}.row2 > section + section{margin-top:32px}}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 </head>
@@ -320,7 +315,6 @@ section{margin-top:32px}
     </div>
   </div>
 
-  <div class="row2 top">
   <section>
     <div class="shead"><h2 class="t" id="sc-title">Inventory</h2><span class="sub" id="sc-sub"></span></div>
     <div class="panel">
@@ -340,7 +334,6 @@ section{margin-top:32px}
       <span class="sub">Okay / Normal / Problem split and the typical miss for Time, Inventory and Cubic feet under the current filters.</span></div>
     <div class="panel"><div id="ov-panel"></div></div>
   </section>
-  </div>
 
   <section>
     <div class="shead"><h2 class="t">Where the error lives</h2>
@@ -356,7 +349,6 @@ section{margin-top:32px}
     </div>
   </section>
 
-  <div class="row2">
   <section>
     <div class="shead"><h2 class="t">Accuracy by sales person</h2>
       <div class="gswitch" data-for="sp"><button data-gv="mix" aria-pressed="true">Mix</button><button data-gv="prob">Problem %</button><button data-gv="miss">Avg miss</button><button data-gv="bias">Bias</button></div>
@@ -370,7 +362,6 @@ section{margin-top:32px}
       <span class="sub">Lead foreman (Foreman 1), full names from Crew Members — switch the chart view above.</span></div>
     <div class="panel" id="fm-chart"></div>
   </section>
-  </div>
 
   <section>
     <div class="shead"><h2 class="t">Accuracy by job type</h2>
