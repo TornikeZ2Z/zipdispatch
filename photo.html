@@ -130,6 +130,10 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 .jconf.btn{cursor:pointer;border:none;background:var(--acc);color:#fff;border-radius:10px;padding:9px 17px;font-size:13px;box-shadow:0 2px 8px rgba(178,107,11,.25)}
 .jconf.btn:hover{filter:brightness(1.06)}
 @media (max-width:600px){.htitle{font-size:18px}.logo{height:26px}.tile{padding:9px 16px}.jconf.btn{padding:10px 17px}}
+.loader{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:72px 20px}
+.loader .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:ldspin .8s linear infinite}
+.loader span{font-size:14px;color:var(--dim)}
+@keyframes ldspin{to{transform:rotate(360deg)}}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 </head>
@@ -144,7 +148,7 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
     <span class="ftlabel">Pickup state</span>
     <div class="tiles" id="stateTiles"></div>
   </div>
-  <div id="out"></div>
+  <div id="out"><div class="loader"><div class="spin"></div><span>Loading photoshoots&hellip;</span></div></div>
 </div>
 <script src="zipdb.js?v=1"></script>
 <script>
@@ -207,7 +211,7 @@ function confirmBlock(j){
 }
 function openConfirm(j){
   var ov=document.createElement('div');ov.className='cfm-bg';var dh=dayHeader(j.date);var tm=fmt12(j.tmin);
-  ov.innerHTML='<div class="cfm"><h3>Confirm this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dh.label)+(j.tmin!=null?' \u00b7 '+esc(tm.t)+' '+esc(tm.ap):'')+'</div><div class="cfm-row">'+esc(j.jobCode)+' \u00b7 '+esc(j.puState||'?')+'\u2192'+esc(j.delState||'?')+' \u00b7 '+Math.round(j.cf||0).toLocaleString()+' CF</div><div class="cfm-row">'+esc(j.pickup||'')+'</div></div><p class="cfm-note">You can confirm only one job per day. Support will be notified you are going.</p><div class="cfm-field"><label>Your email</label><input type="email" class="cfm-email" placeholder="you@company.com" value="'+esc(photogEmail())+'" autocomplete="email"></div><div class="cfm-act"><button class="cfm-cancel">Cancel</button><button class="cfm-ok">Yes, confirm</button></div></div>';
+  ov.innerHTML='<div class="cfm"><h3>Confirm this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dh.label)+(j.tmin!=null?' \u00b7 '+esc(tm.t)+' '+esc(tm.ap):'')+'</div><div class="cfm-row">'+esc(j.jobCode)+' \u00b7 '+esc(j.puState||'?')+' \u00b7 '+Math.round(j.cf||0).toLocaleString()+' CF</div><div class="cfm-row">'+esc(j.pickup||'')+'</div></div><p class="cfm-note">You can confirm only one job per day. Support will be notified you are going.</p><div class="cfm-field"><label>Your email</label><input type="email" class="cfm-email" placeholder="you@company.com" value="'+esc(photogEmail())+'" autocomplete="email"></div><div class="cfm-act"><button class="cfm-cancel">Cancel</button><button class="cfm-ok">Yes, confirm</button></div></div>';
   document.body.appendChild(ov);
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   ov.querySelector('.cfm-cancel').onclick=function(){ov.remove();};
@@ -320,7 +324,7 @@ function jobCard(r){
   var cust=esc(j.customer||'(no name)');
   var custHtml=ev?('<a class="jcust" href="'+ev+'" target="_blank" rel="noopener" title="Open calendar event">'+cust+cicon+'</a>')
                  :('<span class="jcust nolink">'+cust+'</span>');
-  var route='<span class="route">'+esc(j.puState||'?')+'<span class="ar">→</span>'+esc(j.delState||'?')+'</span>';
+  var route='<span class="route">'+esc(j.puState||'?')+'</span>';
   var pin='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.7-7-11a7 7 0 0 1 14 0c0 5.3-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
   return '<div class="job">'
     +'<div class="jtime"><b>'+esc(tm.t||'—')+'</b><span>'+esc(tm.ap)+'</span></div>'
@@ -367,7 +371,7 @@ var cam=$('#fCam');if(cam)cam.addEventListener('change',render);
 // state filter is tile-based now — no dropdown panel to wire
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-confirm]');if(b){var j=jobByCode(b.getAttribute('data-confirm'));if(j)openConfirm(j);}});
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-cancel]');if(b){var j=jobByCode(b.getAttribute('data-cancel'));if(j)openCancel(j);}});
-Promise.all([loadCrew(),loadSheet(),loadConfirmations()]).then(finishLoad);
+Promise.all([loadCrew(),loadSheet(),loadConfirmations()]).then(finishLoad).catch(function(){var o=$('#out');if(o)o.innerHTML='<div class="empty"><b>Couldn&rsquo;t load photoshoots</b>Please refresh the page to try again.</div>';});
 </script>
 </body>
 </html>
