@@ -211,7 +211,7 @@ function confirmBlock(j){
 }
 function openConfirm(j){
   var ov=document.createElement('div');ov.className='cfm-bg';var dh=dayHeader(j.date);var tm=fmt12(j.tmin);
-  ov.innerHTML='<div class="cfm"><h3>Confirm this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dh.label)+(j.tmin!=null?' \u00b7 '+esc(tm.t)+' '+esc(tm.ap):'')+'</div><div class="cfm-row">'+esc(j.jobCode)+' \u00b7 '+esc(j.puState||'?')+' \u00b7 '+Math.round(j.cf||0).toLocaleString()+' CF</div><div class="cfm-row">'+esc(j.pickup||'')+'</div></div><p class="cfm-note">You can confirm only one job per day. Support will be notified you are going.</p><div class="cfm-field"><label>Your email</label><input type="email" class="cfm-email" placeholder="you@company.com" value="'+esc(photogEmail())+'" autocomplete="email"></div><div class="cfm-act"><button class="cfm-cancel">Cancel</button><button class="cfm-ok">Yes, confirm</button></div></div>';
+  ov.innerHTML='<div class="cfm"><h3>Confirm this shoot?</h3><div class="cfm-d"><div><b>'+esc(j.customer||'(no name)')+'</b></div><div class="cfm-row">'+esc(dh.label)+(j.tmin!=null?' \u00b7 '+esc(tm.t)+' '+esc(tm.ap):'')+'</div><div class="cfm-row">'+esc(j.jobCode)+' \u00b7 '+Math.round(j.cf||0).toLocaleString()+' CF</div><div class="cfm-row">'+esc(j.pickup||'')+'</div></div><p class="cfm-note">You can confirm only one job per day. Support will be notified you are going.</p><div class="cfm-field"><label>Your email</label><input type="email" class="cfm-email" placeholder="you@company.com" value="'+esc(photogEmail())+'" autocomplete="email"></div><div class="cfm-act"><button class="cfm-cancel">Cancel</button><button class="cfm-ok">Yes, confirm</button></div></div>';
   document.body.appendChild(ov);
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
   ov.querySelector('.cfm-cancel').onclick=function(){ov.remove();};
@@ -324,13 +324,12 @@ function jobCard(r){
   var cust=esc(j.customer||'(no name)');
   var custHtml=ev?('<a class="jcust" href="'+ev+'" target="_blank" rel="noopener" title="Open calendar event">'+cust+cicon+'</a>')
                  :('<span class="jcust nolink">'+cust+'</span>');
-  var route='<span class="route">'+esc(j.puState||'?')+'</span>';
   var pin='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.7-7-11a7 7 0 0 1 14 0c0 5.3-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
   return '<div class="job">'
     +'<div class="jtime"><b>'+esc(tm.t||'—')+'</b><span>'+esc(tm.ap)+'</span></div>'
     +'<div class="jmain">'
       +custHtml
-      +'<div class="jmeta">'+route+'<span class="sep">·</span><span class="jt">'+esc(j.mt||'Local')+'</span><span class="sep">·</span><span class="sz">'+Math.round(j.cf||0).toLocaleString()+' CF</span><span class="sep">·</span><span>'+r.dist.toFixed(1)+' mi</span></div>'
+      +'<div class="jmeta">'+'<span class="jt">'+esc(j.mt||'Local')+'</span><span class="sep">·</span><span class="sz">'+Math.round(j.cf||0).toLocaleString()+' CF</span><span class="sep">·</span><span>'+r.dist.toFixed(1)+' mi</span></div>'
       +'<a class="jaddr" href="'+mapsLink(j.pickup)+'" target="_blank" rel="noopener">'+pin+esc(j.pickup||'(no address)')+'</a>'
       +foremanBlock(j)
       +'<div class="jaction">'+confirmBlock(j)+'</div>'
