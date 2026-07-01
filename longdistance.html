@@ -615,9 +615,7 @@ function groupEvents(){
   });
 }
 /* logically-impossible dates the dispatcher should fix in the sheet */
-function dateIssues(j,c){ const out=[]; const CF=Math.round(j.cf||0);
-  if(c.isS && CF>TRUCK_MAX) out.push(CF.toLocaleString()+" CF is over a single truck ("+TRUCK_MAX.toLocaleString()+" CF max) - can't self-deliver, assign a carrier");
-  else if(CF>0&&CF<50) out.push("CF is only "+CF+" - likely a data-entry error, please verify");
+function dateIssues(j,c){ const out=[];
   const pick=j.eventDate;
   if(pick){ const P=midnight(pick); const delv=c.isS?j.fad:c.winEnd;
     if(delv && P>midnight(delv)) out.push("Pickup "+fmt(pick)+" is AFTER the delivery "+(c.isS?"date":"window end")+" ("+fmt(delv)+")"); }
@@ -637,7 +635,7 @@ function renderMissing(){
   if(!rows.length){ host.innerHTML='<div class="empty"><b>All clean</b>No data errors, missing fields, duplicates, or grouped events.</div>'; return; }
   rows.sort((a,b)=>(a.sev-b.sev)||((a.fad?midnight(a.fad).getTime():9e15)-(b.fad?midnight(b.fad).getTime():9e15)));
   const body=rows.map(r=>'<tr data-job="'+esc(r.code)+'"><td class="c-code">'+esc(r.code)+'</td><td>'+esc(r.cust)+'</td><td>'+esc(r.type)+'</td><td><span class="iss '+r.cls+'">'+esc(r.cat)+'</span></td><td>'+esc(r.details)+'</td><td style="text-align:right"><button class="iss-open" data-open="'+esc(r.code)+'">Open &rsaquo;</button></td></tr>').join("");
-  host.innerHTML='<p class="cwnote">Everything that needs a fix, in one place &mdash; correct the source in the sheet, or click <b>Open</b> to view the job. <span class="iss de">Data error</span> impossible date / over-capacity / bad CF &nbsp; <span class="iss mf">Missing field</span> &nbsp; <span class="iss du">Duplicate?</span> &nbsp; <span class="iss gr">Grouped</span></p><div class="cwwrap"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Issue</th><th>Details</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  host.innerHTML='<p class="cwnote">Everything that needs a fix, in one place &mdash; correct the source in the sheet, or click <b>Open</b> to view the job. <span class="iss de">Data error</span> impossible date &nbsp; <span class="iss mf">Missing field</span> &nbsp; <span class="iss du">Duplicate?</span> &nbsp; <span class="iss gr">Grouped</span></p><div class="cwwrap"><table class="cw"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Issue</th><th>Details</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>';
   host.querySelectorAll("[data-open]").forEach(el=>el.onclick=e=>{ e.stopPropagation(); openEvent(el.getAttribute("data-open")); });
   host.querySelectorAll("tr[data-job]").forEach(el=>el.onclick=()=>openEvent(el.dataset.job));
 }
