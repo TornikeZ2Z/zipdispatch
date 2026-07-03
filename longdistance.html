@@ -193,6 +193,8 @@ table.cw .c-code{font-family:'IBM Plex Mono';font-weight:600}
 .cw tr.sel td{background:var(--travel-bg)!important}
 .cw tr[data-job]{cursor:pointer}
 .tltable .ty{font-size:10px;padding:2px 7px}
+.tlexport{margin-left:10px;border:1px solid var(--line2);background:var(--card);color:var(--ink);font:600 13px Inter;padding:7px 13px;border-radius:9px;cursor:pointer}
+.tlexport:hover{border-color:var(--ink);background:var(--paper)}
 .miss{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:14px;background:#F1F0EC;color:var(--dim);margin:1px 0}
 .miss.crit{background:var(--hazard-bg);color:var(--hazard)}
 #mapbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
@@ -620,6 +622,7 @@ function dateIssues(j,c){ const out=[];
   if(pick){ const P=midnight(pick); const delv=c.isS?j.fad:c.winEnd;
     if(delv && P>midnight(delv)) out.push("Pickup "+fmt(pick)+" is AFTER the delivery "+(c.isS?"date":"window end")+" ("+fmt(delv)+")"); }
   if(!c.isS && j.fad && c.winEnd && midnight(c.winEnd)<midnight(j.fad)) out.push("Delivery window ends "+fmt(c.winEnd)+" before it starts "+fmt(j.fad));
+  if(c.isS && j.fad && pick && j.tripDays){ const dep=addDays(j.fad,-j.tripDays); if(dep && midnight(dep)<midnight(pick)) out.push("Delivery date "+fmt(j.fad)+" is too early — the "+j.tripDays+"-day trip needs the truck to leave "+fmt(dep)+", before the "+fmt(pick)+" pickup. The delivery date looks incorrectly selected."); }
   return out;
 }
 function openEvent(code){ setTab("timeline"); setTimeout(function(){ openJobMap(code); },40); }
@@ -820,8 +823,9 @@ function renderTimeline(){
   const jobs=JOBS.filter(j=>!j.carrier&&!j._hiddenBy).map(j=>({j,c:j._c||computeJob(j)})).sort((a,b)=>((a.j.fad?midnight(a.j.fad).getTime():9e15)-(b.j.fad?midnight(b.j.fad).getTime():9e15)));
   const toggle='<div class="tlview"><button data-tlv="timeline"'+(TLVIEW==="timeline"?' class="on"':'')+'>Timeline</button><button data-tlv="table"'+(TLVIEW==="table"?' class="on"':'')+'>Table</button></div>';
   const legend=(TLVIEW==="timeline")?'<div class="tllg"><span><i class="lg-pk"></i>pickup</span><span><i class="lg-s"></i>straight deadline</span><span><i class="lg-r"></i>regular window</span></div>':"";
+  const expBtn=(TLVIEW==="table")?'<button class="tlexport" id="tlexport" title="Download the table as a spreadsheet">&#8681; Export</button>':"";
   $("#tlbarwrap").innerHTML='<div class="tlbar"><div class="tlnav"><button data-tl="prev" title="Earlier">&#8249;</button><button data-tl="today">Today</button><button data-tl="next" title="Later">&#8250;</button></div>'+
-    '<div class="tlrange">'+MON[start.getMonth()]+" "+start.getDate()+" &ndash; "+MON[end.getMonth()]+" "+end.getDate()+'<small>'+days+'-day plan window</small></div>'+toggle+legend+'</div>';
+    '<div class="tlrange">'+MON[start.getMonth()]+" "+start.getDate()+" &ndash; "+MON[end.getMonth()]+" "+end.getDate()+'<small>'+days+'-day plan window</small></div>'+toggle+expBtn+legend+'</div>';
   if(TLVIEW==="table"){ $("#tlmain").innerHTML=timeTable(jobs); }
   else {
     let cal="";
@@ -836,6 +840,7 @@ function renderTimeline(){
   }
   $("#tlbarwrap").querySelectorAll("[data-tl]").forEach(el=>el.onclick=()=>{ const a=el.dataset.tl; if(a==="today")TLSTART=null; else{ const s=new Date(tlStart()); s.setDate(s.getDate()+(a==="next"?14:-14)); TLSTART=s; } renderTimeline(); });
   $("#tlbarwrap").querySelectorAll("[data-tlv]").forEach(el=>el.onclick=()=>{ TLVIEW=el.dataset.tlv; renderTimeline(); });
+  (function(){ const _eb=$("#tlexport"); if(_eb) _eb.onclick=exportTable; })();
   $("#tlmain").querySelectorAll("[data-job]").forEach(el=>el.onclick=()=>openJobMap(el.dataset.job));
   if(SELJOB) $("#tlmain").querySelectorAll('[data-job="'+SELJOB+'"]').forEach(e=>e.classList.add("sel"));
 }
@@ -843,6 +848,24 @@ function timeTable(jobs){
   const body=jobs.map(x=>{ const j=x.j,c=x.c; const dep=(c.isS&&j.fad)?addDays(j.fad,-(j.tripDays||TRIP_FALLBACK)):null;
     return '<tr data-job="'+esc(j.code)+'" class="u-'+c.urg.lvl+'"><td class="c-code">'+esc(j.code)+'</td><td>'+esc(j.customer||"")+'</td><td><span class="ty '+j.type+'">'+(c.isS?"S":"R")+'</span></td><td>'+pathLine(j)+'</td><td>'+esc(c.deliverLabel)+'</td><td>'+(c.isS?(dep?fmt(dep):"&mdash;"):"&mdash;")+'</td><td>'+Math.round(j.cf||0).toLocaleString()+'</td><td>'+(j.foreman?esc(j.foreman):'<span style="color:var(--faint)">&mdash;</span>')+'</td><td><span class="chip u-'+c.urg.lvl+'" style="font-size:10.5px">'+esc(c.urg.txt)+'</span></td></tr>'; }).join("");
   return '<div class="cwwrap"><table class="cw tltable"><thead><tr><th>Job</th><th>Customer</th><th>Type</th><th>Route</th><th>Delivery</th><th>Depart</th><th>CF</th><th>Foreman</th><th>Status</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+function exportTable(){
+  const tbl=$("#tlmain table"); if(!tbl){ toast("Switch to the Table view first"); return; }
+  const stamp=new Date().toISOString().slice(0,10);
+  function csvFallback(){
+    const rows=[]; tbl.querySelectorAll("tr").forEach(tr=>{ const cs=[]; tr.querySelectorAll("th,td").forEach(td=>cs.push((td.textContent||"").replace(/\s+/g," ").trim())); rows.push(cs); });
+    const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\r\n");
+    const b=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"}); const a=document.createElement("a");
+    a.href=URL.createObjectURL(b); a.download="Long Distance Jobs "+stamp+".csv"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1500); toast("Exported (CSV)");
+  }
+  function doXlsx(){
+    try{ const ws=XLSX.utils.table_to_sheet(tbl); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Jobs"); XLSX.writeFile(wb,"Long Distance Jobs "+stamp+".xlsx"); toast("Exported to Excel"); }
+    catch(e){ csvFallback(); }
+  }
+  if(window.XLSX){ doXlsx(); return; }
+  toast("Preparing Excel file...");
+  const s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; s.onload=doXlsx; s.onerror=csvFallback; document.documentElement.appendChild(s);
 }
 function tlRow(j,c,start,days,dp){
   const isS=j.type==="straight", pdi=dIdx(j.eventDate,start), tdi=dIdx(midnight(new Date()),start);
