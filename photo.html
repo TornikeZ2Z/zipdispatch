@@ -134,6 +134,9 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
 .loader .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:ldspin .8s linear infinite}
 .loader span{font-size:14px;color:var(--dim)}
 @keyframes ldspin{to{transform:rotate(360deg)}}
+.jsrc{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.02em;padding:2px 9px;border-radius:100px;margin-left:9px;vertical-align:middle;white-space:nowrap}
+.jsrc.confirmed{background:#EFF6E0;color:#4F7A16;border:1px solid #D3E3A6}
+.jsrc.earlier{background:var(--soft);color:var(--dim);border:1px solid var(--line2)}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer onerror="window._gsiFail=1"></script>
 </head>
@@ -289,6 +292,7 @@ function loadSheet(){
       if(created>=PHOTO_SINCE&&(L['allowed photo shooting']||'').trim().toUpperCase()!=='YES')return;
       out.push(buildJob({jobCode:fjob,requestNo:(r[iFReq]||'').trim(),date:parseDate(r[iDate]),tmin:parseTimeMin(r[iDate]),
         title:title,emoji:title.indexOf('📸')>=0,
+        allowedShoot:(L['allowed photo shooting']||'').trim().toUpperCase()==='YES',
         customer:(L['customer name']||'').trim(),
         pickup:(r[iLoc]||'').trim()||L['moving from']||'',deliv:(L['moving to']||'').trim(),
         cf:calNumV(L['total cf'])||0,mt:((r[iMT]||'').trim()||L['moving type']||''),
@@ -325,10 +329,11 @@ function jobCard(r){
   var custHtml=ev?('<a class="jcust" href="'+ev+'" target="_blank" rel="noopener" title="Open calendar event">'+cust+cicon+'</a>')
                  :('<span class="jcust nolink">'+cust+'</span>');
   var pin='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.7-7-11a7 7 0 0 1 14 0c0 5.3-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+  var srcBadge=j.allowedShoot?'<span class="jsrc confirmed">Confirmed by sales</span>':'<span class="jsrc earlier">Scheduled earlier</span>';
   return '<div class="job">'
     +'<div class="jtime"><b>'+esc(tm.t||'—')+'</b><span>'+esc(tm.ap)+'</span></div>'
     +'<div class="jmain">'
-      +custHtml
+      +custHtml+srcBadge
       +'<div class="jmeta">'+'<span class="jt">'+esc(j.mt||'Local')+'</span><span class="sep">·</span><span class="sz">'+Math.round(j.cf||0).toLocaleString()+' CF</span><span class="sep">·</span><span>'+r.dist.toFixed(1)+' mi</span></div>'
       +'<a class="jaddr" href="'+mapsLink(j.pickup)+'" target="_blank" rel="noopener">'+pin+esc(j.pickup||'(no address)')+'</a>'
       +foremanBlock(j)
