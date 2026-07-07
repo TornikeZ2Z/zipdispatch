@@ -2223,19 +2223,22 @@ function resolveSlots(plan, declined, hardCust){
   plan.callPool.forEach(c=>{ if(declined.has(c.tail)&&c.customer)declCust.add(c.customer); });
   plan.movePool.forEach(m=>{ if(declined.has(m.code)&&m.customer)declCust.add(m.customer); });
   const cover=plan.gapToCover, gap=Math.max(plan.gapToBuffer, plan.gapToCover);
+  // always surface every feasible chain (Extra Chaining), even on calm days; date-moves stay within the shortage gap
+  const chainable=plan.callPool.filter(c=>!declined.has(c.tail)&&!declCust.has(c.customer)).length;
+  const nSlots=Math.max(gap, chainable);
   const used=new Set(); const slots=[];
-  for(let i=0;i<gap;i++){
+  for(let i=0;i<nSlots;i++){
     const cand=[];
     for(const c of plan.callPool){
       if(used.has(c.tail)||used.has(c.after))continue;
       if(declined.has(c.tail)||declCust.has(c.customer))continue;
       cand.push({kind:'call', key:'call|'+c.tail, rec:c});
     }
-    for(const m of plan.movePool){
+    if(i<gap){ for(const m of plan.movePool){
       if(used.has(m.code))continue;
       if(declined.has(m.code)||declCust.has(m.customer))continue;
       cand.push({kind:'move', key:'move|'+m.code, rec:m});
-    }
+    } }
     const cur=cand[0]||null;
     if(cur){ if(cur.kind==='call'){used.add(cur.rec.tail);used.add(cur.rec.after);} else used.add(cur.rec.code); }
     slots.push({index:i, must:i<cover, current:cur, altCount:Math.max(0,cand.length-1), exhausted:!cur});
@@ -2843,7 +2846,7 @@ function renderSlot(iso, s, td, dupLeads, dispN){
   const kind=s.current.kind, rec=s.current.rec;
   const id=sKey(iso,s.index,kind, kind==='call'?rec.tail:rec.code); SLOTCUST[id]=rec.customer||rec.tail||rec.code;
   const stt=STATUS[id]||'todo';
-  const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'buffer')+'</span>';
+  const tag='<span class="stag '+(s.must?'must':'buf')+'">'+(s.must?'clears shortage':'optional')+'</span>';
   let head, body='';
   if(kind==='call'){
     head='<b><span class="tlbl call">\ud83d\udcde Extra Chaining</span> '+esc(rec.customer||rec.tail)+'</b> '+tag+((function(){var j=jobByCode(rec.tail);var p=parsePhone(j);return p?' <a class="telchip" href="tel:'+esc(String(p).replace(/[^0-9+]/g,''))+'">\ud83d\udcde '+esc(p)+'</a>':'';})());
@@ -2896,12 +2899,12 @@ function renderDay(iso){
       h+='<div class="rcrow"><span class="rclbl"><b>'+esc(c.customer||c.tail)+'</b> after <b>'+esc(c.anchorCustomer||c.after)+'</b></span>'+(cst==='confirmed'?('<span class="rcok">\u2713 queued</span><button class="cb" data-act="reopen" data-id="'+rid+'">undo</button>'):('<button class="cb yes" data-act="confirm" data-id="'+rid+'" data-cust="'+esc(c.customer||'')+'">Confirm</button>'))+'</div>';
     });
   }
-  if(st!=='ok'){
+  if(st!=='ok' || slots.slots.some(function(s){return s.current;})){
     var _post=td.routes.length, _nchg=Object.keys(changes).length;
     if(_nchg>0 && _post<=plan.target){ h+='<div class="cres win">\ud83c\udf89 With your '+_nchg+' confirmed change'+(_nchg>1?'s':'')+', '+f.mon+' '+f.dn+' is back to a full '+plan_buffer()+'-crew buffer \u2014 '+(plan.availableCore-_post)+' free. Nicely done.</div>'; }
     else if(_nchg>0 && _post<=plan.availableCore){ h+='<div class="cres okwin">\u2713 Your '+_nchg+' change'+(_nchg>1?'s':'')+' clear'+(_nchg>1?'':'s')+' the shortage \u2014 now '+_post+'/'+plan.availableCore+' crews running.'+(_post>plan.target?(' Free '+(_post-plan.target)+' more to rebuild the buffer.'):'')+'</div>'; }
     h+='<div class="fixnote">Each step below frees one crew-day \u2014 work them top to bottom.</div>';
-    h+='<div class="fixhead">'+(st==='short'?('Free '+plan.gapToCover+' crew'+(plan.gapToCover>1?'s':'')+' to clear the shortage'+(plan.gapToBuffer>plan.gapToCover?(' \u00b7 +'+(plan.gapToBuffer-plan.gapToCover)+' more rebuilds the buffer'):'')):('Optional \u2014 free up to '+plan.gapToBuffer+' crew'+(plan.gapToBuffer>1?'s':'')+' to rebuild the buffer'))+'</div>';
+    h+='<div class="fixhead">'+(st==='short'?('Free '+plan.gapToCover+' crew'+(plan.gapToCover>1?'s':'')+' to clear the shortage'+(plan.gapToBuffer>plan.gapToCover?(' \u00b7 +'+(plan.gapToBuffer-plan.gapToCover)+' more rebuilds the buffer'):'')):(plan.gapToBuffer>0?('Optional \u2014 free up to '+plan.gapToBuffer+' crew'+(plan.gapToBuffer>1?'s':'')+' to rebuild the buffer'):'Optional chaining \u2014 merge an afternoon job onto an existing crew to save a crew-day'))+'</div>';
     if(plan.status==='short'){ var _fut=[]; for(var _k=1;_k<=3;_k++){ var _fd=new Date(Date.parse(iso+'T12:00')+_k*86400000); var _fi=_fd.getFullYear()+'-'+String(_fd.getMonth()+1).padStart(2,'0')+'-'+String(_fd.getDate()).padStart(2,'0'); var _fe=horizon.find(function(x){return x.iso===_fi;}); if(_fe&&_fe.spare<1)_fut.push(_fe); } var _hasMove=slots.slots.some(function(s){return s.current&&s.current.kind==='move';}); if(!_hasMove&&_fut.length){ h+='<div class="distalert">\u26a0 <b>No date-move is possible from this day yet</b> \u2014 the next '+_fut.length+' day'+(_fut.length>1?'s':'')+' ('+_fut.map(function(e){var _ff=fmtDay(e.iso);return _ff.mon+' '+_ff.dn+' \u00b7 '+(e.status==='short'?'over '+Math.abs(e.spare):'full');}).join(', ')+') '+(_fut.length>1?'are':'is')+' also full, so there\u2019s nowhere to move a job into. Clear the shortage on '+(_fut.length>1?'those days':'that day')+' first \u2014 each crew you free there opens a slot to pull one of this day\u2019s jobs forward.</div>'; } }
     const confirmedLeads={};
     slots.slots.forEach(s=>{if(s.current&&s.current.kind==='call'){const id=sKey(iso,s.index,'call',s.current.rec.tail);if(STATUS[id]==='confirmed'){const lead=LEADS[lKey(iso,s.index,s.current.rec.tail)]||s.current.rec.after;confirmedLeads[lead]=(confirmedLeads[lead]||0)+1;}}});
