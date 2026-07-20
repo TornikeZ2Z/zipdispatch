@@ -55,6 +55,10 @@ var RELAY_URL='https://script.google.com/macros/s/AKfycbzX3q9VqyZKd3FUbGCPKN9JcQ
 // is always kept so a free-text note is captured even when nothing fits.
 var REASONS=['Customer refused','The customer was dissatisfied','Open claim','Support intervention was required','Billing issue','The customer promised to write later','Elderly customer (not comfortable with technology)','No internet / poor internet connection','Customer was unfriendly / not willing to engage','Other'];
 var OTHER_LABEL='Other';   // matched case-insensitively below; the relay always keeps an "Other"
+// TRUE for any option that stands for "none of these fit" — "Other", "Other (Comment)", "other…".
+// Must NOT be an exact-string test: the office renames/extends this label in Settings, and when it
+// did ("Other (Comment)") the note box stopped opening, so foremen could no longer explain anything.
+function isOther(r){ return /^other\b/i.test(String(r==null?'':r).trim()); }
 // Pull the current reason list from the relay (JSONP) so what foremen see matches the office's Settings.
 function loadReasons(){
   try{
@@ -63,7 +67,10 @@ function loadReasons(){
       try{
         if(d&&d.config&&d.config.reasons&&d.config.reasons.length){
           REASONS=d.config.reasons;
-          var o=REASONS.filter(function(r){return String(r).trim().toLowerCase()==='other';})[0];
+          // Match any label that STARTS with "other" — not the literal word only. The office added
+          // "Other (Comment)" in Settings and the old exact test missed it (Tornike 2026-07-20:
+          // "the Other option is not available in a form").
+          var o=REASONS.filter(isOther)[0];
           if(o)OTHER_LABEL=o;   // the office may rename it — keep the special flow attached
           // Do NOT re-render once the foreman has started answering: the relay is a cold-start
           // Apps Script (20-50s), so this callback often lands AFTER they've typed. A blind
@@ -115,8 +122,9 @@ function renderFail(reason,note){
 // row is logged. Tapping it used to submit instantly with an empty note and wipe the form, so the
 // office got a row that said "Other" and nothing else (Tornike 2026-07-16: "foreman is not able to
 // explain the reason"). Now Other opens a note box and only sends once something is written.
-function pickOther(){
+function pickOther(label){
   var box=$('#otherBox'); if(!box)return;
+  if(label)OTHER_LABEL=label;   // log the exact wording the foreman tapped, not a hardcoded "Other"
   box.style.display='block';
   Array.prototype.forEach.call(document.querySelectorAll('.r'),function(b){b.classList.toggle('sel',b.getAttribute('data-r')===OTHER_LABEL);});
   var t=$('#note'); if(t){t.placeholder='What happened? (required)'; t.focus();}
@@ -146,7 +154,7 @@ function render(){
   Array.prototype.forEach.call(document.querySelectorAll('.r'),function(b){
     b.onclick=function(){
       var r=b.getAttribute('data-r');
-      if(r===OTHER_LABEL){pickOther();return;}   // Other -> ask first, send after
+      if(isOther(r)){pickOther(r);return;}   // any "Other…" -> ask first, send after
       submit(r);
     };
   });
