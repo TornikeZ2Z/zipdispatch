@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="gate.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zip To Zip — ACT Time Calculator</title>
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F6F2; --card:#FFFFFF; --ink:#1F2329; --dim:#646B73; --faint:#969CA3;
+    --line:#E6E4DC; --line2:#D3D0C6;
+    --act:#55627A; --act-bg:#EEF1F7; --act-bd:#CDD5E4;
+    --pu:#6E9220; --pu-bg:#F3F8E4;
+    --dr:#969CA3;
+    --de:#6C5CE0; --de-bg:#EFECFB;
+    --bad:#BE123C;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding:26px 16px calc(170px + env(safe-area-inset-bottom));
+    display:flex; justify-content:center;
+  }
+  .wrap{ width:100%; max-width:620px; }
+
+  .head{ text-align:center; margin-bottom:22px; }
+  .head img{ height:42px; width:auto; margin-bottom:12px; }
+  h1{
+    font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:clamp(28px,6vw,36px);
+    letter-spacing:.06em; text-transform:uppercase; line-height:1; margin:0 0 7px;
+  }
+  .sub{ color:var(--dim); font-size:14px; }
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:18px; margin-bottom:14px; position:relative; overflow:hidden;
+  }
+  .card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--stripe,var(--act)); }
+  .ct{
+    font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:19px; letter-spacing:.03em;
+    text-transform:uppercase; margin:0 0 12px; display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .grid{ display:grid; gap:12px; }
+  .g2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  @media (max-width:480px){ .g2{ grid-template-columns:1fr; } }
+  .field{ display:flex; flex-direction:column; gap:5px; min-width:0; }
+  .field label{ font-size:11px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
+  input,select{
+    width:100%; border:1px solid var(--line2); border-radius:10px;
+    padding:10px 12px; font-size:15px; font-family:inherit; color:var(--ink); background:#fff;
+    min-height:44px; outline:none;
+  }
+  input:focus,select:focus{ border-color:var(--act); box-shadow:0 0 0 3px rgba(85,98,122,.14); }
+  select{
+    appearance:none; -webkit-appearance:none; padding-right:34px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23646B73' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 11px center;
+  }
+  .hint{ font-size:12px; color:var(--faint); line-height:1.45; }
+  .hint b{ color:var(--dim); font-weight:600; }
+
+  .pillrow{ display:flex; gap:8px; flex-wrap:wrap; }
+  .pill{
+    border:1px solid var(--line2); background:#fff; color:var(--dim);
+    border-radius:999px; min-height:38px; padding:8px 15px;
+    font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:all .15s ease;
+  }
+  .pill.on{ background:var(--act-bg); border-color:var(--act); color:var(--ink); }
+  .chip{
+    border:1px solid var(--line2); background:#fff; color:var(--dim); border-radius:999px;
+    min-height:32px; padding:5px 13px; font-size:12.5px; font-weight:600; font-family:inherit; cursor:pointer;
+  }
+  .chip:active{ background:var(--act-bg); }
+
+  .switchline{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .switchline span{ font-size:13.5px; font-weight:600; color:var(--ink); }
+  .sw{ position:relative; width:46px; height:26px; flex:0 0 auto; cursor:pointer; }
+  .sw input{ display:none; }
+  .sw .tr{ position:absolute; inset:0; border-radius:999px; background:var(--line2); transition:background .15s ease; }
+  .sw .kn{ position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:999px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .15s ease; }
+  .sw input:checked + .tr{ background:var(--act); }
+  .sw input:checked + .tr + .kn{ left:23px; }
+
+  .rows{ display:flex; flex-direction:column; gap:9px; margin-top:10px; }
+  .mrow{
+    display:grid; grid-template-columns:minmax(0,1.8fr) 88px 40px; gap:9px; align-items:end;
+    background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:10px;
+  }
+  .xb{ border:1px solid #F3C3CE; background:#fff; color:var(--bad); border-radius:10px; min-height:44px; font-weight:700; cursor:pointer; font-size:15px; font-family:inherit; }
+  .addb{
+    margin-top:10px; border:1px solid var(--act-bd); background:var(--act-bg); color:var(--act);
+    border-radius:10px; min-height:40px; padding:9px 15px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .hidden{ display:none !important; }
+
+  .meter{
+    position:fixed; left:0; right:0; bottom:0; z-index:50;
+    background:rgba(255,255,255,.97); backdrop-filter:blur(8px);
+    border-top:1px solid var(--line); box-shadow:0 -10px 24px rgba(31,35,41,.07);
+    padding:12px 16px calc(14px + env(safe-area-inset-bottom));
+  }
+  .minner{ max-width:620px; margin:0 auto; }
+  .mtop{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .mact{ font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:38px; letter-spacing:.02em; line-height:1; }
+  .mact small{ font-size:12px; font-weight:600; color:var(--faint); text-transform:uppercase; letter-spacing:.08em; margin-right:8px; font-family:'Inter',sans-serif; }
+  .mraw{ font-size:11px; color:var(--faint); font-weight:600; text-align:right; }
+  .bar{ display:flex; height:13px; border-radius:999px; overflow:hidden; background:var(--line); margin:9px 0 7px; }
+  .seg{ height:100%; transition:width .25s ease; }
+  .s-pu{ background:var(--pu); } .s-dr{ background:var(--dr); } .s-de{ background:var(--de); }
+  .mrow2{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .leg{ display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .cpy{
+    border:0; border-radius:999px; background:var(--ink); color:#fff;
+    min-height:34px; padding:7px 16px; font-size:12.5px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .warn{ color:var(--bad); font-size:12px; font-weight:600; margin-top:4px; }
+  .foot{ text-align:center; color:var(--faint); font-size:12px; margin-top:6px; }
+  .foot a{ color:var(--dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <img src="logo.svg" alt="Zip To Zip">
+    <h1>ACT Time Calculator</h1>
+    <div class="sub">Same calibrated model as Register Moving &middot; drive via dispatch route model</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Job basics</div>
+    <div class="grid g2">
+      <div class="field"><label>Total CF</label><input id="cf" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 750"></div>
+      <div class="field"><label>Crew size</label><input id="crewPu" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 3"><div class="hint" id="crewHint">Used for both sides</div></div>
+    </div>
+    <div class="switchline" style="margin-top:12px;">
+      <span>Different crew at delivery (Long Distance)</span>
+      <label class="sw"><input id="splitCrew" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label>
+    </div>
+    <div class="grid g2 hidden" id="crewDeWrap" style="margin-top:12px;">
+      <div class="field"><label>Crew at delivery</label><input id="crewDe" type="number" min="1" step="1" inputmode="numeric"></div>
+    </div>
+  </div>
+
+  <div class="card" style="--stripe:var(--pu);">
+    <div class="ct" style="color:var(--pu);">Pickup side</div>
+    <div class="grid g2">
+      <div class="field"><label>Floor from</label><select id="floorPu"></select></div>
+      <div class="field"><label>Long carry from (ft)</label><select id="carryPu"></select></div>
+    </div>
+  </div>
+
+  <div class="card" style="--stripe:var(--de);">
+    <div class="ct" style="color:var(--de);">Delivery side</div>
+    <div class="grid g2">
+      <div class="field"><label>Floor to</label><select id="floorDe"></select></div>
+      <div class="field"><label>Long carry to (ft)</label><select id="carryDe"></select></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Packing <label class="sw"><input id="packOn" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label></div>
+    <div id="packWrap" class="hidden">
+      <div class="pillrow">
+        <button type="button" class="pill on" id="modePartial" onclick="setMode('PARTIAL')">Partial packing</button>
+        <button type="button" class="pill" id="modeFull" onclick="setMode('FULL')">Full packing</button>
+      </div>
+      <div class="rows" id="matRows"></div>
+      <button type="button" class="addb" onclick="addMat()">+ Add packing material</button>
+      <div class="hint" style="margin-top:8px;">Packing time is added to the pickup side only.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Bulky items <label class="sw"><input id="bulkyOn" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label></div>
+    <div id="bulkyWrap" class="hidden">
+      <div class="field"><label>Total bulky weight (lbs)</label><input id="bulkyLbs" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 800"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Drive between addresses</div>
+    <div class="grid g2">
+      <div class="field"><label>Pickup ZIP</label><input id="zipFrom" inputmode="numeric" maxlength="5" placeholder="07728"></div>
+      <div class="field"><label>Delivery ZIP</label><input id="zipTo" inputmode="numeric" maxlength="5" placeholder="19341"></div>
+    </div>
+    <div class="hint" id="zipInfo" style="margin-top:8px;">Enter both ZIPs for an automatic estimate (dispatch model: straight-line &times; 1.15 at 35 mph).</div>
+    <div class="grid g2" style="margin-top:12px;">
+      <div class="field"><label>Manual override (minutes)</label><input id="driveManual" type="number" min="0" step="1" inputmode="numeric" placeholder="leave empty to use ZIP estimate"></div>
+    </div>
+    <div class="pillrow" style="margin-top:10px;">
+      <button type="button" class="chip" onclick="setDrive(15)">15</button>
+      <button type="button" class="chip" onclick="setDrive(30)">30</button>
+      <button type="button" class="chip" onclick="setDrive(45)">45</button>
+      <button type="button" class="chip" onclick="setDrive(60)">60</button>
+      <button type="button" class="chip" onclick="setDrive(90)">90</button>
+      <button type="button" class="chip" onclick="setDrive(120)">120</button>
+    </div>
+  </div>
+
+  <div class="foot">Buffer +30 min, rounded to nearest 30 &middot; calibrated on 1,145 completed jobs</div>
+</div>
+
+<div class="meter">
+  <div class="minner">
+    <div class="mtop">
+      <div class="mact"><small>ACT</small><span id="actOut">&ndash;:&ndash;&ndash;</span></div>
+      <div class="mraw" id="rawOut"></div>
+    </div>
+    <div class="bar">
+      <div class="seg s-pu" id="segPu" style="width:0%"></div>
+      <div class="seg s-dr" id="segDr" style="width:0%"></div>
+      <div class="seg s-de" id="segDe" style="width:0%"></div>
+    </div>
+    <div class="mrow2">
+      <div class="leg">
+        <span style="color:var(--pu)">&#9632; Pickup <b id="puOut">&ndash;</b></span>
+        <span style="color:var(--dim)">&#9632; Drive <b id="drOut">&ndash;</b></span>
+        <span style="color:var(--de)">&#9632; Delivery <b id="deOut">&ndash;</b></span>
+      </div>
+      <button type="button" class="cpy" id="copyBtn" onclick="copySummary()">Copy summary</button>
+    </div>
+    <div class="warn hidden" id="warnOut"></div>
+  </div>
+</div>
+
+<script src="zipdb.js" defer></script>
+<script>
+// ============ CONFIG TABLES — identical to Databases ============
+var GENERAL=[[0,100,14,11],[100,200,41,33],[200,300,68,55],[300,400,95,77],[400,500,122,99],
+[500,600,149,122],[600,700,176,144],[700,800,203,166],[800,1000,243,199],[1000,1200,297,243],
+[1200,1400,351,287],[1400,1700,419,342],[1700,2000,500,409],[2000,2400,594,486],
+[2400,2800,702,575],[2800,3200,810,663],[3200,4000,972,796]];
+var BULKY=[[0,200,8,7],[200,400,25,21],[400,700,46,38],[700,1000,71,58],[1000,1500,104,85],
+[1500,2000,146,120],[2000,3000,209,171],[3000,5000,334,274],[5000,10000,627,513]];
+var FLOORS=[['Ground Floor',0],['Elevator',15],['1st Floor',0],['2nd Floor Without Fee',0],
+['2nd Floor',4],['3rd Floor',7],['4th Floor',10],['5th Floor',14],['6th Floor',18],['7th Floor',21],
+['8th Floor',25],['9th Floor',28],['10th Floor',32],['11th Floor',35],['12th Floor',39],
+['13th Floor',42],['14th Floor',46],['15th Floor',49],['16th Floor',53],['17th Floor',56],
+['18th Floor',60],['19th Floor',63],['20th Floor',67]];
+var CARRY=[[0,0],[50,1],[100,1],[150,2],[200,3],[250,3],[300,4],[350,5],[400,5],[450,6],[500,7],
+[550,7],[600,8],[650,9],[700,9],[750,10],[800,11],[850,11],[900,12],[950,12],[1000,13]];
+var MATERIALS=[['Roll of Moving Tape',7,11],['Book Box (Less then 1.5 cu. Ft)',4,6],
+['Medium Linen Box (3 cu. Ft)',6,9],['China Box / Dish Pack (Double Wall ~ 5.2 cu. Ft)',6,9],
+['Wardrobe box 24" (w/ Hanging bar)',13,20],['Mattress Cover (Twin/Full)',2,3],
+['Mattress Cover (Queen/King)',4,6],['Newsprint (25 lbs)',45,68],['Moving Blanket (Rent for storage)',1,2],
+['Moving Blanket (Sale)',1,2],['Small Carton Crate (Up To 5 CF)',7,11],
+['Medium Carton Crate (5 CF - 20 CF)',22,33],['Large Carton Crate (20 CF +)',47,71],
+['Small Shrink Wrap',11,17],['Medium Shrink Wrap',9,14],['Large Shrink Wrap',4,6]];
+var BASE_PU=67, BASE_DE=54, BUFFER=30, STEP=30, DRIVE_FALLBACK=30;
+
+var mode='PARTIAL';
+var mats=[{name:'',qty:''}];
+
+function $(id){return document.getElementById(id);}
+function n(id){var v=parseFloat($(id).value);return isNaN(v)?0:v;}
+function fmt(m){if(m===null||isNaN(m))return '\u2013:\u2013\u2013';m=Math.max(0,Math.round(m));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
+function bracket(t,v){if(v===null||isNaN(v))return null;for(var i=0;i<t.length;i++){if(v>=t[i][0]&&v<t[i][1])return t[i];}return v>=t[t.length-1][1]?t[t.length-1]:t[0];}
+function floorMin(sel){var f=FLOORS.find(function(x){return x[0]===sel;});return f?f[1]:0;}
+function carryMin(sel){var c=CARRY.find(function(x){return String(x[0])===String(sel);});return c?c[1]:0;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ---- drive: dispatch model (haversine × 1.15 @ 35 mph) via zipdb.js ----
+function hav(a,b){
+  var R=3959,dLa=(b[0]-a[0])*Math.PI/180,dLo=(b[1]-a[1])*Math.PI/180;
+  var la1=a[0]*Math.PI/180,la2=b[0]*Math.PI/180;
+  var h=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)*Math.sin(dLo/2);
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function zipDrive(){
+  var zf=String($('zipFrom').value||'').trim(), zt=String($('zipTo').value||'').trim();
+  var info=$('zipInfo');
+  if(!/^\d{5}$/.test(zf)||!/^\d{5}$/.test(zt)){
+    info.innerHTML='Enter both ZIPs for an automatic estimate (dispatch model: straight-line &times; 1.15 at 35 mph).';
+    return null;
+  }
+  if(!window.ZIPDB){ info.textContent='Loading ZIP database\u2026'; return null; }
+  var a=window.ZIPDB[zf], b=window.ZIPDB[zt];
+  if(!a||!b){ info.innerHTML='<b style="color:var(--bad)">Unknown ZIP '+esc(!a?zf:zt)+'</b> \u2014 use the manual override.'; return null; }
+  var mi=hav(a,b)*1.15, min=Math.round(mi/35*60);
+  info.innerHTML='<b>'+esc(a[2])+', '+esc(a[3])+' \u2192 '+esc(b[2])+', '+esc(b[3])+'</b> &middot; '+mi.toFixed(0)+' road mi &middot; ~'+fmt(min)+' drive';
+  return min;
+}
+function effectiveDrive(){
+  var man=n('driveManual');
+  if(man>0)return {min:man,src:'manual'};
+  var z=zipDrive();
+  if(z!==null)return {min:z,src:'zip'};
+  return {min:DRIVE_FALLBACK,src:'fallback'};
+}
+function setDrive(v){$('driveManual').value=v;calc();}
+
+function packMin(){
+  if(!$('packOn').checked)return 0;
+  var t=0;
+  mats.forEach(function(r){
+    var q=parseFloat(r.qty);if(isNaN(q)||q<=0||!r.name)return;
+    var m=MATERIALS.find(function(x){return x[0]===r.name;});if(!m)return;
+    t+=q*(mode==='FULL'?m[2]:m[1]);
+  });
+  return t;
+}
+
+function calc(){
+  var cf=n('cf'), crewPu=n('crewPu');
+  var crewDe=$('splitCrew').checked?n('crewDe'):crewPu;
+  var warn=$('warnOut');
+
+  var d=effectiveDrive();
+  $('drOut').textContent=fmt(d.min);
+
+  if(!cf||cf<=0||!crewPu||crewPu<=0||!crewDe||crewDe<=0){
+    $('actOut').textContent='\u2013:\u2013\u2013';$('puOut').textContent='\u2013';$('deOut').textContent='\u2013';
+    $('rawOut').textContent='';
+    $('segPu').style.width='0%';$('segDr').style.width='0%';$('segDe').style.width='0%';
+    warn.textContent='Enter Total CF and Crew size';warn.classList.remove('hidden');
+    return null;
+  }
+  warn.classList.add('hidden');
+
+  var g=bracket(GENERAL,cf)||[0,0,0,0], bkPu=0, bkDe=0;
+  if($('bulkyOn').checked){
+    var lbs=n('bulkyLbs');
+    if(lbs>0){var b=bracket(BULKY,lbs);if(b){bkPu=b[2];bkDe=b[3];}}
+  }
+  var puPool=g[2]+floorMin($('floorPu').value)+carryMin($('carryPu').value)+packMin()+bkPu;
+  var dePool=g[3]+floorMin($('floorDe').value)+carryMin($('carryDe').value)+bkDe;
+  var puRaw=BASE_PU+puPool/crewPu, deRaw=BASE_DE+dePool/crewDe;
+  var raw=puRaw+d.min+deRaw;
+  var act=Math.round((raw+BUFFER)/STEP)*STEP;
+
+  $('actOut').textContent=fmt(act);
+  $('puOut').textContent=fmt(puRaw);
+  $('deOut').textContent=fmt(deRaw);
+  $('rawOut').textContent='raw '+fmt(raw)+' + buffer \u2192 rounded'+(d.src==='fallback'?' \u00b7 drive fallback':'');
+
+  var tot=Math.max(raw,1);
+  $('segPu').style.width=(puRaw/tot*100)+'%';
+  $('segDr').style.width=(d.min/tot*100)+'%';
+  $('segDe').style.width=(deRaw/tot*100)+'%';
+
+  return {act:act,pu:puRaw,dr:d.min,de:deRaw,raw:raw,cf:cf,crewPu:crewPu,crewDe:crewDe,driveSrc:d.src};
+}
+
+function ui(){
+  $('crewDeWrap').classList.toggle('hidden',!$('splitCrew').checked);
+  $('crewHint').textContent=$('splitCrew').checked?'Crew at pickup':'Used for both sides';
+  $('packWrap').classList.toggle('hidden',!$('packOn').checked);
+  $('bulkyWrap').classList.toggle('hidden',!$('bulkyOn').checked);
+  renderMats();calc();
+}
+function setMode(m){
+  mode=m;
+  $('modePartial').classList.toggle('on',m==='PARTIAL');
+  $('modeFull').classList.toggle('on',m==='FULL');
+  calc();
+}
+function addMat(){mats.push({name:'',qty:''});renderMats();}
+function rmMat(i){if(mats.length<=1){mats=[{name:'',qty:''}];}else{mats.splice(i,1);}renderMats();calc();}
+function matName(i,v){mats[i].name=v;calc();}
+function matQty(i,v){mats[i].qty=v;calc();}
+function renderMats(){
+  var box=$('matRows');if(!box)return;
+  box.innerHTML=mats.map(function(r,i){
+    var opts='<option value="">Select material</option>'+MATERIALS.map(function(m){
+      return '<option value="'+esc(m[0])+'"'+(m[0]===r.name?' selected':'')+'>'+esc(m[0])+'</option>';
+    }).join('');
+    return '<div class="mrow">'
+      +'<div class="field"><label>Material</label><select onchange="matName('+i+', this.value)">'+opts+'</select></div>'
+      +'<div class="field"><label>Qty</label><input type="number" min="1" step="1" inputmode="numeric" value="'+esc(r.qty)+'" oninput="matQty('+i+', this.value)"></div>'
+      +'<button type="button" class="xb" onclick="rmMat('+i+')" aria-label="Remove">&times;</button>'
+      +'</div>';
+  }).join('');
+}
+
+function copySummary(){
+  var r=calc();if(!r)return;
+  var L=['ACT Time: '+fmt(r.act),'ACT Pickup Time: '+fmt(r.pu),'ACT Drive Time: '+fmt(r.dr),
+    'ACT Delivery Time: '+fmt(r.de),'Total CF: '+r.cf,
+    'Crew: '+r.crewPu+($('splitCrew').checked?' / '+r.crewDe+' at delivery':''),
+    'Floor From: '+$('floorPu').value+'  |  Floor To: '+$('floorDe').value,
+    'Long Carry: '+$('carryPu').value+' ft / '+$('carryDe').value+' ft'];
+  if($('packOn').checked)L.push('Packing: '+(mode==='FULL'?'Full':'Partial'));
+  if($('bulkyOn').checked&&n('bulkyLbs')>0)L.push('Bulky: '+n('bulkyLbs')+' lbs');
+  var zf=$('zipFrom').value,zt=$('zipTo').value;
+  if(zf&&zt)L.push('Route: '+zf+' \u2192 '+zt+(r.driveSrc==='manual'?' (manual drive)':''));
+  var text=L.join('\n');
+  var done=function(){var b=$('copyBtn');b.textContent='Copied';setTimeout(function(){b.textContent='Copy summary';},1400);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,done);}
+  else{var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();}
+}
+
+// ---------- init + URL prefill ----------
+(function(){
+  ['floorPu','floorDe'].forEach(function(id){
+    $(id).innerHTML=FLOORS.map(function(f){return '<option value="'+esc(f[0])+'">'+esc(f[0])+'</option>';}).join('');
+  });
+  ['carryPu','carryDe'].forEach(function(id){
+    $(id).innerHTML=CARRY.map(function(c){return '<option value="'+c[0]+'">'+c[0]+'</option>';}).join('');
+  });
+
+  var q=new URLSearchParams(location.search);
+  function setV(id,key){var v=q.get(key);if(v!==null&&v!=='')$(id).value=v;}
+  setV('cf','cf');setV('crewPu','crew');
+  if(q.get('crewde')){$('splitCrew').checked=true;$('crewDe').value=q.get('crewde');}
+  setV('floorPu','floorfrom');setV('floorDe','floorto');
+  setV('carryPu','carryfrom');setV('carryDe','carryto');
+  setV('zipFrom','zipfrom');setV('zipTo','zipto');
+  setV('driveManual','drive');
+  if(q.get('mode')==='FULL'){mode='FULL';$('modePartial').classList.remove('on');$('modeFull').classList.add('on');}
+  if((q.get('mode')==='FULL'||q.get('mode')==='PARTIAL'))$('packOn').checked=true;
+  if(q.get('bulky')){$('bulkyOn').checked=true;$('bulkyLbs').value=q.get('bulky');}
+
+  document.querySelectorAll('input,select').forEach(function(node){
+    node.addEventListener('input',calc);
+    node.addEventListener('change',calc);
+  });
+  window.addEventListener('load',calc);   // re-run once zipdb.js is in
+  ui();
+})();
+</script>
+</body>
+</html>
