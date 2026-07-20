@@ -11,222 +11,264 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --paper:#F7F6F2; --card:#FFFFFF; --ink:#1F2329; --dim:#646B73; --faint:#969CA3;
-    --line:#E6E4DC; --line2:#D3D0C6;
+    --paper:#F7F6F2; --card:#FFFFFF; --ink:#1F2329; --dim:#646B73; --faint:#9AA0A7;
+    --line:#EAE8E1; --line2:#D7D3C9;
     --act:#55627A; --act-bg:#EEF1F7; --act-bd:#CDD5E4;
-    --pu:#6E9220; --pu-bg:#F3F8E4;
-    --dr:#969CA3;
-    --de:#6C5CE0; --de-bg:#EFECFB;
+    --pu:#6E9220; --pu-bg:#F3F8E4; --pu-bd:#D8E7AE;
+    --dr:#8A9099;
+    --de:#6C5CE0; --de-bg:#EFECFB; --de-bd:#D8D1F6;
     --bad:#BE123C;
+    --sh:0 1px 2px rgba(31,35,41,.04), 0 8px 24px rgba(31,35,41,.05);
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
-    background:var(--paper); color:var(--ink);
+    background:radial-gradient(1200px 480px at 50% -160px, #FFFFFF 0%, rgba(255,255,255,0) 68%), var(--paper);
+    color:var(--ink);
     font-family:'Inter',system-ui,sans-serif; font-size:15px; line-height:1.5;
     -webkit-font-smoothing:antialiased;
-    padding:26px 16px calc(170px + env(safe-area-inset-bottom));
+    padding:30px 18px calc(178px + env(safe-area-inset-bottom));
     display:flex; justify-content:center;
   }
-  .wrap{ width:100%; max-width:620px; }
+  .wrap{ width:100%; max-width:940px; }
 
   .head{ text-align:center; margin-bottom:22px; }
-  .head img{ height:42px; width:auto; margin-bottom:12px; }
+  .head img{ height:34px; width:auto; margin-bottom:12px; opacity:.96; }
   h1{
-    font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:clamp(28px,6vw,36px);
-    letter-spacing:.06em; text-transform:uppercase; line-height:1; margin:0 0 7px;
+    font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:clamp(28px,5vw,38px);
+    letter-spacing:.05em; text-transform:uppercase; line-height:1; margin:0 0 8px;
   }
-  .sub{ color:var(--dim); font-size:14px; }
+  .sub{ color:var(--dim); font-size:13.5px; }
+  .badge{
+    display:inline-flex; align-items:center; gap:7px; margin-top:11px;
+    background:var(--act-bg); color:var(--act); border:1px solid var(--act-bd);
+    border-radius:999px; padding:4px 13px; font-size:11.5px; font-weight:600; letter-spacing:.01em;
+  }
+  .badge .d{ width:6px; height:6px; border-radius:999px; background:var(--act); }
+
+  .form{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  .col{ display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (max-width:760px){ .form{ grid-template-columns:1fr; } }
 
   .card{
     background:var(--card); border:1px solid var(--line); border-radius:16px;
-    padding:18px; margin-bottom:14px; position:relative; overflow:hidden;
+    padding:18px; position:relative; overflow:hidden; box-shadow:var(--sh);
   }
   .card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--stripe,var(--act)); }
   .ct{
-    font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:19px; letter-spacing:.03em;
-    text-transform:uppercase; margin:0 0 12px; display:flex; justify-content:space-between; align-items:center; gap:10px;
+    font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:18px; letter-spacing:.04em;
+    text-transform:uppercase; margin:0 0 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; color:var(--ink);
   }
   .grid{ display:grid; gap:12px; }
   .g2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
-  @media (max-width:480px){ .g2{ grid-template-columns:1fr; } }
-  .field{ display:flex; flex-direction:column; gap:5px; min-width:0; }
-  .field label{ font-size:11px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
+  @media (max-width:420px){ .g2{ grid-template-columns:1fr; } }
+  .field{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .field label{ font-size:10.5px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; }
   input,select{
-    width:100%; border:1px solid var(--line2); border-radius:10px;
-    padding:10px 12px; font-size:15px; font-family:inherit; color:var(--ink); background:#fff;
-    min-height:44px; outline:none;
+    width:100%; border:1px solid var(--line2); border-radius:11px;
+    padding:11px 13px; font-size:15px; font-family:inherit; color:var(--ink); background:#fff;
+    min-height:46px; outline:none; transition:border-color .15s ease, box-shadow .15s ease;
   }
-  input:focus,select:focus{ border-color:var(--act); box-shadow:0 0 0 3px rgba(85,98,122,.14); }
+  input::placeholder{ color:#B7BCC2; }
+  input:focus,select:focus{ border-color:var(--act); box-shadow:0 0 0 3px rgba(85,98,122,.15); }
   select{
-    appearance:none; -webkit-appearance:none; padding-right:34px;
+    appearance:none; -webkit-appearance:none; padding-right:36px; cursor:pointer;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23646B73' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position:right 11px center;
+    background-repeat:no-repeat; background-position:right 12px center;
   }
-  .hint{ font-size:12px; color:var(--faint); line-height:1.45; }
+  .hint{ font-size:11.5px; color:var(--faint); line-height:1.45; }
   .hint b{ color:var(--dim); font-weight:600; }
+
+  .pairs{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:520px){ .pairs{ grid-template-columns:1fr; } }
+  .pair{ display:flex; flex-direction:column; gap:11px; }
+  .ptag{ font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; display:inline-flex; align-items:center; gap:7px; }
+  .ptag .d{ width:8px; height:8px; border-radius:2px; }
+  .ptag.pu{ color:var(--pu); } .ptag.de{ color:var(--de); }
+
+  .togg{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .togg .tt{ font-size:14px; font-weight:600; color:var(--ink); }
+  .togg .td{ font-size:11.5px; color:var(--faint); margin-top:2px; }
+  .sw{ position:relative; width:46px; height:26px; flex:0 0 auto; cursor:pointer; }
+  .sw input{ display:none; }
+  .sw .tr{ position:absolute; inset:0; border-radius:999px; background:var(--line2); transition:background .18s ease; }
+  .sw .kn{ position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:999px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.28); transition:left .18s ease; }
+  .sw input:checked + .tr{ background:var(--act); }
+  .sw input:checked + .tr + .kn{ left:23px; }
+  .divider{ height:1px; background:var(--line); margin:15px 0; }
 
   .pillrow{ display:flex; gap:8px; flex-wrap:wrap; }
   .pill{
-    border:1px solid var(--line2); background:#fff; color:var(--dim);
-    border-radius:999px; min-height:38px; padding:8px 15px;
+    flex:1 1 0; border:1px solid var(--line2); background:#fff; color:var(--dim);
+    border-radius:11px; min-height:42px; padding:8px 14px;
     font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:all .15s ease;
   }
-  .pill.on{ background:var(--act-bg); border-color:var(--act); color:var(--ink); }
+  .pill.on{ background:var(--act-bg); border-color:var(--act); color:var(--act); box-shadow:inset 0 0 0 1px var(--act); }
   .chip{
     border:1px solid var(--line2); background:#fff; color:var(--dim); border-radius:999px;
-    min-height:32px; padding:5px 13px; font-size:12.5px; font-weight:600; font-family:inherit; cursor:pointer;
+    min-height:34px; padding:6px 14px; font-size:12.5px; font-weight:600; font-family:inherit; cursor:pointer; transition:all .12s ease;
   }
-  .chip:active{ background:var(--act-bg); }
+  .chip:hover{ border-color:var(--act); color:var(--act); }
 
-  .switchline{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
-  .switchline span{ font-size:13.5px; font-weight:600; color:var(--ink); }
-  .sw{ position:relative; width:46px; height:26px; flex:0 0 auto; cursor:pointer; }
-  .sw input{ display:none; }
-  .sw .tr{ position:absolute; inset:0; border-radius:999px; background:var(--line2); transition:background .15s ease; }
-  .sw .kn{ position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:999px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .15s ease; }
-  .sw input:checked + .tr{ background:var(--act); }
-  .sw input:checked + .tr + .kn{ left:23px; }
-
-  .rows{ display:flex; flex-direction:column; gap:9px; margin-top:10px; }
+  .rows{ display:flex; flex-direction:column; gap:9px; margin-top:12px; }
   .mrow{
-    display:grid; grid-template-columns:minmax(0,1.8fr) 88px 40px; gap:9px; align-items:end;
+    display:grid; grid-template-columns:minmax(0,1fr) 82px 44px; gap:9px; align-items:end;
     background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:10px;
   }
-  .xb{ border:1px solid #F3C3CE; background:#fff; color:var(--bad); border-radius:10px; min-height:44px; font-weight:700; cursor:pointer; font-size:15px; font-family:inherit; }
+  .mrow .field label{ font-size:9.5px; }
+  .xb{ border:1px solid var(--de-bd); background:#fff; color:var(--bad); border-radius:10px; min-height:46px; font-weight:700; cursor:pointer; font-size:17px; font-family:inherit; transition:all .12s ease; }
+  .xb:hover{ background:#FDECEF; border-color:var(--bad); }
   .addb{
-    margin-top:10px; border:1px solid var(--act-bd); background:var(--act-bg); color:var(--act);
-    border-radius:10px; min-height:40px; padding:9px 15px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;
+    margin-top:12px; width:100%; border:1px dashed var(--act-bd); background:var(--act-bg); color:var(--act);
+    border-radius:11px; min-height:42px; padding:9px 15px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; transition:all .12s ease;
   }
+  .addb:hover{ border-style:solid; }
   .hidden{ display:none !important; }
 
   .meter{
     position:fixed; left:0; right:0; bottom:0; z-index:50;
-    background:rgba(255,255,255,.97); backdrop-filter:blur(8px);
-    border-top:1px solid var(--line); box-shadow:0 -10px 24px rgba(31,35,41,.07);
-    padding:12px 16px calc(14px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.92); backdrop-filter:saturate(1.1) blur(10px);
+    border-top:1px solid var(--line); box-shadow:0 -12px 30px rgba(31,35,41,.09);
+    padding:13px 18px calc(14px + env(safe-area-inset-bottom));
   }
-  .minner{ max-width:620px; margin:0 auto; }
-  .mtop{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
-  .mact{ font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:38px; letter-spacing:.02em; line-height:1; }
-  .mact small{ font-size:12px; font-weight:600; color:var(--faint); text-transform:uppercase; letter-spacing:.08em; margin-right:8px; font-family:'Inter',sans-serif; }
-  .mraw{ font-size:11px; color:var(--faint); font-weight:600; text-align:right; }
-  .bar{ display:flex; height:13px; border-radius:999px; overflow:hidden; background:var(--line); margin:9px 0 7px; }
-  .seg{ height:100%; transition:width .25s ease; }
+  .minner{ max-width:940px; margin:0 auto; display:grid; grid-template-columns:auto 1fr auto; gap:20px; align-items:center; }
+  @media (max-width:640px){ .minner{ grid-template-columns:1fr; gap:10px; } }
+  .mact{ display:flex; align-items:baseline; gap:11px; white-space:nowrap; }
+  .mact .lab{ font-size:11px; font-weight:700; color:var(--faint); text-transform:uppercase; letter-spacing:.1em; }
+  .mact .val{ font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:46px; letter-spacing:.01em; line-height:.9; color:var(--act); }
+  .mmid{ min-width:0; }
+  .bar{ display:flex; height:12px; border-radius:999px; overflow:hidden; background:var(--line); box-shadow:inset 0 0 0 1px rgba(0,0,0,.03); }
+  .seg{ height:100%; transition:width .3s ease; }
   .s-pu{ background:var(--pu); } .s-dr{ background:var(--dr); } .s-de{ background:var(--de); }
-  .mrow2{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
-  .leg{ display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .leg{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; font-weight:600; color:var(--dim); margin-top:8px; }
+  .leg .k{ display:inline-flex; align-items:center; gap:6px; }
+  .leg .d{ width:8px; height:8px; border-radius:2px; }
+  .leg b{ color:var(--ink); font-weight:700; }
+  .mraw{ font-size:11px; color:var(--faint); font-weight:500; margin-top:5px; }
+  .warn{ color:var(--bad); font-size:12px; font-weight:600; margin-top:5px; }
+  .mend{ display:flex; justify-content:flex-end; }
   .cpy{
     border:0; border-radius:999px; background:var(--ink); color:#fff;
-    min-height:34px; padding:7px 16px; font-size:12.5px; font-weight:700; font-family:inherit; cursor:pointer;
+    min-height:38px; padding:8px 18px; font-size:12.5px; font-weight:700; font-family:inherit; cursor:pointer; transition:transform .12s ease, opacity .12s ease;
   }
-  .warn{ color:var(--bad); font-size:12px; font-weight:600; margin-top:4px; }
-  .foot{ text-align:center; color:var(--faint); font-size:12px; margin-top:6px; }
-  .foot a{ color:var(--dim); }
+  .cpy:hover{ opacity:.9; } .cpy:active{ transform:scale(.97); }
+  .foot{ text-align:center; color:var(--faint); font-size:11.5px; margin-top:16px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="head">
-    <img src="logo.svg" alt="Zip To Zip">
+    <img src="logo.svg" alt="Zip To Zip" onerror="this.style.display='none'">
     <h1>ACT Time Calculator</h1>
     <div class="sub">Same calibrated model as Register Moving &middot; drive via dispatch route model</div>
+    <div class="badge"><span class="d"></span>Calibrated on 1,145 completed jobs</div>
   </div>
 
-  <div class="card">
-    <div class="ct">Job basics</div>
-    <div class="grid g2">
-      <div class="field"><label>Total CF</label><input id="cf" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 750"></div>
-      <div class="field"><label>Crew size</label><input id="crewPu" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 3"><div class="hint" id="crewHint">Used for both sides</div></div>
-    </div>
-    <div class="switchline" style="margin-top:12px;">
-      <span>Different crew at delivery (Long Distance)</span>
-      <label class="sw"><input id="splitCrew" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label>
-    </div>
-    <div class="grid g2 hidden" id="crewDeWrap" style="margin-top:12px;">
-      <div class="field"><label>Crew at delivery</label><input id="crewDe" type="number" min="1" step="1" inputmode="numeric"></div>
-    </div>
-  </div>
+  <div class="form">
+    <div class="col">
 
-  <div class="card" style="--stripe:var(--pu);">
-    <div class="ct" style="color:var(--pu);">Pickup side</div>
-    <div class="grid g2">
-      <div class="field"><label>Floor from</label><select id="floorPu"></select></div>
-      <div class="field"><label>Long carry from (ft)</label><select id="carryPu"></select></div>
-    </div>
-  </div>
-
-  <div class="card" style="--stripe:var(--de);">
-    <div class="ct" style="color:var(--de);">Delivery side</div>
-    <div class="grid g2">
-      <div class="field"><label>Floor to</label><select id="floorDe"></select></div>
-      <div class="field"><label>Long carry to (ft)</label><select id="carryDe"></select></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="ct">Packing <label class="sw"><input id="packOn" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label></div>
-    <div id="packWrap" class="hidden">
-      <div class="pillrow">
-        <button type="button" class="pill on" id="modePartial" onclick="setMode('PARTIAL')">Partial packing</button>
-        <button type="button" class="pill" id="modeFull" onclick="setMode('FULL')">Full packing</button>
+      <div class="card">
+        <div class="ct">Job basics</div>
+        <div class="grid g2">
+          <div class="field"><label>Total CF</label><input id="cf" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 750"></div>
+          <div class="field"><label>Crew size</label><input id="crewPu" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 3"><div class="hint" id="crewHint">Used for both sides</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="togg">
+          <div><div class="tt">Different crew at delivery</div><div class="td">Long-distance jobs with a separate delivery crew</div></div>
+          <label class="sw"><input id="splitCrew" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label>
+        </div>
+        <div class="grid g2 hidden" id="crewDeWrap" style="margin-top:12px;">
+          <div class="field"><label>Crew at delivery</label><input id="crewDe" type="number" min="1" step="1" inputmode="numeric"></div>
+        </div>
       </div>
-      <div class="rows" id="matRows"></div>
-      <button type="button" class="addb" onclick="addMat()">+ Add packing material</button>
-      <div class="hint" style="margin-top:8px;">Packing time is added to the pickup side only.</div>
+
+      <div class="card">
+        <div class="ct">Floors &amp; long carry</div>
+        <div class="pairs">
+          <div class="pair">
+            <div class="ptag pu"><span class="d" style="background:var(--pu)"></span>Pickup</div>
+            <div class="field"><label>Floor from</label><select id="floorPu"></select></div>
+            <div class="field"><label>Long carry from (ft)</label><select id="carryPu"></select></div>
+          </div>
+          <div class="pair">
+            <div class="ptag de"><span class="d" style="background:var(--de)"></span>Delivery</div>
+            <div class="field"><label>Floor to</label><select id="floorDe"></select></div>
+            <div class="field"><label>Long carry to (ft)</label><select id="carryDe"></select></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="col">
+
+      <div class="card">
+        <div class="ct">Extras</div>
+        <div class="togg">
+          <div><div class="tt">Packing</div><div class="td">Added to the pickup side only</div></div>
+          <label class="sw"><input id="packOn" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label>
+        </div>
+        <div id="packWrap" class="hidden" style="margin-top:12px;">
+          <div class="pillrow">
+            <button type="button" class="pill on" id="modePartial" onclick="setMode('PARTIAL')">Partial packing</button>
+            <button type="button" class="pill" id="modeFull" onclick="setMode('FULL')">Full packing</button>
+          </div>
+          <div class="rows" id="matRows"></div>
+          <button type="button" class="addb" onclick="addMat()">+ Add packing material</button>
+        </div>
+        <div class="divider"></div>
+        <div class="togg">
+          <div><div class="tt">Bulky items</div><div class="td">Pianos, safes, gym equipment</div></div>
+          <label class="sw"><input id="bulkyOn" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label>
+        </div>
+        <div id="bulkyWrap" class="hidden" style="margin-top:12px;">
+          <div class="field"><label>Total bulky weight (lbs)</label><input id="bulkyLbs" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 800"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">Drive between addresses</div>
+        <div class="grid g2">
+          <div class="field"><label>Pickup ZIP</label><input id="zipFrom" inputmode="numeric" maxlength="5" placeholder="07728"></div>
+          <div class="field"><label>Delivery ZIP</label><input id="zipTo" inputmode="numeric" maxlength="5" placeholder="19341"></div>
+        </div>
+        <div class="hint" id="zipInfo" style="margin-top:10px;">Enter both ZIPs for an automatic estimate (dispatch model: straight-line &times; 1.15 at 35 mph).</div>
+        <div class="divider"></div>
+        <div class="field"><label>Manual override (minutes)</label><input id="driveManual" type="number" min="0" step="1" inputmode="numeric" placeholder="leave empty to use ZIP estimate"></div>
+        <div class="pillrow" style="margin-top:10px;">
+          <button type="button" class="chip" onclick="setDrive(15)">15</button>
+          <button type="button" class="chip" onclick="setDrive(30)">30</button>
+          <button type="button" class="chip" onclick="setDrive(45)">45</button>
+          <button type="button" class="chip" onclick="setDrive(60)">60</button>
+          <button type="button" class="chip" onclick="setDrive(90)">90</button>
+          <button type="button" class="chip" onclick="setDrive(120)">120</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <div class="card">
-    <div class="ct">Bulky items <label class="sw"><input id="bulkyOn" type="checkbox" onchange="ui()"><span class="tr"></span><span class="kn"></span></label></div>
-    <div id="bulkyWrap" class="hidden">
-      <div class="field"><label>Total bulky weight (lbs)</label><input id="bulkyLbs" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 800"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="ct">Drive between addresses</div>
-    <div class="grid g2">
-      <div class="field"><label>Pickup ZIP</label><input id="zipFrom" inputmode="numeric" maxlength="5" placeholder="07728"></div>
-      <div class="field"><label>Delivery ZIP</label><input id="zipTo" inputmode="numeric" maxlength="5" placeholder="19341"></div>
-    </div>
-    <div class="hint" id="zipInfo" style="margin-top:8px;">Enter both ZIPs for an automatic estimate (dispatch model: straight-line &times; 1.15 at 35 mph).</div>
-    <div class="grid g2" style="margin-top:12px;">
-      <div class="field"><label>Manual override (minutes)</label><input id="driveManual" type="number" min="0" step="1" inputmode="numeric" placeholder="leave empty to use ZIP estimate"></div>
-    </div>
-    <div class="pillrow" style="margin-top:10px;">
-      <button type="button" class="chip" onclick="setDrive(15)">15</button>
-      <button type="button" class="chip" onclick="setDrive(30)">30</button>
-      <button type="button" class="chip" onclick="setDrive(45)">45</button>
-      <button type="button" class="chip" onclick="setDrive(60)">60</button>
-      <button type="button" class="chip" onclick="setDrive(90)">90</button>
-      <button type="button" class="chip" onclick="setDrive(120)">120</button>
-    </div>
-  </div>
-
-  <div class="foot">Buffer +30 min, rounded to nearest 30 &middot; calibrated on 1,145 completed jobs</div>
+  <div class="foot">Buffer +30 min, rounded to the nearest 30 minutes</div>
 </div>
 
 <div class="meter">
   <div class="minner">
-    <div class="mtop">
-      <div class="mact"><small>ACT</small><span id="actOut">&ndash;:&ndash;&ndash;</span></div>
-      <div class="mraw" id="rawOut"></div>
-    </div>
-    <div class="bar">
-      <div class="seg s-pu" id="segPu" style="width:0%"></div>
-      <div class="seg s-dr" id="segDr" style="width:0%"></div>
-      <div class="seg s-de" id="segDe" style="width:0%"></div>
-    </div>
-    <div class="mrow2">
-      <div class="leg">
-        <span style="color:var(--pu)">&#9632; Pickup <b id="puOut">&ndash;</b></span>
-        <span style="color:var(--dim)">&#9632; Drive <b id="drOut">&ndash;</b></span>
-        <span style="color:var(--de)">&#9632; Delivery <b id="deOut">&ndash;</b></span>
+    <div class="mact"><span class="lab">ACT</span><span class="val" id="actOut">&ndash;:&ndash;&ndash;</span></div>
+    <div class="mmid">
+      <div class="bar">
+        <div class="seg s-pu" id="segPu" style="width:0%"></div>
+        <div class="seg s-dr" id="segDr" style="width:0%"></div>
+        <div class="seg s-de" id="segDe" style="width:0%"></div>
       </div>
-      <button type="button" class="cpy" id="copyBtn" onclick="copySummary()">Copy summary</button>
+      <div class="leg">
+        <span class="k"><span class="d" style="background:var(--pu)"></span>Pickup <b id="puOut">&ndash;</b></span>
+        <span class="k"><span class="d" style="background:var(--dr)"></span>Drive <b id="drOut">&ndash;</b></span>
+        <span class="k"><span class="d" style="background:var(--de)"></span>Delivery <b id="deOut">&ndash;</b></span>
+      </div>
+      <div class="mraw" id="rawOut"></div>
+      <div class="warn hidden" id="warnOut"></div>
     </div>
-    <div class="warn hidden" id="warnOut"></div>
+    <div class="mend"><button type="button" class="cpy" id="copyBtn" onclick="copySummary()">Copy summary</button></div>
   </div>
 </div>
 
