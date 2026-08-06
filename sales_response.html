@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flag a lead · Zip To Zip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Sibling of review_response.html on purpose -- same shell, same rhythm, same card. The accent
+   is the only thing that moves (amber = "why no review", indigo = "this lead looks wrong"), so a
+   salesperson who has seen the foreman form recognises this instantly as the same kind of thing. */
+:root{--paper:#F7F6F2;--card:#FFF;--ink:#1F2329;--dim:#646B73;--faint:#969CA3;--line:#E6E4DC;--line2:#D3D0C6;--soft:#F1F0EA;--acc:#3A5BA8;--acc-bg:#EDF1FA;--acc-bd:#B9C8E8;--good:#2E7D46;}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;padding:20px 16px 60px}
+.wrap{max-width:520px;margin:0 auto}
+.bar{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+.dot{width:34px;height:34px;border-radius:10px;background:var(--acc-bg);border:1px solid var(--acc-bd);color:var(--acc);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.dot svg{width:19px;height:19px}
+h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0;line-height:1.05}
+.sub{font-size:12.5px;color:var(--dim);margin-top:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(31,35,41,.04),0 8px 24px rgba(31,35,41,.06);padding:18px 20px}
+.jc{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px}
+.jmeta{color:var(--dim);font-size:13px;margin-top:3px;margin-bottom:6px}
+.q{font-weight:600;margin:14px 0 4px}
+.reasons{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+.r{width:100%;text-align:left;font:inherit;font-size:15px;font-weight:600;border:1px solid var(--line2);border-radius:11px;padding:13px 15px;background:var(--card);color:var(--ink);cursor:pointer;transition:.12s}
+.r:hover{border-color:var(--acc);background:var(--acc-bg)}
+.r:active{transform:scale(.99)}
+.r.sel{border-color:var(--acc);background:var(--acc-bg);box-shadow:inset 3px 0 0 var(--acc)}
+.r:focus-visible,.go:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+label.fld{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:16px 0 5px}
+textarea{width:100%;font:inherit;font-size:15px;border:1px solid var(--line2);border-radius:10px;padding:11px 13px;min-height:70px;resize:vertical}
+textarea:focus{outline:none;border-color:var(--acc)}
+.go{width:100%;margin-top:10px;font:inherit;font-size:15px;font-weight:700;border:0;border-radius:11px;padding:14px;background:var(--acc);color:#fff;cursor:pointer;transition:.12s}
+.go:disabled{background:var(--soft);color:var(--faint);cursor:default}
+.r:disabled{opacity:.5;cursor:default}
+.fail{margin-top:12px;background:#fdeceb;border:1px solid #f2b8b5;color:#8a2620;border-radius:11px;padding:12px 14px;font-size:13.5px;line-height:1.5}
+.done{text-align:center;padding:30px 10px}
+.done .tick{width:54px;height:54px;border-radius:50%;background:#e9f4ec;border:1px solid #bfe0c8;color:var(--good);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.done .tick svg{width:28px;height:28px}
+.done h2{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;margin:0 0 6px}
+.muted{color:var(--dim);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+    <div><h1>Something wrong here?</h1><div class="sub">Tap what's off — it corrects the weekly report</div></div>
+  </div>
+  <div id="app"></div>
+</div>
+<script>
+// Same /exec relay as the foreman "why no review" form and the photoshoot confirmation --
+// ONE Apps Script project handles all of them (review_response.html:53).
+var RELAY_URL='https://script.google.com/macros/s/AKfycbzX3q9VqyZKd3FUbGCPKN9JcQgcp15rz0QXxzNnxTYeXSRCY16Ei8n_9D07c9EQvOxM/exec';
+// The issue list. UNLIKE the foreman reasons -- which the office curates in the portal's
+// Settings tab and which the form therefore fetches live -- these five are a fixed taxonomy of
+// how OUR pipeline can be wrong about a lead, not a business list anyone edits. There is no
+// Settings UI behind them, so fetching them would only add a cold-start round trip to a list
+// that cannot change. If that ever stops being true, copy loadReasons() from
+// review_response.html:63 rather than editing this array in two places.
+var ISSUES=['This wasn’t my lead','The status is wrong','A call is missing','The timing is wrong','Other'];
+var OTHER_LABEL='Other';
+// TRUE for any option meaning "none of these fit". Deliberately NOT an exact-string test: the
+// foreman form shipped one, the office renamed the option to "Other (Comment)", and the note box
+// silently stopped opening -- foremen could no longer explain anything (2026-07-20).
+function isOther(r){ return /^other\b/i.test(String(r==null?'':r).trim()); }
+function $(s){return document.querySelector(s);}
+function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function qp(k){try{return new URLSearchParams(location.search).get(k)||'';}catch(e){return '';}}
+// req = the Moveboard Request #, which can be a JOB CODE (letters and dashes), never digits-only.
+// It is read and sent verbatim; nothing here parses or normalises it.
+var LEAD={req:qp('req'),rep:qp('rep'),cust:qp('cust'),date:qp('d')};
+var SENT=false;   // one submit per page -- a double-tap must not log the same complaint twice
+// The relay is an Apps Script /exec with no CORS headers, so the POST is mode:'no-cors' and the
+// response is OPAQUE -- a status can never be read. An opaque fetch still REJECTS on a network
+// failure, which is the realistic case (phone on a train, captive wifi), so we await it, add
+// keepalive so it survives the tab being closed, and only say "Thank you" once the request has
+// actually left the device.
+function submit(issue){
+  if(SENT)return; SENT=true;
+  var note=($('#note')&&$('#note').value||'').trim();
+  var btns=document.querySelectorAll('.r,#otherGo');
+  Array.prototype.forEach.call(btns,function(b){b.disabled=true;});
+  // Every path needs a visible sending state, not just the Other button. The relay is a
+  // cold-start Apps Script and can take 20-50s to answer; review_response.html gets away with
+  // showing nothing because its loadReasons() JSONP on page load has already woken the script
+  // by the time a foreman taps. This page has no such fetch (its issue list is local), so the
+  // FIRST submit of the day eats the whole cold start -- and a dead-looking button is exactly
+  // what makes someone tap again, or give up and assume it is broken.
+  var go=$('#otherGo'); if(go&&go.disabled!==undefined)go.textContent='Sending…';
+  Array.prototype.forEach.call(document.querySelectorAll('.r'),function(b){
+    if(b.getAttribute('data-r')===issue){b.classList.add('sel');b.textContent='Sending…';}
+  });
+  fetch(RELAY_URL,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},
+    // one field per logged column, exactly as review_response.html:108 maps to the
+    // "Review Responses" header. `cust` is shown on screen but NOT sent: it is recoverable
+    // by joining Request #, and a payload field with no column is how header drift starts.
+    body:JSON.stringify({kind:'salesFeedback',requestNo:LEAD.req,rep:LEAD.rep,
+                         date:LEAD.date,issue:issue,note:note})})
+    .then(function(){ renderDone(issue,note); })
+    .catch(function(){ SENT=false; renderFail(issue,note); });
+}
+function renderFail(issue,note){
+  Array.prototype.forEach.call(document.querySelectorAll('.r,#otherGo'),function(b){b.disabled=false;});
+  var go=$('#otherGo'); if(go)go.textContent='Send';
+  // put the tapped button's own words back -- submit() replaced them with "Sending…", and a
+  // retry screen offering a button labelled "Sending…" is unusable. data-r holds the truth.
+  Array.prototype.forEach.call(document.querySelectorAll('.r'),function(b){
+    var lbl=b.getAttribute('data-r'); if(lbl&&b.textContent!==lbl)b.textContent=lbl;
+  });
+  var w=$('#failMsg');
+  if(!w){ w=document.createElement('div'); w.id='failMsg'; w.className='fail'; $('#app').appendChild(w); }
+  w.innerHTML='<b>Couldn’t send — no connection.</b> Nothing was saved yet. '
+    +'Try again when you have signal — your note is still here.';
+  try{w.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){}
+}
+// "Other" means "none of these fit", so the explanation IS the row -- it must be typed before
+// anything is logged. The foreman form once submitted instantly on tap and the office got a row
+// saying "Other" and nothing else.
+function pickOther(label){
+  var box=$('#otherBox'); if(!box)return;
+  if(label)OTHER_LABEL=label;
+  box.style.display='block';
+  Array.prototype.forEach.call(document.querySelectorAll('.r'),function(b){b.classList.toggle('sel',b.getAttribute('data-r')===OTHER_LABEL);});
+  var t=$('#note'); if(t){t.placeholder='What’s wrong with this lead? (required)'; t.focus();}
+  syncOtherBtn();
+  try{box.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){}
+}
+function syncOtherBtn(){
+  var t=$('#note'), b=$('#otherGo'); if(!t||!b)return;
+  var ok=!!t.value.trim(); b.disabled=!ok;
+  b.textContent = ok ? 'Send' : 'Type what’s wrong first';
+}
+function render(){
+  if(!LEAD.req){$('#app').innerHTML='<div class="card"><b>Missing lead.</b><p class="muted">Please use the link from the weekly email.</p></div>';return;}
+  var typed=($('#note')&&$('#note').value)||'';
+  var otherOpen=!!($('#otherBox')&&$('#otherBox').style.display==='block');
+  $('#app').innerHTML='<div class="card">'
+    +'<div class="jc">'+esc(LEAD.cust||('Request '+LEAD.req))+'</div>'
+    +'<div class="jmeta">'+esc(LEAD.req)+(LEAD.rep?' · '+esc(LEAD.rep):'')+(LEAD.date?' · '+esc(LEAD.date):'')+'</div>'
+    +'<div class="q">What’s wrong with this lead?</div>'
+    +'<div class="reasons">'+ISSUES.map(function(r){return '<button class="r" data-r="'+esc(r)+'">'+esc(r)+'</button>';}).join('')+'</div>'
+    +'<div id="otherBox" style="display:'+(otherOpen?'block':'none')+'">'
+      +'<label class="fld">Tell us what’s wrong</label>'
+      +'<textarea id="note" placeholder="What’s wrong with this lead? (required)">'+esc(typed)+'</textarea>'
+      +'<button class="go" id="otherGo" disabled>Type what’s wrong first</button>'
+    +'</div>'
+    +'</div>';
+  Array.prototype.forEach.call(document.querySelectorAll('.r'),function(b){
+    b.onclick=function(){
+      var r=b.getAttribute('data-r');
+      if(isOther(r)){pickOther(r);return;}
+      submit(r);
+    };
+  });
+  var t=$('#note'); if(t){t.oninput=syncOtherBtn;}
+  var g=$('#otherGo'); if(g){g.onclick=function(){ if(($('#note').value||'').trim()) submit(OTHER_LABEL); };}
+  if(otherOpen)syncOtherBtn();
+}
+function renderDone(issue,note){
+  $('#app').innerHTML='<div class="card done"><div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>'
+    +'<h2>Thank you</h2><p class="muted">Logged for <b>'+esc(LEAD.cust||('Request '+LEAD.req))+'</b>: “'+esc(issue)+'”'
+    +(note?'<br><span style="color:var(--faint)">“'+esc(note)+'”</span>':'')
+    // This sentence is a PROMISE, so something has to keep it: next Monday's report carries a
+    // "Flagged last week" block listing what came in (weekly_sales_email._flagged_block). If
+    // that block is ever removed, soften this line in the same commit -- a flag button that
+    // visibly changes nothing is one people stop pressing.
+    +'. It will be listed in next Monday’s report.</p></div>';
+}
+render();
+</script>
+</body>
+</html>
