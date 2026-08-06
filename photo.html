@@ -150,6 +150,8 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
   <div class="filters">
     <span class="ftlabel">Pickup state</span>
     <div class="tiles" id="stateTiles"></div>
+    <span class="ftlabel">Distance</span>
+    <div class="tiles"><button type="button" class="tile active" id="distTile">≤ 50 mi</button></div>
   </div>
   <div id="out"><div class="loader"><div class="spin"></div><span>Loading photoshoots&hellip;</span></div></div>
 </div>
@@ -160,6 +162,7 @@ var SHEET_ID='1CkeM4UF6ohQdC17AVTNtUoQaM1E6vmnXuEnqgzZVLOs';
 var SHEET_TAB='Google Calendar';
 var PHOTO_SINCE='2026-06-25'; // only events created on/after this date are eligible for photoshoot
 var MIN_CF=1000; // only show jobs at least this big (cubic feet)
+var DISTON=true; // distance (<=50mi from home) filter on/off
 var CREW_TAB='Crew Members';
 var GCAL_ID='contact@ziptozipmoving.com';
 var JOBS=[], CREW={}, puSel=new Set(['NJ','NY','CT']), CONFIRMED={};
@@ -303,8 +306,9 @@ function loadSheet(){
   }).catch(function(e){toast('⚠ Could not read the sheet: '+e.message);});
 }
 function localJobs(){return JOBS.filter(function(j){return /local/i.test(j.mt)&&!/long/i.test(j.mt);});}
-function finishLoad(){buildStateTiles();render();}
+function finishLoad(){buildStateTiles();buildDistToggle();render();}
 var STATES=['NJ','NY','CT'];
+function buildDistToggle(){var b=document.getElementById('distTile');if(!b)return;function u(){b.textContent=DISTON?'\u2264 50 mi':'Any distance';if(DISTON)b.classList.add('active');else b.classList.remove('active');}b.onclick=function(){DISTON=!DISTON;u();render();};u();}
 function buildStateTiles(){
   var host=$('#stateTiles');if(!host)return;
   host.innerHTML=STATES.map(function(s){return '<button type="button" class="tile'+(puSel.has(s)?' active':'')+'" data-st="'+s+'">'+s+'</button>';}).join('');
@@ -349,11 +353,10 @@ function render(){
   JOBS.forEach(function(j){
     if(!j.date||j.date<today)return;
     if((j.cf||0)<MIN_CF)return;
-    if(j.lat==null||j.lon==null)return;
     if(!puSel.has(j.puState))return;
-    var dist=haversine(H.lat,H.lon,j.lat,j.lon);
-    if(dist>50)return;
-    rows.push({j:j,dist:dist});
+    var dist=(j.lat!=null&&j.lon!=null)?haversine(H.lat,H.lon,j.lat,j.lon):null;
+    if(DISTON){ if(dist==null||dist>50)return; }
+    rows.push({j:j,dist:(dist==null?9999:dist)});
   });
   rows.sort(function(a,b){return (a.j.date||'').localeCompare(b.j.date||'')||((a.j.tmin==null?9999:a.j.tmin)-(b.j.tmin==null?9999:b.j.tmin))||(a.dist-b.dist);});
   if(!rows.length){out.innerHTML='<div class="empty"><b>No photoshoots right now</b>There are no jobs to photograph for the selected states. Try turning on more states above.</div>';return;}
