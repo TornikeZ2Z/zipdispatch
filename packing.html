@@ -173,6 +173,8 @@ tbody tr.muted td{color:var(--faint)}
 .rj-cell small{color:var(--faint);font-size:11px}
 .rj-why{margin-top:7px;font-size:12px;color:var(--bad);border-top:1px dashed #e7b4ad;padding-top:6px}
 .rj-answered{margin-top:7px;font-size:12px;color:#1f6f3f;background:#e9f4ec;border:1px solid #bfe0c8;border-radius:7px;padding:6px 9px}
+.dotc{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+table td.mats{white-space:normal;font-size:12px;color:#646B73;line-height:1.45;max-width:520px}
 </style>
 </head>
 <body>
@@ -519,6 +521,50 @@ function scoreTrendHTML(ms){
   return '<div class="strend">'+ms.map(function(x){var col=x.risk>=30?'var(--bad)':x.risk>=15?'var(--warn)':'var(--good)';var h=Math.round(x.risk/mx*100);var p=String(x.m).split('-');var lab=(MON[(+p[1])-1]||'')+' '+String(p[0]).slice(2);
     return '<div class="stcol" title="'+esc(x.m)+': concern '+x.risk+' · '+x.n+' big jobs"><div class="stbarwrap"><div class="stbar" style="height:'+h+'%;background:'+col+'"></div></div><div class="stval">'+x.risk+'</div><div class="stlab">'+esc(lab)+'</div></div>';}).join('')+'</div>';
 }
+function foremanMat(fi){
+  var live=[],i,a,k;
+  for(var ji=0;ji<JOBS.length;ji++){ if(!isLive(ji))continue; var jj=JOBS[ji];
+    if(DFROM||DTO){var _d=jj[Jd]||'';if(!_d||(DFROM&&_d<DFROM)||(DTO&&_d>DTO))continue;}
+    live.push(ji); }
+  var N=live.length||1, fpc=[]; for(i=0;i<nItems;i++)fpc[i]=0;
+  for(a=0;a<live.length;a++){var jq=jobItemQty[live[a]];for(i=0;i<nItems;i++)if(jq[i]>0)fpc[i]++;}
+  var jobs=[];
+  for(a=0;a<live.length;a++){var jx=live[a],J=JOBS[jx];if(J[Jf]!==fi)continue;
+    jobs.push({ji:jx,code:J[Jc],date:J[Jd],cf:J[Jcf],est:J[Je],act:J[Ja],pk100:J[Jcf]>0?100*J[Ja]/J[Jcf]:0,ave:(J[Je]&&J[Je]>0)?J[Ja]/J[Je]:null,big:J[Jcf]>=BIGCF}); }
+  var p=S.per[fi], rows=[];
+  for(i=0;i<nItems;i++){
+    var qty=0,usd=0,pen=0;
+    for(k=0;k<jobs.length;k++){var q=jobItemQty[jobs[k].ji][i];if(q>0){qty+=q;usd+=jobItemTot[jobs[k].ji][i];pen++;}}
+    var att=(p&&p.attach&&p.attach[i])?p.attach[i].f:null, fa=(S.fleetItem&&S.fleetItem[i])||0;
+    var fpen=fpc[i]/N, pp=jobs.length?pen/jobs.length:0, ratio=(att!=null&&fa>0)?att/fa:null, v='normal';
+    if(fpen>=0.15){ if(pp<0.08&&(att==null||fa==0||att<0.35*fa))v='gap'; else if(ratio!=null&&ratio<0.5)v='weak'; }
+    if(ratio!=null&&ratio>1.3&&pp>=0.10)v='strong';
+    rows.push({i:i,name:ITEM_NAMES[i],cat:ICAT[i],qty:qty,usd:usd,pen:pp,fpen:fpen,attach:att,fleet:fa,ratio:ratio,v:v});
+  }
+  return {jobs:jobs,rows:rows,totalUsd:sum(rows.map(function(r){return r.usd;}))};
+}
+function matVerdict(v){return v==='strong'?'<span class="pill p-good">Sells well</span>':v==='weak'?'<span class="pill p-warn">Below fleet</span>':v==='gap'?'<span class="pill p-bad">Barely sells</span>':'';}
+function matTableHTML(M){
+  var rows=M.rows.slice().sort(function(a,b){return b.usd-a.usd;});
+  var body=rows.map(function(r){
+    var vs=(r.ratio!=null)?'<span class="delta '+(r.ratio<0.7?'dn':r.ratio>1.3?'up':'eq')+'">'+(r.ratio>=1?'+':'')+num(100*(r.ratio-1),0)+'%</span>':'—';
+    return '<tr><td class="l"><span class="dotc" style="background:'+(CAT_COLOR[r.cat]||COL.dim)+'"></span>'+esc(r.name.replace(/\s*\(.*\)/,''))+'</td><td class="num">'+(r.qty?num(r.qty):'—')+'</td><td class="num">'+(r.usd?money(r.usd):'—')+'</td><td class="num">'+pct(100*r.pen)+'</td><td class="num">'+(r.attach!=null?num(r.attach,2):'—')+'</td><td class="l">'+vs+'</td><td class="l">'+matVerdict(r.v)+'</td></tr>';
+  }).join('');
+  return '<div class="tbl"><table><thead><tr><th class="l">Material</th><th>Units sold</th><th>$ sold</th><th>% of jobs</th><th>Units/100CF</th><th class="l">vs fleet</th><th class="l">Verdict</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+function matJobsHTML(M){
+  var js=M.jobs.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var body=js.slice(0,250).map(function(j){
+    var mats=[],i;for(i=0;i<nItems;i++){var q=jobItemQty[j.ji][i];if(q>0)mats.push(num(q)+'× '+ITEM_NAMES[i].replace(/\s*\(.*\)/,''));}
+    return '<tr><td class="l">'+esc(j.code)+'</td><td>'+esc(j.date||'')+'</td><td class="num">'+num(j.cf)+'</td><td class="num">'+(j.est?money(j.est):'—')+'</td><td class="num">'+money(j.act)+'</td><td class="num">'+(j.ave!=null?pct(100*j.ave):'—')+'</td><td class="num">'+num(j.pk100)+'</td><td class="l mats">'+(mats.length?esc(mats.join(', ')):'<span class="muted-s">none</span>')+'</td></tr>';
+  }).join('');
+  return '<div class="tbl"><table><thead><tr><th class="l">Job</th><th>Date</th><th>CF</th><th>Est $</th><th>Act $</th><th>Act/Est</th><th>$/100CF</th><th class="l">Materials sold</th></tr></thead><tbody>'+body+'</tbody></table></div>'+(js.length>250?'<div class="muted-s" style="margin-top:8px">Showing 250 of '+js.length+' jobs.</div>':'');
+}
+function cfgMatUsd(){
+  var M=S.curMat;if(!M)return {type:'bar',data:{labels:[],datasets:[]}};
+  var rows=M.rows.filter(function(r){return r.usd>0;}).sort(function(a,b){return b.usd-a.usd;});
+  return {type:'bar',data:{labels:rows.map(function(r){return ITEM_NAMES[r.i].replace(/\s*\(.*\)/,'');}),datasets:[{label:'$ sold',data:rows.map(function(r){return Math.round(r.usd);}),backgroundColor:rows.map(function(r){return CAT_COLOR[r.cat]||COL.acc;}),borderRadius:4,maxBarThickness:16}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return '$'+Number(c.raw).toLocaleString();}}}},scales:{x:{ticks:{color:COL.dim,callback:function(v){return '$'+(v>=1000?(v/1000)+'k':v);}}},y:{ticks:{color:COL.ink,font:{size:11}}}}}};
+}
 function renderForeman(){
   var opts=S.per.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(p){return '<option value="'+p.fi+'"'+(p.fi===curForeman?' selected':'')+'>'+esc(p.name)+(p.conf==='Insufficient'?' (few jobs)':'')+'</option>';}).join('');
   var p=S.per[curForeman], fleet=S.fleet;
@@ -546,6 +592,10 @@ function renderForeman(){
   html+='</div>';
   var ff=flaggedJobs().filter(function(f){return JOBS[f.ji][Jf]===curForeman;});
   html+='<div class="card">'+cardH(ff.length+' flagged job'+(ff.length===1?'':'s')+' for '+p.name.split(' ')[0],'Specific jobs to review.')+(ff.length?jobFlagTable(ff,false):'<div class="muted-s">No individual jobs flagged.</div>')+'</div>';
+  var MAT=foremanMat(curForeman);S.curMat=MAT;
+  html+='<div class="card">'+cardH('Packing materials — what he sells','Every catalogue item: units and $ he has sold, how often (penetration), and his attach rate vs the fleet. “Barely sells” = the fleet routinely sells it, he almost never does.')+matTableHTML(MAT)+'</div>';
+  html+='<div class="card">'+cardH('Packing $ by material','Where his packing revenue comes from — by material, coloured by category.','ch-matusd')+'<div class="chartbox tall"><canvas id="ch-matusd"></canvas></div></div>';
+  html+='<div class="card">'+cardH('Per job — what he actually sold','Every one of his jobs with the exact materials sold on it, newest first.')+matJobsHTML(MAT)+'</div>';
   $('#v-foreman').innerHTML=html;
 }
 function jobFlagTable(list,withBtn){
@@ -875,7 +925,7 @@ function cfgCfGap(){
 /* ============================ CHARTS ============================ */
 var COL={bad:'#C0392B',warn:'#B7791F',good:'#2E7D46',acc:'#B26B0B',blue:'#2563EB',dim:'#9298A0',line:'#E7E4DB',ink:'#1E2228'};
 var PAINT={};
-var CHART_TITLES={'ch-prob':'Concern score by foreman','ch-cfgap':'CF cross-check vs calendar','ch-fulfil':'Quoted vs recorded packing — fulfilment','ch-invunit':'Packing $ per unit of goods moved','ch-risk':'Risk score by foreman','ch-lead':'Packing $ per 100 CF — leaderboard','ch-scatter':'Volume vs efficiency','ch-mix':'Item mix by revenue','ch-radar':'Signal profile vs fleet','ch-attach':'Item attach vs fleet','ch-jobs':'Every job: size vs packing','ch-trend':'Monthly packing $ / 100 CF','ch-gap':'Gap to benchmark — $/100 CF'};
+var CHART_TITLES={'ch-prob':'Concern score by foreman','ch-cfgap':'CF cross-check vs calendar','ch-fulfil':'Quoted vs recorded packing — fulfilment','ch-invunit':'Packing $ per unit of goods moved','ch-risk':'Risk score by foreman','ch-lead':'Packing $ per 100 CF — leaderboard','ch-scatter':'Volume vs efficiency','ch-mix':'Item mix by revenue','ch-radar':'Signal profile vs fleet','ch-attach':'Item attach vs fleet','ch-jobs':'Every job: size vs packing','ch-trend':'Monthly packing $ / 100 CF','ch-matusd':'Packing $ by material','ch-gap':'Gap to benchmark — $/100 CF'};
 var reflinePlugin={id:'refline',afterDatasetsDraw:function(c,a,o){if(!o||o.value==null)return;var ax=o.axis==='y'?c.scales.y:c.scales.x;if(!ax)return;var ctx=c.ctx;ctx.save();ctx.strokeStyle=o.color||COL.dim;ctx.setLineDash([5,4]);ctx.lineWidth=1.4;if(o.axis==='y'){var yy=ax.getPixelForValue(o.value);ctx.beginPath();ctx.moveTo(c.chartArea.left,yy);ctx.lineTo(c.chartArea.right,yy);ctx.stroke();if(o.label){ctx.fillStyle=o.color||COL.dim;ctx.font='600 11px Inter';ctx.fillText(o.label,c.chartArea.left+6,yy-4);}}else{var xx=ax.getPixelForValue(o.value);ctx.beginPath();ctx.moveTo(xx,c.chartArea.top);ctx.lineTo(xx,c.chartArea.bottom);ctx.stroke();if(o.label){ctx.fillStyle=o.color||COL.dim;ctx.font='600 11px Inter';ctx.fillText(o.label,xx+4,c.chartArea.top+12);}}ctx.restore();}};
 function destroyChart(id){if(CHARTS[id]&&CHARTS[id].inst){try{CHARTS[id].inst.destroy();}catch(e){}}CHARTS[id]=null;}
 function paint(id,cfgFn){PAINT[id]=cfgFn;if(!window.Chart)return;var cv=document.getElementById(id);if(!cv)return;destroyChart(id);try{CHARTS[id]={inst:new Chart(cv,cfgFn())};}catch(e){}}
@@ -884,7 +934,7 @@ function refreshCharts(view){
   if(view==='problems')paint('ch-prob',cfgProb);
   else if(view==='risk')paint('ch-risk',cfgRisk);
   else if(view==='overview'){paint('ch-lead',cfgLead);paint('ch-scatter',cfgScatter);paint('ch-mix',cfgMix);}
-  else if(view==='foreman'){paint('ch-radar',cfgRadar);paint('ch-attach',cfgAttach);paint('ch-jobs',cfgJobs);paint('ch-trend',cfgTrend);}
+  else if(view==='foreman'){paint('ch-radar',cfgRadar);paint('ch-attach',cfgAttach);paint('ch-jobs',cfgJobs);paint('ch-trend',cfgTrend);paint('ch-matusd',cfgMatUsd);}
   else if(view==='bench')paint('ch-gap',cfgGap);
   else if(view==='calendar'){if(CAL_PULLED){paint('ch-cfgap',cfgCfGap);paint('ch-fulfil',cfgFulfil);}}
   else if(view==='inventory')paint('ch-invunit',cfgInvUnit);
