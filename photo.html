@@ -153,6 +153,10 @@ body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans
     <div class="tiles" id="stateTiles"></div>
     <span class="ftlabel">Distance</span>
     <div class="tiles"><button type="button" class="tile active" id="distTile">≤ 50 mi</button></div>
+    <span class="ftlabel">Size</span>
+    <div class="tiles"><button type="button" class="tile active" id="cfTile">≥ 1,000 CF</button></div>
+    <span class="ftlabel">Approval</span>
+    <div class="tiles"><button type="button" class="tile active" id="appTile">Approved only</button></div>
   </div>
   <div id="out"><div class="loader"><div class="spin"></div><span>Loading photoshoots&hellip;</span></div></div>
 </div>
@@ -164,6 +168,8 @@ var SHEET_TAB='Google Calendar';
 var PHOTO_SINCE='2026-06-25'; // only events created on/after this date are eligible for photoshoot
 var MIN_CF=1000; // only show jobs at least this big (cubic feet)
 var DISTON=true; // distance (<=50mi from home) filter on/off
+var CFON=true;   // size filter (>=MIN_CF) on/off
+var APPON=true;  // sales-approval filter on/off
 var CREW_TAB='Crew Members';
 var GCAL_ID='contact@ziptozipmoving.com';
 var JOBS=[], CREW={}, puSel=new Set(['NJ','NY','CT']), CONFIRMED={};
@@ -293,10 +299,11 @@ function loadSheet(){
       if((iJC>=0?(r[iJC]||''):'').trim().toLowerCase()!=='zip to zip')return;
       var L=parseLabels(r[iDesc]||'');
       var created=parseDate(iCreate>=0?(r[iCreate]||''):'');
-      if(created>=PHOTO_SINCE&&(L['allowed photo shooting']||'').trim().toUpperCase()!=='YES')return;
+      var pflag=(L['allowed photo shooting']||'').trim().toUpperCase();
       out.push(buildJob({jobCode:fjob,requestNo:(r[iFReq]||'').trim(),date:parseDate(r[iDate]),tmin:parseTimeMin(r[iDate]),
         title:title,emoji:title.indexOf('📸')>=0,
-        allowedShoot:(L['allowed photo shooting']||'').trim().toUpperCase()==='YES',
+        photoFlag:pflag,created:created,
+        allowedShoot:pflag==='YES',
         customer:(L['customer name']||'').trim(),
         pickup:(r[iLoc]||'').trim()||L['moving from']||'',deliv:(L['moving to']||'').trim(),
         cf:calNumV(L['total cf'])||0,mt:((r[iMT]||'').trim()||L['moving type']||''),
@@ -307,12 +314,18 @@ function loadSheet(){
   }).catch(function(e){toast('⚠ Could not read the sheet: '+e.message);});
 }
 function localJobs(){return JOBS.filter(function(j){return /local/i.test(j.mt)&&!/long/i.test(j.mt);});}
-function finishLoad(){buildStateTiles();buildDistToggle();render();}
+function finishLoad(){buildStateTiles();buildToggles();render();}
 var STATES=['NJ','NY','CT'];
-function buildDistToggle(){var b=document.getElementById('distTile');if(!b)return;function u(){b.textContent=DISTON?'\u2264 50 mi':'Any distance';if(DISTON)b.classList.add('active');else b.classList.remove('active');}b.onclick=function(){DISTON=!DISTON;u();render();};u();}
+function allStates(){var s={};JOBS.forEach(function(j){if(j.puState)s[j.puState]=1;});var a=Object.keys(s).sort();var pri=STATES.filter(function(x){return a.indexOf(x)>=0;});return pri.concat(a.filter(function(x){return pri.indexOf(x)<0;}));}
+function bindToggle(id,get,set,onLab,offLab){var b=document.getElementById(id);if(!b)return;function u(){var v=get();b.textContent=v?onLab:offLab;if(v)b.classList.add('active');else b.classList.remove('active');}b.onclick=function(){set(!get());u();render();};u();}
+function buildToggles(){
+  bindToggle('distTile',function(){return DISTON;},function(v){DISTON=v;},'\u2264 50 mi','Any distance');
+  bindToggle('cfTile',function(){return CFON;},function(v){CFON=v;},'\u2265 1,000 CF','Any size');
+  bindToggle('appTile',function(){return APPON;},function(v){APPON=v;},'Approved only','Incl. unflagged');
+}
 function buildStateTiles(){
   var host=$('#stateTiles');if(!host)return;
-  host.innerHTML=STATES.map(function(s){return '<button type="button" class="tile'+(puSel.has(s)?' active':'')+'" data-st="'+s+'">'+s+'</button>';}).join('');
+  host.innerHTML=allStates().map(function(s){return '<button type="button" class="tile'+(puSel.has(s)?' active':'')+'" data-st="'+s+'">'+s+'</button>';}).join('');
   [].forEach.call(host.querySelectorAll('.tile'),function(b){b.onclick=function(){var s=b.getAttribute('data-st');if(puSel.has(s)){puSel.delete(s);b.classList.remove('active');}else{puSel.add(s);b.classList.add('active');}render();};});
 }
 function foremanBlock(j){
@@ -335,7 +348,7 @@ function jobCard(r){
   var custHtml=ev?('<a class="jcust" href="'+ev+'" target="_blank" rel="noopener" title="Open calendar event">'+cust+cicon+'</a>')
                  :('<span class="jcust nolink">'+cust+'</span>');
   var pin='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.7-7-11a7 7 0 0 1 14 0c0 5.3-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
-  var srcBadge=j.allowedShoot?'<span class="jsrc confirmed">Confirmed by sales</span>':'<span class="jsrc earlier">Scheduled earlier</span>';
+  var srcBadge=j.allowedShoot?'<span class="jsrc confirmed">Confirmed by sales</span>':((j.created>=PHOTO_SINCE)?'<span class="jsrc earlier">Not flagged</span>':'<span class="jsrc earlier">Scheduled earlier</span>');
   var clBadge=isCLJob(j)?'<span class="jsrc cl" title="CL job (from the calendar title)">CL</span>':'';
   var route='<span class="route">'+esc(j.puState||'?')+'<span class="ar">→</span>'+esc(j.delState||'?')+'</span>';
   return '<div class="job">'
@@ -355,7 +368,9 @@ function render(){
   var rows=[];
   JOBS.forEach(function(j){
     if(!j.date||j.date<today)return;
-    if((j.cf||0)<MIN_CF)return;
+    if(j.photoFlag==='NO')return;
+    if(APPON && j.created>=PHOTO_SINCE && j.photoFlag!=='YES')return;
+    if(CFON && (j.cf||0)<MIN_CF)return;
     if(!puSel.has(j.puState))return;
     var dist=(j.lat!=null&&j.lon!=null)?haversine(H.lat,H.lon,j.lat,j.lon):null;
     if(DISTON){ if(dist==null||dist>50)return; }
